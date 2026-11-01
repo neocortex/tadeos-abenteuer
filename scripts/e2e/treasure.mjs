@@ -455,7 +455,7 @@ const state = final ?? (await read()) ?? {};
 
 // ── The brief's checks ────────────────────────────────────
 check("map card on arrival", mapCardSeen);
-check("Chuleta explains Zaubereis", said.some((l) => l.startsWith("Chuleta: ") && l.includes("Zaubereis")));
+check("Chuleta explains Zauber-Eis", said.some((l) => l.startsWith("Chuleta: ") && l.includes("Zauber-Eis")));
 check("the note is read", lines.includes(NOTE_LINE));
 check("Chuleta wonders about the P", said.includes("Chuleta: P? Wie Pirat?"));
 check("the heart comes out and is warm", state.heart && lines.some((l) => l.includes("ganz warm")));

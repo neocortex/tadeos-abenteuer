@@ -17,9 +17,9 @@ import { audio } from "../audio/Audio";
 
 /** Riddle i belongs to tablet i. The right answer is never first, because the card starts on the first answer. */
 export const RIDDLES: { lines: string[]; answers: string[]; right: number }[] = [
-  { lines: ["Ich laufe immer mit dir mit, ich sage nie ein Wort.", "Und kommt die Nacht, dann bin ich fort."], answers: ["Chuleta", "Schatten", "Wind"], right: 1 },
-  { lines: ["Mein Haus trag ich auf dem Rücken, ich muss mich nie danach bücken."], answers: ["Krabbe", "Papagei", "Schildkröte"], right: 2 },
-  { lines: ["Ich bin ein Berg mit rotem Bauch, ich spucke Feuer, Stein und Rauch."], answers: ["Drache", "Vulkan", "Kamin"], right: 1 },
+  { lines: ["Ich laufe immer mit dir mit, ich sage nie ein Wort.", "Und kommt die Nacht, dann bin ich fort.", "Was bin ich?"], answers: ["Chuleta", "Schatten", "Wind"], right: 1 },
+  { lines: ["Mein Haus trag ich auf dem Rücken, ich muss mich nie danach bücken.", "Was bin ich?"], answers: ["Krabbe", "Papagei", "Schildkröte"], right: 2 },
+  { lines: ["Ich bin ein Berg mit rotem Bauch, ich spucke Feuer, Stein und Rauch.", "Was bin ich?"], answers: ["Drache", "Vulkan", "Kamin"], right: 1 },
 ];
 
 /** How far from the middle of the lake, towards Tadeo, the Hüter rises: close enough to see his face, still over open water. */

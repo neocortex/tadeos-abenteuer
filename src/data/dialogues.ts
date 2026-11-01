@@ -550,7 +550,7 @@ export const DIALOGUES: Record<string, DialogueScript> = {
     {
       speaker: "Chuleta",
       portrait: "",
-      text: "Das ist Zaubereis! Das schmilzt nie.",
+      text: "Das ist Zauber-Eis! Das schmilzt nie.",
     },
     {
       speaker: "Chuleta",

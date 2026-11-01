@@ -37,7 +37,7 @@ export const ITEMS: Record<string, ItemDef> = {
   hammer: {
     key: "hammer",
     name: "Goldener Hammer",
-    description: "Ein mächtiger Hammer vom Berggipfel. Er zerschlägt das Zaubereis.",
+    description: "Ein mächtiger Hammer vom Berggipfel. Er zerschlägt das Zauber-Eis.",
     frame: 3,
     usableInCombat: true,
   },
