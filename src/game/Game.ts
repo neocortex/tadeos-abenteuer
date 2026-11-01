@@ -303,7 +303,8 @@ export class Game {
   private async titleScreen(): Promise<void> {
     this.ui.hud.setVisible(false);
     this.startCinematic((t) => {
-      const a = 0.9 + t * 0.045;
+      // Reason: the clouds are seeded, so this start is clear of them on every load (scripts/e2e/title.mjs measures it)
+      const a = 0.2 + t * 0.045;
       return {
         pos: new THREE.Vector3(18 + Math.cos(a) * 205, 88 + Math.sin(t * 0.2) * 6, 28 + Math.sin(a) * 165),
         look: new THREE.Vector3(18, 4, 28),

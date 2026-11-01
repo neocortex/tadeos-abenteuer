@@ -6,11 +6,12 @@
  *  3. A player who muted the game stays muted
  *  4. A browser that wants a press first stays silent, queues no sounds, and starts the music on the first
  *     key or click, with Space also starting the adventure
+ *  5. The flight behind the logo is clear of clouds for its first 30 seconds and never flies into one on a whole orbit
  *
  * Sound is measured on what really goes to the speakers, not on what the game asked for.
  *
  * Run (dev server on :5199 must be running):  node scripts/e2e/title.mjs
- * Proof: scripts/e2e/out/title/summary.json and one screenshot per window size
+ * Proof: scripts/e2e/out/title/summary.json, one screenshot per window size and two of the flight's first seconds
  */
 
 import { chromium } from "playwright";
@@ -136,6 +137,50 @@ const loudness = (page, ms = 1500) =>
 
 const AUDIBLE = 0.01;
 
+/**
+ * Runs in the page: how much of the title flight's view clouds cover, second by second.
+ * Reason: the clouds are seeded and start with the flight, so a copy shows where they will be at any flight time.
+ */
+async function measureFlight({ seconds, start }) {
+  const three = performance.getEntriesByType("resource").map((e) => e.name).find((n) => /deps\/three\.js/.test(n));
+  const THREE = await import(three);
+  const { Clouds } = await import("/src/world/Sky.ts");
+  const { game } = window;
+
+  const now = new Clouds();
+  now.update(game.cinematicTime);
+  const live = game.island.island.clouds.clouds;
+  const copyOffset = Math.max(...now.clouds.map((m, i) => m.position.distanceTo(live[i].position)));
+
+  const clouds = new Clouds();
+  const camera = game.island.rig.camera.clone();
+  const ray = new THREE.Raycaster();
+  const [COLS, ROWS, STEP] = [24, 14, 0.5];
+  const worst = { startCover: 0, cover: 0, coverAt: 0, nearest: Infinity, nearestAt: 0 };
+  for (let t = 0; t <= seconds; t += STEP) {
+    const shot = game.cinematic(t);
+    camera.position.copy(shot.pos);
+    camera.lookAt(shot.look);
+    camera.updateMatrixWorld(true);
+    clouds.group.updateMatrixWorld(true);
+    let hits = 0;
+    for (let row = 0; row < ROWS; row++) {
+      for (let col = 0; col < COLS; col++) {
+        ray.setFromCamera(new THREE.Vector2(((col + 0.5) / COLS) * 2 - 1, ((row + 0.5) / ROWS) * 2 - 1), camera);
+        const [hit] = ray.intersectObjects(clouds.clouds, false);
+        if (!hit) continue;
+        hits++;
+        if (hit.distance < worst.nearest) Object.assign(worst, { nearest: hit.distance, nearestAt: t });
+      }
+    }
+    const cover = hits / (COLS * ROWS);
+    if (t <= start) worst.startCover = Math.max(worst.startCover, cover);
+    if (cover > worst.cover) Object.assign(worst, { cover, coverAt: t });
+    clouds.update(STEP);
+  }
+  return { copyOffset, ...worst };
+}
+
 // ── 1. The name, at every window size ───────────────────────
 const allowing = await launch("no-user-gesture-required");
 {
@@ -149,8 +194,6 @@ const allowing = await launch("no-user-gesture-required");
   check("the subtitle is the island", texts.sub === "Die Schatzinsel", texts.sub);
   check("the browser tab names the game", texts.tab === "Die Abenteuer von Tadeo - Die Schatzinsel", texts.tab);
 
-  // Reason: the flight starts inside a cloud; the screenshots should show the island
-  await page.waitForTimeout(6000);
   for (const [width, height] of [[1920, 1080], [1440, 900], [1280, 720], [1024, 600], [800, 600], [600, 500]]) {
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(400);
@@ -253,6 +296,24 @@ const blocking = await launch("document-user-activation-required");
   await page.close();
 }
 await blocking.close();
+
+// ── 5. The flight stays out of the clouds ───────────────────
+const watching = await launch("no-user-gesture-required");
+{
+  const page = await open(watching);
+  await page.screenshot({ path: `${OUT}flight-early.png` });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: `${OUT}flight-later.png` });
+
+  // Reason: one full orbit takes 140 s at the flight's speed
+  const f = await inPage(page, measureFlight, { seconds: 140, start: 30 });
+  const percent = (share) => `${Math.round(share * 100)}%`;
+  check("flight: the measured clouds are the ones on screen", f.copyOffset < 0.5, `${f.copyOffset.toFixed(3)} units apart`);
+  check("flight: the first 30 seconds are clear of clouds", f.startCover < 0.05, `clouds cover at most ${percent(f.startCover)} of the view`);
+  check("flight: the camera never flies into a cloud on a whole orbit", f.nearest > 20, `nearest ${f.nearest.toFixed(1)} units at ${f.nearestAt} s, most cover ${percent(f.cover)} at ${f.coverAt} s`);
+  await page.close();
+}
+await watching.close();
 
 const passed = results.every((r) => r.ok);
 writeFileSync(`${OUT}summary.json`, JSON.stringify({ passed, when: new Date().toISOString(), results }, null, 2));

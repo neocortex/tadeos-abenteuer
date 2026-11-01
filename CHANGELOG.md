@@ -8,6 +8,7 @@
   the browser tab
 - The music starts as the page loads instead of waiting for a press. A browser that holds sound back until the first
   key or click starts it on that press
+- The flight behind the logo starts in clear air instead of inside a cloud
 
 ### Thorn hedge
 
