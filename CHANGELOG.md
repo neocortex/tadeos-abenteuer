@@ -62,6 +62,7 @@
 - At the summit the camera shows the whole island and, far out in the sea, the small island and the shark's fin
 - "Wesen" instead of "Monster" everywhere
 - Flocke has a new voice because the old one was withdrawn from the library
+- That first replacement didn't fit, so Flocke now speaks with Skyloe, a high and funny falsetto
 - Tadeo is on holiday at the sea instead of living there
 - On the landing beach the narrator says that a shark attacked the boat and the waves carried Tadeo ashore
 - Chuleta's name is recorded the Spanish way, stressed on its second syllable

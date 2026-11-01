@@ -34,7 +34,7 @@ const CAST = {
   Stimme: PACO,
   Maulwurf: { voice: "2HDQZbLZn0MJCgru92h7", model: V4 }, // Knurps
   "Kleine Mia": { voice: "QNDh5mDABxDpT3PEzjST", model: V4 }, // Emmy
-  Fuchs: { voice: "aHb0rsWUX1Fsr1L8EX7f", model: V4 }, // Wally
+  Fuchs: { voice: "Zya16F1pAnZcR8o2Ent1", model: V4 }, // Skyloe
   "Weise Frau": { voice: "yL6cMfg79EwETG98xIR2", model: V4 }, // Laura Mondschein
   "Weiser Mann": { voice: "2baru8J0e15nxuG3bzXy", model: V4 }, // Cornelius
   "Bäckerin Lina": { voice: "1iF3vHdwHKuVKSPDK23Z", model: V4 }, // Louisa
