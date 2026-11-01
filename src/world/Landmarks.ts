@@ -159,8 +159,8 @@ export class Landmarks implements LandmarkContext {
     }
   }
 
-  boat(name: string, model: Model, x: number, z: number, rotY: number): void {
-    this.boats.push({ name, group: this.boatGroup(name, model), base: new THREE.Vector3(x, 0, z), yaw: rotY, phase: this.boats.length * 2.1, afloat: true, blockers: [], colliders: [] });
+  boat(name: string, model: Model, x: number, z: number, rotY: number, blockers: [number, number, number][]): void {
+    this.boats.push({ name, group: this.boatGroup(name, model), base: new THREE.Vector3(x, 0, z), yaw: rotY, phase: this.boats.length * 2.1, afloat: true, blockers, colliders: [] });
   }
 
   beached(name: string, model: Model, blockers: [number, number, number][]): void {

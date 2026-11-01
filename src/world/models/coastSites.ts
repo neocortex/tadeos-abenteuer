@@ -94,7 +94,9 @@ export function buildPier(
       const bollard: V3 = [bs - ox, 0.45 - oy, boatSide * (HEAD_WIDTH / 2 - 0.35) - oz];
       boatModel.solid.push(rope(bollard, [ds, 0.8, -boatSide * 0.7], 0.25, 0.035));
     }
-    ctx.boat(boat.id, boatModel, bx, bzw, rotY);
+    // Reason: she floats where nobody walks, but the talk camera must not end up in her sail. Slimmer than the hull's width, so the deck stays free
+    const blockers: [number, number, number][] = [-2.2, 0, 2.2].map((l) => [...Site.local(bx, bzw, rotY, l, 0), 1.3]);
+    ctx.boat(boat.id, boatModel, bx, bzw, rotY, blockers);
   }
   return { start, dir, perp, length, deckY, rotY, at };
 }

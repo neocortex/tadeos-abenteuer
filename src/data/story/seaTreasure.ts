@@ -57,7 +57,7 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
   ],
   treasure_dig: [
     line("Tadeo", "Eine Truhe! Aber sie steckt in Eis."),
-    line("Chuleta", "Das ist Zaubereis! Das schmilzt nie."),
+    line("Chuleta", "Das ist Zauber-Eis! Das schmilzt nie."),
     line("Chuleta", "Nur der Hammer schafft es!"),
     line("Tadeo", "Der Hammer vom Berg zerschlägt das Eis. Genau wie im Spruch!"),
   ],

@@ -477,6 +477,7 @@ await page.keyboard.press("ArrowDown");
 await wait(150);
 check("ArrowDown moves the highlight", (await highlighted()) === 1);
 check("the new answer is read aloud", (await saidAloud()).includes("Schatten"));
+check("the riddle on the card ends with its question", (await page.textContent(".riddle-lines")).trim().endsWith("Was bin ich?"));
 await shot("06-riddle-card");
 await page.keyboard.press("ArrowUp");
 await wait(100);

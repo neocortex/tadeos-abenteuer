@@ -79,7 +79,7 @@ export const LEGEND: Record<string, DialogueScript> = {
     line("Tadeo", "Das will ich ja! Aber wie komme ich an das Herz?"),
     line("Hüter", "Als der Pirat es nahm, hat es ihm die Hände verbrannt."),
     line("Chuleta", "Autsch! Gack!"),
-    line("Hüter", "Also stieg er auf den Berg und holte Zaubereis. Das schmilzt nie."),
+    line("Hüter", "Also stieg er auf den Berg und holte Zauber-Eis. Das schmilzt nie."),
     line("Hüter", "Damit fror er das Herz in seine Truhe ein. Dann fuhr er aufs Meer."),
     line("Tadeo", "Zu der Insel mit dem X!"),
     line("Hüter", "Für den Weg dorthin brauchst du vier Dinge. Merk dir meinen Spruch."),

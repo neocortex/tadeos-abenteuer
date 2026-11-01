@@ -1,7 +1,7 @@
 /**
  * Treasure challenge (quest 11): a little island of white sand and palms in a
  * turquoise lagoon. The map card shows the X, Tadeo walks to it, digs up a
- * chest frozen in Zaubereis, smashes the ice with the golden hammer and
+ * chest frozen in Zauber-Eis, smashes the ice with the golden hammer and
  * unlocks the chest with the golden key. It holds Paco's note, the stolen
  * Feuerherz, a rolled-up plan, gold and a crown. Then the volcano on the
  * horizon erupts, and `finished` resolves.

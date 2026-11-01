@@ -9,7 +9,7 @@
 import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 
-const TESTS = ["title", "world", "island", "volcano", "cave", "forest", "ogre", "village", "mountain", "sea", "treasure", "finale", "fishing", "hens", "coins", "turtles", "voices", "storyLines", "music", "fps"];
+const TESTS = ["title", "world", "island", "volcano", "cave", "forest", "ogre", "village", "talk", "mountain", "sea", "treasure", "finale", "fishing", "hens", "coins", "turtles", "voices", "storyLines", "music", "fps"];
 const names = process.argv.length > 2 ? process.argv.slice(2) : TESTS;
 const dir = new URL("./", import.meta.url).pathname;
 mkdirSync(`${dir}out`, { recursive: true });

@@ -23,6 +23,7 @@ import { StoryWorld } from "./StoryWorld";
 import { TurtleFamily } from "./TurtleFamily";
 import { Lake } from "./lake";
 import { IslandSounds } from "./IslandSounds";
+import { talkShot } from "./talkShot";
 import { playOpening } from "./opening";
 import { playEnding } from "./ending";
 import { showMapCard } from "../ui/MapCard";
@@ -90,6 +91,8 @@ export class Game {
   private cinematicTime = 0;
   private remarkCooldown = 0;
   private islandSounds: IslandSounds;
+  /** The places of later quests Tadeo has already remarked on during this quest. */
+  private remarked = new Set<P2>();
   private tmp = new THREE.Vector3();
 
   constructor(private engine: Engine) {
@@ -296,10 +299,12 @@ export class Game {
       if (Number(k) > m && Number(k) < 11 && !ownSpot) later.push(g.at);
     }
     if (m < 4) later.push(...LANDMARKS.tablets);
-    if (later.some((at) => this.distance(at) < 4.5)) {
+    const place = later.find((at) => this.distance(at) < 4.5 && !this.remarked.has(at));
+    if (place) {
       const text = `Hier komme ich später wieder hin. Zuerst: ${this.quest.currentQuest.name}!`;
       this.bubble.say(text, 3800);
       NarrationManager.getInstance().speakLine(text, "Tadeo");
+      this.remarked.add(place);
       this.remarkCooldown = 12;
     }
   }
@@ -309,7 +314,8 @@ export class Game {
   private async titleScreen(): Promise<void> {
     this.ui.hud.setVisible(false);
     this.startCinematic((t) => {
-      const a = 0.9 + t * 0.045;
+      // Reason: the clouds are seeded, so this start is clear of them on every load (scripts/e2e/title.mjs measures it)
+      const a = 0.2 + t * 0.045;
       return {
         pos: new THREE.Vector3(18 + Math.cos(a) * 205, 88 + Math.sin(t * 0.2) * 6, 28 + Math.sin(a) * 165),
         look: new THREE.Vector3(18, 4, 28),
@@ -428,6 +434,7 @@ export class Game {
   private async advance(): Promise<void> {
     const finished = this.quest.currentMilestone;
     this.quest.completeMilestone();
+    this.remarked.clear();
     this.story.apply(this.quest.currentMilestone);
     this.story.rumble(finished);
     const p = this.island.player.position;
@@ -459,14 +466,7 @@ export class Game {
     const p = this.island.player;
     if (npc) {
       p.facing = Math.atan2(npc.position.x - p.position.x, npc.position.z - p.position.z);
-      const mid = p.position.clone().lerp(npc.position, 0.5);
-      // Reason: a third person stands off to one side, so the middle moves towards him to hold all three
-      if (also) mid.lerp(also.position, 1 / 3);
-      const dir = npc.position.clone().sub(p.position).setY(0).normalize();
-      const side = new THREE.Vector3(dir.z, 0, -dir.x);
-      // Reason: on the village's south-west side; with the two north and south of each other one step would otherwise swing the camera round
-      if (side.z - side.x * 0.6 < 0) side.negate();
-      rig.setShot({ pos: mid.clone().addScaledVector(side, 5.6).add(new THREE.Vector3(0, 2.4, 0)), look: mid.add(new THREE.Vector3(0, 1.1, 0)) }, 0.9);
+      rig.setShot(talkShot(p.position, npc.position, this.island.island.colliders, also?.position), 0.9);
     }
     rig.setZoom(0.62);
     this.ui.dialogue.onLine = (speaker) => {

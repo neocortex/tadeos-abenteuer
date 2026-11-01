@@ -34,6 +34,15 @@
   the browser tab
 - The music starts as the page loads instead of waiting for a press. A browser that holds sound back until the first
   key or click starts it on that press
+- The flight behind the logo starts in clear air instead of inside a cloud
+
+### Talking and riddles
+
+- The camera in a talk looks for a spot with a free view, so a lantern post, a roof or Tadeo's boat no longer fills the
+  picture
+- "Hier komme ich später wieder hin" comes once per place during a quest instead of every 12 seconds
+- The riddles at the lake end with "Was bin ich?"
+- The word on screen and in what Chuleta and the Hüter say is now "Zauber-Eis"
 
 ### Thorn hedge
 
@@ -81,7 +90,7 @@ Sachen gefunden und das Herz zurückgebracht. Und der Pirat war Paco!"
   finished quest
 - The ogre fights because the heart is gone, and becomes a friend after he eats a berry
 - The shark is calmed by three berries thrown into its open mouth, not by the hammer. The hammer is only for the
-  chest's Zaubereis. The sea trail is glowing starfish
+  chest's Zauber-Eis. The sea trail is glowing starfish
 - The chest also holds the Feuerherz, a plan and Paco's note signed "P."
 - The last quest brings the heart home through the volcano at full rock rate, then the whole island celebrates a
   night festival where Paco owns up, before the end card
