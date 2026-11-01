@@ -45,3 +45,6 @@ htmlcov/
 # Agent worktrees
 .claude/worktrees/
 .superpowers/
+
+# Session handoff notes
+HANDOFF.md
