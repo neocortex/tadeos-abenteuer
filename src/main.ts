@@ -7,11 +7,13 @@ import "@fontsource/fredoka/600.css";
 import "./style.css";
 import { Engine } from "./core/Engine";
 import { Game } from "./game/Game";
+import { audio } from "./audio/Audio";
+import { NarrationManager } from "./systems/NarrationManager";
 
 const engine = new Engine(document.getElementById("game")!);
 engine.start();
 const game = new Game(engine);
 void game.start();
 
-// Reason: expose the engine and game for E2E tests and debugging in the browser console
-Object.assign(window, { engine, game });
+// Reason: expose the engine, game and sound for E2E tests and debugging in the browser console
+Object.assign(window, { engine, game, audio, narration: NarrationManager.getInstance() });

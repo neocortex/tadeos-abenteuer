@@ -149,8 +149,8 @@ export class StoryWorld {
     this.lastRumble = strength;
     this.rig.addShake(0.2 + 0.5 * strength);
     this.island.ambient.volcano.burst(strength);
-    // Reason: the door's creak is the deepest sound there is; slowed down it becomes a groan from under the ground
-    audio.playSfx("sfx_door", 0.5 + 0.5 * strength, 0.5);
+    // Reason: a groan from under the ground, louder with every quest won
+    audio.playSfx("sfx_rumble", 0.5 + 0.5 * strength);
   }
 
   /** A challenge has just been won and the island is not on screen yet: what the island shows already follows from it. */

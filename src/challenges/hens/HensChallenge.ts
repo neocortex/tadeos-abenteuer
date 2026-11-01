@@ -500,6 +500,5 @@ export class HensChallenge implements Challenge {
     this.hud.dispose();
     this.fx.dispose();
     this.yard.dispose();
-    henVoice.dispose();
   }
 }

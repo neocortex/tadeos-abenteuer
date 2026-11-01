@@ -151,8 +151,8 @@ export class HedgeOpening {
         bursts.emit(tip(), { count: 60, color: SPARK, speed: [2, 6], life: [0.5, 1.1], size: [0.07, 0.16], gravity: 0.5 });
       }],
       [SHRINK_AT, () => {
-        // Reason: the door's creak slowed down is the groan of roots letting go of the ground
-        audio.playSfx("sfx_door", 0.45, 0.55);
+        // Reason: the groan of roots letting go of the ground
+        audio.playSfx("sfx_rumble", 0.45);
         rig.addShake(0.3);
         this.sinking = hedge.remove();
       }],

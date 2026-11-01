@@ -5,6 +5,8 @@
  * for a line without a recording. Keeps a persistent enabled/disabled preference.
  */
 
+import { audio } from "../audio/Audio";
+
 const STORAGE_KEY = "schatzkarten_narration";
 
 /** Loads the list of recordings ("speaker|text" → file). Without it every line uses browser speech. */
@@ -168,7 +170,12 @@ export class NarrationManager {
     try {
       const el = new Audio(`voices/${file}`);
       this.currentAudio = el;
+      // Reason: stop() pauses the line it cuts off; when another line has already taken over, the music stays low for it
+      el.onended = el.onpause = () => {
+        if (this.currentAudio === el || !this.currentAudio) audio.setTalking(false);
+      };
       await el.play();
+      audio.setTalking(true);
       return true;
     } catch {
       return false;
@@ -336,6 +343,8 @@ export class NarrationManager {
       utterance.lang = voice.lang;
     }
 
+    utterance.onstart = () => audio.setTalking(true);
+    utterance.onend = utterance.onerror = () => audio.setTalking(false);
     synth.speak(utterance);
   }
 

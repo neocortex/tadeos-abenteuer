@@ -223,7 +223,7 @@ class CaveChallenge implements Challenge {
     const dug = mole.dig();
     this.rig.addShake(0.2);
     await wait(1200);
-    audio.playSfx("sfx_lava_fall", 0.5, 0.6);
+    audio.playSfx("sfx_rumble", 0.5);
     audio.playSfx("sfx_door", 0.5);
     await Promise.all([dug, rock.clear()]);
     this.moleActor.atRock = false;
@@ -311,7 +311,7 @@ class CaveChallenge implements Challenge {
     await wait(1100);
     w.wall.startOpening();
     audio.playSfx("sfx_door");
-    audio.playSfx("sfx_lava_fall", 0.6, 0.5);
+    audio.playSfx("sfx_rumble", 0.6);
     await w.wall.opening;
     audio.playSfx("sfx_special", 0.7);
     await wait(900);

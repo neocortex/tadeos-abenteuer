@@ -146,13 +146,13 @@ export class BoulderLift {
 
     // Dust leaps up from where the giant sat
     this.after(0.05, () => {
-      audio.playSfx("sfx_lava_fall", 0.7, 0.8);
+      audio.playSfx("sfx_rumble", 0.7);
       rig.addShake(0.35);
       this.dust(group.position.clone().setY(group.position.y + 0.4), 3.4, 46);
     });
     // The strain: the giant hangs overhead and the ground shudders
     this.after(BOULDER_EXIT.held, () => {
-      audio.playSfx("sfx_door", 0.5, 0.5);
+      audio.playSfx("sfx_rumble", 0.5);
       rig.addShake(0.25);
     });
     this.after(BOULDER_EXIT.throwAt, () => {

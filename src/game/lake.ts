@@ -93,8 +93,8 @@ export class Lake {
     player.facing = Math.atan2(spot.x - p.x, spot.z - p.z);
     rig.setShot(this.lakeShot(spot), 1.8);
     await wait(CALM_MS);
-    // Reason: the door's creak slowed down becomes a deep groan from under the water
-    audio.playSfx("sfx_door", 0.7, 0.5);
+    // Reason: a deep groan from under the water
+    audio.playSfx("sfx_rumble", 0.7);
     rig.addShake(0.3);
     const risen = this.hueter.rise();
     await wait(1600);

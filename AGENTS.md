@@ -13,9 +13,11 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
 - `npm run dev` — dev server on :3000
 - `npm run voices` — render new or changed spoken lines with ElevenLabs (needs `ELEVENLABS_API_KEY` in `.env`);
   `npm run voices -- --dry-run` shows what would be rendered without spending credits
+- `npm run audio` — render new or changed music and sounds with ElevenLabs (same key, same `--dry-run`); the
+  prompts are `SOUNDS` in `scripts/audio/generate.mjs`, and deleting an MP3 renders a new take of it
 - `npx tsc --noEmit -p .` — type-check (must be clean)
 - E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (title, world, island, volcano, cave, forest,
-  ogre, village, mountain, sea, treasure, finale, fishing, hens, coins, turtles, voices, fps). Proof goes to
+  ogre, village, mountain, sea, treasure, finale, fishing, hens, coins, turtles, voices, music, fps). Proof goes to
   `scripts/e2e/out/<name>/`.
 
 ## Architecture
@@ -39,6 +41,10 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   Sibling challenges built as a pair reuse each other's files (sea → ogre kit, forest → cave materials,
   mountain → `volcano/kit`); a third user of such a file is the moment to move it to `shared/`, or to
   `src/characters/` when it is a character model.
+- `audio/Audio.ts` plays music with `audio.playMusic(key)` from any scene, cross-fading once the file has loaded.
+  `audio/samples.ts` matches each recording's loudness and blends its loop; `audio/Ambience.ts` holds the island's
+  backgrounds and animal calls, and `game/IslandSounds.ts` mixes them by where Tadeo stands. A new sound effect goes
+  into `SOUNDS` in `scripts/audio/generate.mjs` and into `EFFECTS` in `audio/Audio.ts`, then `npm run audio`.
 - `classic-2d/` is the original Phaser 2D game, kept as a frozen snapshot for nostalgia. It has its own
   `package.json` and is not part of the type-check, build or E2E runs. Don't change it.
 

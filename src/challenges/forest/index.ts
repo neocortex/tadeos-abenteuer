@@ -111,7 +111,7 @@ class ForestChallenge implements Challenge {
     await this.ui.hud.showBanner("Kapitel 6", "Der Zauberwald", 2400);
     await this.talk("forest_enter");
     this.fox.hop();
-    audio.playSfx("sfx_special", 0.5, 1.4);
+    audio.playSfx("sfx_fox_hop", 0.7);
     this.foxPoof();
     await wait(500);
     await this.talk(MEET_FOX);

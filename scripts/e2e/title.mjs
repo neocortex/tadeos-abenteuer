@@ -31,7 +31,7 @@ const check = (name, ok, detail = "") => {
 
 /** Logs every sound the game starts, and taps everything of it that reaches the speakers. */
 function listen() {
-  const log = { game: null, music: [], effects: 0, birdNotes: 0, titleAt: null };
+  const log = { game: null, music: [], effects: 0, titleAt: null };
   window.__sound = log;
   const Native = window.AudioContext;
   window.AudioContext = class extends Native {
@@ -48,17 +48,12 @@ function listen() {
   };
   const startBuffer = AudioBufferSourceNode.prototype.start;
   AudioBufferSourceNode.prototype.start = function (...args) {
-    // Reason: only the game's sound bank plays buffers; the hens have their own context, made of oscillators
+    // Reason: everything the game plays goes through its one audio context
     log.game = this.context;
-    // Reason: music tracks are the looping mono buffers; the other loop, the sea, is stereo
-    if (this.loop && this.buffer.numberOfChannels === 1) log.music.push(performance.now());
+    // Reason: music tracks are the long loops; the island's backgrounds loop too, but last only 30 seconds
+    if (this.loop && this.buffer.duration > 40) log.music.push(performance.now());
     if (!this.loop) log.effects++;
     return startBuffer.apply(this, args);
-  };
-  const startOscillator = OscillatorNode.prototype.start;
-  OscillatorNode.prototype.start = function (...args) {
-    if (this.context === log.game) log.birdNotes++;
-    return startOscillator.apply(this, args);
   };
   new MutationObserver(() => {
     if (log.titleAt === null && document.querySelector(".title-screen")) log.titleAt = performance.now();
@@ -114,7 +109,6 @@ const sound = (page) =>
       musicAt: log.music[0] ?? null,
       titleAt: log.titleAt,
       effects: log.effects,
-      birdNotes: log.birdNotes,
     };
   });
 
@@ -184,9 +178,10 @@ const allowing = await launch("no-user-gesture-required");
   const s = await sound(page);
   check("sound allowed: the music plays with no press", s.state === "running" && s.musicTracks === 1 && peak > AUDIBLE, `${JSON.stringify(s)}, peak ${peak.toFixed(3)}`);
   check("sound allowed: the music is on before the title screen appears", s.musicAt !== null && s.musicAt < s.titleAt, `music at ${Math.round(s.musicAt)} ms, title at ${Math.round(s.titleAt)} ms`);
-  await page.waitForTimeout(9000);
+  // Reason: long enough for a bird call (at most every 10 s)
+  await page.waitForTimeout(12000);
   const later = await sound(page);
-  check("sound allowed: the birds sing", later.birdNotes > 0, `${later.birdNotes} bird notes`);
+  check("sound allowed: the birds sing", later.effects > 0, `${later.effects} bird calls`);
   check("sound allowed: no errors", page.problems.length === 0, page.problems.join(" / "));
   await page.close();
 }
@@ -209,13 +204,13 @@ await allowing.close();
 const blocking = await launch("document-user-activation-required");
 {
   const page = await open(blocking);
-  // Reason: long enough for several bird calls (at most every 8.5 s), which must not wait behind the block
+  // Reason: long enough for several bird calls (at most every 10 s), which must not wait behind the block
   await page.waitForTimeout(18000);
   const before = await sound(page);
   const quiet = await loudness(page);
   check("sound blocked: this really is the browser with no press yet", before.pressed === false && (await sound(page)).pressed === false);
   check("sound blocked: silent until a press", before.state !== "running" && quiet === 0, `${JSON.stringify(before)}, peak ${quiet.toFixed(3)}`);
-  check("sound blocked: no birds or effects pile up", before.birdNotes === 0 && before.effects === 0, `${before.birdNotes} bird notes, ${before.effects} effects`);
+  check("sound blocked: no birds or effects pile up", before.effects === 0, `${before.effects} effects`);
   check("sound blocked: the page is not broken", page.problems.length === 0, page.problems.join(" / "));
 
   await page.keyboard.press("ArrowDown");
@@ -223,7 +218,8 @@ const blocking = await launch("document-user-activation-required");
   const after = await sound(page);
   check("sound blocked: an arrow key starts the music", after.state === "running" && after.musicTracks === 1 && peak > AUDIBLE, `${JSON.stringify(after)}, peak ${peak.toFixed(3)}`);
   check("sound blocked: that press leaves the title screen up", await titleIsUp(page));
-  check("sound blocked: no burst of waiting birds", after.birdNotes <= 4, `${after.birdNotes} bird notes`);
+  // Reason: at most the menu's own click and one bird in the moment after the press
+  check("sound blocked: no burst of waiting birds", after.effects <= 2, `${after.effects} effects`);
 
   // Reason: not something the game controls, but it decides what a returning player hears
   await page.reload();

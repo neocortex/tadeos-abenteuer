@@ -57,7 +57,7 @@ export async function intro(s: Stage, ui: GameUI): Promise<void> {
   await tl.wait(0.5);
 
   // Rumble… something is under the bridge!
-  audio.playSfx("sfx_lava_fall", 0.8);
+  audio.playSfx("sfx_rumble", 0.8);
   cam.shake(0.5);
   bridgeBounce(s, 0.06);
   s.pop.show("Hä?", hero.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 2.3, 0)), { size: 34, bubble: true, life: 1.4, rise: 0.3 });

@@ -181,7 +181,7 @@ export class Hazards {
     const r: Roller = { mesh, zone, s, y: this.course.support(s, 0.2) + ROCK_R, vy: 0, t: 0, phase: "wobble", out: 0 };
     this.rollers.push(r);
     this.group.add(mesh);
-    audio.playSfx("sfx_door", 0.5, 0.45);
+    audio.playSfx("sfx_rumble", 0.5);
   }
 
   private updateRoller(r: Roller, dt: number, time: number, climber: Climber, active: boolean): Hit | null {

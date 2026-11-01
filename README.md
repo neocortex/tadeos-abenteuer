@@ -23,6 +23,7 @@ narration are in German.
   two paths until Tadeo can open them, and his mended boat appears at the north dock
 - Side games in the village, gold coins all over the island, and outfits to unlock
 - Natural-sounding German voices for every line (recorded with ElevenLabs), with browser speech as fallback
+- A recorded acoustic soundtrack that changes with the place and the quest, and island sounds that follow Tadeo
 - No game over anywhere: mistakes just restart the current attempt
 
 ## The adventure
@@ -108,6 +109,20 @@ npm run voices                # render it (needs a paid ElevenLabs plan)
 Put the key in `.env` as `ELEVENLABS_API_KEY=...` (git-ignored; never prefix it with `VITE_`). The cast
 is the `CAST` table in `scripts/voice/generate.mjs`; changing a voice there re-renders only that voice's lines.
 
+### Music and sounds
+
+The music, the island's background sounds and animal calls, and the sound effects are MP3s in `public/audio/`, rendered
+once with ElevenLabs and committed. Their prompts are the `SOUNDS` table in `scripts/audio/generate.mjs`:
+
+```bash
+npm run audio -- --dry-run    # what would be rendered; spends nothing
+npm run audio                 # render new sounds and changed prompts (same key as the voices)
+```
+
+To hear another take of a sound, delete its MP3 and run `npm run audio` again. The game matches the loudness of each
+sound and fades the end of each loop into its start by itself, so a new take needs no further work. A new sound effect
+also goes into `EFFECTS` in `src/audio/Audio.ts`, so that it loads with the game.
+
 ## Debug URL parameters
 
 | Parameter | Effect |
@@ -121,7 +136,7 @@ is the `CAST` table in `scripts/voice/generate.mjs`; changing a voice there re-r
 | `?closeup` | Close-up camera on Tadeo (character work) |
 | `?tm=aces\|agx\|neutral` | Tone-mapping operator |
 
-`window.game` and `window.engine` are exposed in the browser console.
+`window.game`, `window.engine`, `window.audio` and `window.narration` are exposed in the browser console.
 
 ## Tests
 
@@ -138,6 +153,7 @@ node scripts/e2e/title.mjs    # the game's name fits every window; music with an
 node scripts/e2e/island.mjs   # likewise: title, opening, quests 1–4, map card, riddles, coins, fps
 node scripts/e2e/finale.mjs   # quest 12 from the sea to the festival and the end card
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback
+node scripts/e2e/music.mjs    # every sound and loop seam, music by place and quest, island sounds by region, voices over music
 node scripts/e2e/fps.mjs      # 60 fps cap on fast screens, no dropped frames at 60 Hz
 ```
 
@@ -168,10 +184,11 @@ src/
   challenges/      # one folder per challenge (index.ts exports a factory), plus shared helpers
   ui/              # dialogue box, HUD, prompts, portraits, end card
   systems/         # quest, inventory, save, narration
-  audio/           # synthesized music and sound effects
+  audio/           # recorded music, island sounds and sound effects
   data/            # dialogues, quests, items
 scripts/
   e2e/             # end-to-end tests
   voice/           # renders the spoken lines with ElevenLabs
+  audio/           # renders the music and sounds with ElevenLabs
 classic-2d/        # the original Phaser 2D game (frozen snapshot)
 ```

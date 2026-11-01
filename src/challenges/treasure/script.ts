@@ -135,7 +135,7 @@ async function reveal(s: TreasureStage): Promise<void> {
   const body = s.chest.body;
   s.chest.group.visible = true;
   body.position.y = -1.7;
-  audio.playSfx("sfx_wave", 0.7, 0.5);
+  audio.playSfx("sfx_hammer_miss", 0.7, 0.5);
   let next = 0;
   await s.tween(1.5, (k) => {
     body.position.y = -1.7 + 1.7 * ease(k);
@@ -304,7 +304,7 @@ export async function erupt(s: TreasureStage): Promise<void> {
   const t = s.tadeo;
   st.phase = "erupt";
   audio.stopMusic(0.6);
-  audio.playSfx("sfx_door", 1, 0.5);
+  audio.playSfx("sfx_rumble", 1);
   s.director.shake(1.0);
   t.avatar.pose = "normal";
   await s.sleep(1.0);
@@ -326,8 +326,7 @@ export async function erupt(s: TreasureStage): Promise<void> {
   // Reason: the flash covers the screen for this moment, so nobody sees them vanish
   s.daylight.hideClouds();
   s.director.shake(1.1);
-  audio.playSfx("sfx_lava_fall", 1, 0.6);
-  audio.playSfx("sfx_door", 1, 0.42);
+  audio.playSfx("sfx_rumble", 1);
   await s.sleep(3.2);
   await s.say(lines("treasure_erupt"));
   // Tadeo runs for his boat, and that is the last we see of the island

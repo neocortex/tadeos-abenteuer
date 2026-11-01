@@ -303,8 +303,8 @@ class SeaShot {
       audio.stopMusic(1.4);
     }
     while (this.dun < DUN.length && this.clock >= DUN[this.dun]) {
-      // Reason: the door's creak, slowed down, is the deepest sound there is
-      audio.playSfx("sfx_door", 0.55 + this.dun * 0.06, 0.5);
+      // Reason: each beat a little louder than the one before
+      audio.playSfx("sfx_boom", 0.55 + this.dun * 0.06);
       this.dun++;
     }
     if (!this.hit && this.clock >= HIT) {

@@ -1,12 +1,27 @@
 /**
- * Audio — WebAudio playback for the synthesised music and sound effects, a
- * gentle procedural ambience (sea + birds), a soft reverb, and the mute toggle
- * (M key, remembered between sessions).
+ * Audio — WebAudio playback for the recorded music, the island's ambience and the
+ * sound effects, a soft reverb for the effects, music that steps back while someone
+ * talks, and the mute toggle (M key, remembered between sessions).
  */
 
-import { SOUND_GENERATORS, SAMPLE_RATE } from "./synth";
+import { Ambience, IslandMix } from "./Ambience";
+import { Effect, loadEffect, loadSample, Sample } from "./samples";
 
 const STORAGE_KEY = "schatzkarten_audio";
+/** Every sound effect in the game. They load together, so that the first use of each one sounds on time. */
+const EFFECTS = [
+  "sfx_menu_select", "sfx_menu_confirm", "sfx_dialogue_advance", "sfx_timer_warn", "sfx_simon_correct", "sfx_simon_wrong",
+  "sfx_berry_collect", "sfx_item_get", "sfx_heal", "sfx_special", "sfx_chest_open", "sfx_victory_fanfare",
+  "sfx_attack", "sfx_defend", "sfx_enemy_attack", "sfx_enemy_hit", "sfx_hit_damage", "sfx_hammer_hit", "sfx_hammer_miss",
+  "sfx_lava_fall", "sfx_sizzle", "sfx_rumble", "sfx_boom", "sfx_wave", "sfx_dig", "sfx_door", "sfx_key_jiggle",
+  "sfx_key_unlock", "sfx_fox_hop", "sfx_drum", "hen_bok", "hen_bagawk", "hen_cackle", "chick_peep",
+];
+const MUSIC_LEVEL = 0.28;
+const MUSIC_OVERLAP_SECONDS = 4;
+/** How much of the music and ambience stays while someone talks. */
+const TALKING_DIP = 0.4;
+/** Reason: a decoded two-minute track takes about 40 MB of memory, so only the latest few stay decoded */
+const DECODED_TRACKS = 3;
 
 class AudioSystem {
   private ctx: AudioContext | null = null;
@@ -14,10 +29,15 @@ class AudioSystem {
   private musicBus!: GainNode;
   private sfxBus!: GainNode;
   private ambienceBus!: GainNode;
-  private buffers = new Map<string, AudioBuffer>();
+  private effects = new Map<string, Promise<Effect | null>>();
+  private tracks = new Map<string, Promise<Sample | null>>();
   private music: { key: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
+  /** The track the game asked for last; it may still be downloading while the one before it plays on. */
+  private wantedMusic: string | null = null;
+  private ambience: Ambience | null = null;
   private ambienceOn = false;
-  private birdTimer: number | null = null;
+  private talking = false;
+  private pressed = false;
   muted = false;
 
   constructor() {
@@ -27,7 +47,10 @@ class AudioSystem {
       // Reason: storage may be unavailable (private mode); default to sound on
     }
     // Reason: browsers may hold audio back until a user gesture — unlock on the first key/click
-    const unlock = () => this.ensureContext();
+    const unlock = () => {
+      this.pressed = true;
+      this.ensureContext();
+    };
     window.addEventListener("keydown", unlock);
     window.addEventListener("pointerdown", unlock);
     window.addEventListener("keydown", (e) => {
@@ -38,20 +61,52 @@ class AudioSystem {
   playSfx(key: string, volume = 1, rate = 1): void {
     const ctx = this.ctx;
     if (!ctx) return;
-    const src = ctx.createBufferSource();
-    src.buffer = this.buffer(key);
-    src.playbackRate.value = rate;
-    const g = ctx.createGain();
-    g.gain.value = volume;
-    src.connect(g).connect(this.sfxBus);
-    src.start();
+    // Reason: a held-back context's clock stands still, so effects made before the first press would all sound on it.
+    // The press itself may still be waking the clock, and its menu click should be heard.
+    if (ctx.state !== "running" && !this.pressed) return;
+    void this.loadEffect(key).then((effect) => {
+      if (!effect) return;
+      const src = ctx.createBufferSource();
+      src.buffer = effect.buffer;
+      src.playbackRate.value = rate;
+      const g = ctx.createGain();
+      g.gain.value = volume * effect.level;
+      src.connect(g).connect(this.sfxBus);
+      src.start(0, effect.offset);
+    });
+  }
+
+  private loadEffect(key: string): Promise<Effect | null> {
+    let effect = this.effects.get(key);
+    if (!effect) {
+      effect = loadEffect(this.ctx!, key);
+      this.effects.set(key, effect);
+    }
+    return effect;
   }
 
   /** Loop a music track, cross-fading from the current one. */
   playMusic(key: string, fade = 1.2): void {
     // Reason: if the browser holds audio back, the track waits at its start and plays from the first key/click
     this.ensureContext();
-    if (this.music?.key === key) return;
+    if (this.wantedMusic === key) return;
+    this.wantedMusic = key;
+    void this.loadTrack(key).then((sample) => {
+      if (sample && this.wantedMusic === key && this.music?.key !== key) this.startTrack(key, sample, fade);
+    });
+  }
+
+  private loadTrack(key: string): Promise<Sample | null> {
+    let track = this.tracks.get(key);
+    if (!track) {
+      track = loadSample(this.ctx!, key, MUSIC_OVERLAP_SECONDS);
+      this.tracks.set(key, track);
+      if (this.tracks.size > DECODED_TRACKS) this.tracks.delete(this.tracks.keys().next().value!);
+    }
+    return track;
+  }
+
+  private startTrack(key: string, sample: Sample, fade: number): void {
     const ctx = this.ctx!;
     const now = ctx.currentTime;
     if (this.music) {
@@ -60,29 +115,51 @@ class AudioSystem {
       old.src.stop(now + fade * 2);
     }
     const src = ctx.createBufferSource();
-    src.buffer = this.buffer(key);
+    src.buffer = sample.buffer;
     src.loop = true;
+    src.loopStart = sample.loopStart;
+    src.loopEnd = sample.loopEnd;
     const gain = ctx.createGain();
     gain.gain.value = 0;
-    gain.gain.setTargetAtTime(1, now, fade / 4);
+    gain.gain.setTargetAtTime(sample.level, now, fade / 4);
     src.connect(gain).connect(this.musicBus);
     src.start();
     this.music = { key, src, gain };
   }
 
   stopMusic(fade = 1): void {
+    this.wantedMusic = null;
     if (!this.ctx || !this.music) return;
     this.music.gain.gain.setTargetAtTime(0, this.ctx.currentTime, fade / 4);
     this.music.src.stop(this.ctx.currentTime + fade * 2);
     this.music = null;
   }
 
-  /** Waves lapping on the shore plus occasional bird chirps. */
+  /** The island's background sounds and animal calls. */
   setAmbience(on: boolean): void {
     this.ambienceOn = on;
+    this.ambience?.setCalling(on);
+    this.applyLevels();
+  }
+
+  /** Which background sounds and animals to hear, for where Tadeo stands. */
+  setIslandMix(mix: IslandMix): void {
+    this.ambience?.setMix(mix);
+  }
+
+  /** Music and ambience step back while someone speaks, so that a child can follow every word. */
+  setTalking(on: boolean): void {
+    this.talking = on;
+    this.applyLevels();
+  }
+
+  private applyLevels(): void {
     if (!this.ctx) return;
-    this.ambienceBus.gain.setTargetAtTime(on ? 1 : 0, this.ctx.currentTime, 0.6);
-    if (on && this.birdTimer === null) this.scheduleBird();
+    const step = this.talking ? TALKING_DIP : 1;
+    // Reason: step back quickly before the first word, and come back slowly once the talking is over
+    const smoothing = this.talking ? 0.12 : 0.6;
+    this.musicBus.gain.setTargetAtTime(MUSIC_LEVEL * step, this.ctx.currentTime, smoothing);
+    this.ambienceBus.gain.setTargetAtTime(this.ambienceOn ? step : 0, this.ctx.currentTime, smoothing);
   }
 
   toggleMute(): void {
@@ -115,15 +192,9 @@ class AudioSystem {
     wet.gain.value = 0.22;
     reverb.connect(wet).connect(this.master);
 
-    // Reason: soften the square-wave chiptunes so they sit nicely under the 3D world
-    const soften = ctx.createBiquadFilter();
-    soften.type = "lowpass";
-    soften.frequency.value = 5200;
     this.musicBus = ctx.createGain();
-    this.musicBus.gain.value = 0.32;
-    this.musicBus.connect(soften);
-    soften.connect(this.master);
-    soften.connect(reverb);
+    this.musicBus.gain.value = MUSIC_LEVEL;
+    this.musicBus.connect(this.master);
 
     this.sfxBus = ctx.createGain();
     this.sfxBus.gain.value = 0.6;
@@ -133,22 +204,10 @@ class AudioSystem {
     this.ambienceBus = ctx.createGain();
     this.ambienceBus.gain.value = this.ambienceOn ? 1 : 0;
     this.ambienceBus.connect(this.master);
-    this.startSea();
+    this.ambience = new Ambience(ctx, this.ambienceBus);
+    for (const key of EFFECTS) void this.loadEffect(key);
 
     if (this.ambienceOn) this.setAmbience(true);
-  }
-
-  private buffer(key: string): AudioBuffer {
-    let b = this.buffers.get(key);
-    if (!b) {
-      const gen = SOUND_GENERATORS[key];
-      if (!gen) throw new Error(`Unknown sound: ${key}`);
-      const samples = gen();
-      b = this.ctx!.createBuffer(1, samples.length, SAMPLE_RATE);
-      b.getChannelData(0).set(samples);
-      this.buffers.set(key, b);
-    }
-    return b;
   }
 
   /** Decaying stereo noise used as a small-room reverb impulse. */
@@ -161,67 +220,6 @@ class AudioSystem {
       for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
     }
     return buf;
-  }
-
-  /** Looping surf: low-passed noise with slow swells. */
-  private startSea(): void {
-    const ctx = this.ctx!;
-    const seconds = 12;
-    const len = ctx.sampleRate * seconds;
-    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-    for (let c = 0; c < 2; c++) {
-      const d = buf.getChannelData(c);
-      let brown = 0;
-      for (let i = 0; i < len; i++) {
-        brown = (brown + 0.02 * (Math.random() * 2 - 1)) / 1.02;
-        const t = i / ctx.sampleRate;
-        // Reason: two overlapping wave periods that divide the loop length evenly so it loops seamlessly
-        const swell = 0.35 + 0.65 * Math.pow(Math.sin((Math.PI * t) / 4 + c) ** 2, 2) * (0.7 + 0.3 * Math.sin((Math.PI * t) / 6));
-        d[i] = brown * 3.2 * swell;
-      }
-    }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.loop = true;
-    const lp = ctx.createBiquadFilter();
-    lp.type = "lowpass";
-    lp.frequency.value = 900;
-    const g = ctx.createGain();
-    g.gain.value = 0.35;
-    src.connect(lp).connect(g).connect(this.ambienceBus);
-    src.start();
-  }
-
-  private scheduleBird(): void {
-    this.birdTimer = window.setTimeout(() => {
-      this.birdTimer = null;
-      if (!this.ambienceOn || !this.ctx) return;
-      // Reason: a held-back context's clock stands still, so every call made now would sound at once on the first press
-      if (this.ctx.state === "running") this.chirp();
-      this.scheduleBird();
-    }, 2500 + Math.random() * 6000);
-  }
-
-  /** A little bird call: 2–4 quick rising sine sweeps. */
-  private chirp(): void {
-    const ctx = this.ctx!;
-    const base = 2200 + Math.random() * 1600;
-    const notes = 2 + Math.floor(Math.random() * 3);
-    for (let i = 0; i < notes; i++) {
-      const t = ctx.currentTime + i * 0.11;
-      const o = ctx.createOscillator();
-      o.frequency.setValueAtTime(base, t);
-      o.frequency.exponentialRampToValueAtTime(base * 1.35, t + 0.07);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.05, t + 0.01);
-      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
-      const pan = ctx.createStereoPanner();
-      pan.pan.value = Math.random() * 1.6 - 0.8;
-      o.connect(g).connect(pan).connect(this.ambienceBus);
-      o.start(t);
-      o.stop(t + 0.1);
-    }
   }
 }
 

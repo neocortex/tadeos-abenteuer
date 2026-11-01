@@ -22,6 +22,7 @@ import { Sightings } from "./Sightings";
 import { StoryWorld } from "./StoryWorld";
 import { TurtleFamily } from "./TurtleFamily";
 import { Lake } from "./lake";
+import { IslandSounds } from "./IslandSounds";
 import { playOpening } from "./opening";
 import { playEnding } from "./ending";
 import { showMapCard } from "../ui/MapCard";
@@ -87,11 +88,13 @@ export class Game {
   private cinematic: ((t: number) => Shot) | null = null;
   private cinematicTime = 0;
   private remarkCooldown = 0;
+  private islandSounds: IslandSounds;
   private tmp = new THREE.Vector3();
 
   constructor(private engine: Engine) {
     const { landmarks, hf, colliders } = this.island.island;
     const walkHeight = (x: number, z: number) => landmarks.surfaceHeight(x, z) ?? hf.heightAt(x, z);
+    this.islandSounds = new IslandSounds(hf);
     this.npcs = new Npcs(walkHeight, colliders);
     this.chuleta = new Chuleta(this.island.player);
     this.chuleta.snap();
@@ -224,6 +227,7 @@ export class Game {
       const inVillage = this.distance(VILLAGE.plaza) < 24;
       audio.playMusic(inVillage ? "music_village" : "music_overworld");
     }
+    this.islandSounds.update(dt, player.position);
   }
 
   private async run(action: () => Promise<void>): Promise<void> {

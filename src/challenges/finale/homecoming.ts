@@ -294,8 +294,8 @@ export class Homecoming implements EndingStage {
     bombs.fizzle();
     fx.flash("#fff4c8", 0.7, 800);
     rig.addShake(0.9);
-    // Reason: the door's creak slowed down is the volcano's groan elsewhere in the game; here it is the mountain's last one
-    audio.playSfx("sfx_door", 0.9, 0.42);
+    // Reason: the rumble is the volcano's groan elsewhere in the game; here it is the mountain's last one
+    audio.playSfx("sfx_rumble", 0.9);
     audio.playSfx("sfx_item_get", 0.9, 0.8);
     audio.playSfx("sfx_heal", 0.9);
     bursts.twinkle(set.altar.hollowAt.clone(), 90, 5, new THREE.Color(3.4, 2.4, 0.9), 0.9);

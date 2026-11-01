@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Music and island sounds
+
+- New recorded soundtrack in place of the old chiptunes: warm orchestral folk with fiddle, French horns, harp and soft
+  strings, and something darker for the cave. It still changes with the place and the quest, the mountain climb now has
+  its own track, and each track lasts up to two minutes instead of a few seconds
+- The island sounds real: waves grow louder near the shore, and the jungle, swamp and flower hills each have their own
+  background. Gulls, songbirds, parrots, frogs, skylarks and sheep call from where they live
+- Every sound effect is now recorded instead of synthesised. The volcano has a real rumble, splashes sound like water,
+  Flocke yips when she hops, the village drums are real drums and the hens really cluck
+- Music and island sounds step back while someone talks, so every word stays easy to follow
+
 ### Turtle family
 
 - New side quest at the lagoon, for any time in the game: the rumbling volcano scared Frau Moos' five babies off along

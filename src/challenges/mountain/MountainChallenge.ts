@@ -140,7 +140,7 @@ export class MountainChallenge implements Challenge {
 
   enter(engine: Engine): void {
     this.engine = engine;
-    audio.playMusic("music_dungeon");
+    audio.playMusic("music_mountain");
     this.cam.setShot(this.introShot(), 0);
     this.update(0, 0);
     void this.run();

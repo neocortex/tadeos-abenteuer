@@ -109,7 +109,7 @@ export class Fireworks {
       fuse: up / g,
       colors: [new THREE.Color(pair[0]).multiplyScalar(2.6), new THREE.Color(pair[1]).multiplyScalar(2.6)],
     });
-    audio.playSfx("sfx_wave", 0.18, 1.9);
+    audio.playSfx("sfx_hammer_miss", 0.18, 1.9);
   }
 
   update(dt: number, camera: THREE.Camera, time: number): void {

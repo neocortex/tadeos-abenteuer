@@ -354,7 +354,7 @@ export class VolcanoChallenge implements Challenge {
     if (this.state !== "play" || !this.hero.grounded) return;
     if (this.course.lavaAt(hp.x, hp.z)) {
       this.bursts.sparks(hp.clone().setY(hp.y + 0.2), 44, 7.5, new THREE.Color(3.6, 1.5, 0.25), 0.3);
-      audio.playSfx("sfx_lava_fall", 0.8, 0.8);
+      audio.playSfx("sfx_sizzle", 0.8);
       this.hit(hp);
       return;
     }

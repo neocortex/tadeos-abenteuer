@@ -106,8 +106,8 @@ export async function takeHeart(s: TreasureStage): Promise<void> {
   s.daylight.fade(0.32, 2.6);
   s.engine.applyPost({ ...POST_HEART });
   await s.sleep(1.0);
-  // Reason: the deepest sound there is, slowed down: the heartbeat the child will feel again at the old stone
-  for (const wait of [0, 0.45, 1.25, 1.7]) void s.sleep(wait).then(() => audio.playSfx("sfx_door", 0.55, 0.42));
+  // Reason: the heartbeat the child will feel again at the old stone
+  for (const wait of [0, 0.45, 1.25, 1.7]) void s.sleep(wait).then(() => audio.playSfx("sfx_boom", 0.55));
   showInside(s, heart, 0.25);
   void s.tween(2.6, (k) => {
     heart.rotation.y = (1 - ease(k)) * Math.PI * 3;

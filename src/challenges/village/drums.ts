@@ -19,11 +19,12 @@ import { KEY_GLYPH } from "./hud";
 export const DRUM_KEYS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"] as const;
 export type DrumKey = (typeof DRUM_KEYS)[number];
 
-export const DRUM_INFO: Record<DrumKey, { color: string; dir: [number, number]; sfx: string; name: string }> = {
-  ArrowUp: { color: "#3fcf5a", dir: [0, -1], sfx: "sfx_simon_panel_up", name: "grün" },
-  ArrowDown: { color: "#f04848", dir: [0, 1], sfx: "sfx_simon_panel_down", name: "rot" },
-  ArrowLeft: { color: "#3b9cff", dir: [-1, 0], sfx: "sfx_simon_panel_left", name: "blau" },
-  ArrowRight: { color: "#ffc21a", dir: [1, 0], sfx: "sfx_simon_panel_right", name: "gelb" },
+/** Reason: one recorded drum at the four notes of a chord, so that the memory game's drums stay easy to tell apart */
+export const DRUM_INFO: Record<DrumKey, { color: string; dir: [number, number]; pitch: number; name: string }> = {
+  ArrowUp: { color: "#3fcf5a", dir: [0, -1], pitch: 0.75, name: "grün" },
+  ArrowDown: { color: "#f04848", dir: [0, 1], pitch: 0.94, name: "rot" },
+  ArrowLeft: { color: "#3b9cff", dir: [-1, 0], pitch: 1.12, name: "blau" },
+  ArrowRight: { color: "#ffc21a", dir: [1, 0], pitch: 1.4, name: "gelb" },
 };
 
 const TOP = 0.8;
@@ -231,7 +232,7 @@ export class Drums {
   play(key: DrumKey, strength = 1): void {
     const d = this.drums[key];
     d.hit(strength);
-    audio.playSfx(DRUM_INFO[key].sfx, 0.9);
+    audio.playSfx("sfx_drum", 0.9, DRUM_INFO[key].pitch);
     this.lightKey = key;
     const p = d.group.position;
     this.notes.emit(2, (n, k) => {
