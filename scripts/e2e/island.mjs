@@ -212,6 +212,32 @@ await wait(3500);
 await shot("08-flight");
 check("the arrival dialogue opens", await until(dialogueOpen, 20000));
 await shot("09-arrival");
+// Reason: the camera glides round in 1.6 s; Space is held back until then so that the line stays on screen
+const volcanoLine = await readUntil(async () => (await onScreen()).startsWith("Und da hinten raucht ein Berg"), 30000);
+await wait(2200);
+const view = await page.evaluate(async () => {
+  const THREE = await import(performance.getEntriesByType("resource").map((e) => e.name).find((n) => /deps\/three\.js/.test(n)));
+  const { LANDMARKS } = await import("/src/world/layout.ts");
+  const { island } = window.game;
+  const [vx, vz] = LANDMARKS.volcano;
+  // The crater rim is about nine metres above the floor
+  const top = new THREE.Vector3(vx, island.island.hf.heightAt(vx, vz) + 9, vz);
+  const ndc = top.clone().project(island.camera);
+  const box = document.querySelector(".dialogue").getBoundingClientRect();
+  const py = ((1 - ndc.y) / 2) * innerHeight;
+  const from = island.camera.position;
+  const dist = from.distanceTo(top);
+  const ray = new THREE.Raycaster(from, top.clone().sub(from).normalize(), 0.3, dist);
+  ray.camera = island.camera;
+  const blockers = ray.intersectObjects(island.scene.children, true).filter((h) => h.object.isMesh && h.object.visible && h.distance < dist - 6);
+  return { x: ndc.x, py, boxTop: box.top, blockers: blockers.map((h) => `${h.object.name || h.object.type}@${h.distance.toFixed(0)}/${dist.toFixed(0)}`).slice(0, 4) };
+});
+await shot("landing_volcano");
+check(
+  "the volcano is in the picture when Tadeo talks about it",
+  volcanoLine && Math.abs(view.x) < 0.9 && view.py > 0 && view.py < view.boxTop && view.blockers.length === 0,
+  JSON.stringify(view),
+);
 check("Chuleta is still in the backpack while Tadeo says where he is", !(await chuletaVisible()));
 check("Chuleta is out of the backpack after that", await readUntil(chuletaVisible, 30000));
 check("the banner comes after the talk", await readUntil(banner2Shows, 30000));

@@ -20,7 +20,7 @@ import { Bursts } from "../challenges/shared/bursts";
 import { Owned } from "../challenges/shared/dispose";
 import { Particles } from "../challenges/shared/particles";
 import { NOISE_GLSL } from "../core/glsl";
-import { DialogueScript } from "../data/dialogues";
+import { DialogueScript, DIALOGUES } from "../data/dialogues";
 import { QUESTS } from "../data/quests";
 import { audio } from "../audio/Audio";
 import { waterHeight } from "../world/Water";
@@ -500,6 +500,17 @@ function flyToTheLandingBeach(d: OpeningDeps): void {
   });
 }
 
+/** Tadeo turns to the smoking mountain, and the camera looks over his shoulder so that it fills the top of the picture. */
+function lookAtTheVolcano(d: OpeningDeps): void {
+  const p = d.island.player.position;
+  const [vx, vz] = LANDMARKS.volcano;
+  const dir = v3(vx - p.x, 0, vz - p.z).normalize();
+  d.island.player.facing = Math.atan2(dir.x, dir.z);
+  // Reason: the lens is narrow (40°), so the camera aims above the crater to keep the smoke in the upper half
+  const vent = v3(vx, d.island.island.hf.heightAt(vx, vz) + 5, vz);
+  d.island.rig.setShot({ pos: p.clone().addScaledVector(dir, -8).add(v3(0, 10, 0)), look: vent }, 1.6);
+}
+
 /** Washed ashore: the flight's end, Chuleta out of the backpack, the wreck, the voice from the volcano. */
 async function arrive(d: OpeningDeps): Promise<void> {
   audio.playMusic("music_overworld");
@@ -511,7 +522,11 @@ async function arrive(d: OpeningDeps): Promise<void> {
   d.endCinematic(1.8);
   await wait(900);
   // Reason: Tadeo says where he is before Chuleta climbs out
-  await d.talk("intro_landing");
+  const landing = DIALOGUES.intro_landing;
+  await d.talk(landing.slice(0, 2));
+  lookAtTheVolcano(d);
+  await d.talk(landing.slice(2));
+  d.island.rig.setShot(null, 1.5);
   d.chuleta.climbOut();
   await wait(800);
   await d.talk(CHULETA_INTRO);
