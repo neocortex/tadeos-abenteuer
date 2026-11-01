@@ -43,7 +43,7 @@ export const FINALE: Record<string, DialogueScript> = {
     line("Käpt'n Paco", "Ich muss euch etwas sagen. Der Pirat... das war ich."),
     line("Erzähler", "Auf einmal ist es ganz still am Feuer."),
     line("Tadeo", "Du, Paco? Aber du bist doch mein Freund!"),
-    line("Käpt'n Paco", "Ich war jung und dumm. Es tut mir leid."),
+    line("Käpt'n Paco", "Ich war jung und naiv. Es tut mir leid."),
     line("Käpt'n Paco", "Das Herz hat so schön geleuchtet. Aber es hat mir die Hände verbrannt."),
     line("Käpt'n Paco", "Also habe ich es eingefroren und vergraben. Und dann kam der Hai."),
     line("Tadeo", "Der Hai! Hat er dein Schiff auch kaputt gemacht?"),
