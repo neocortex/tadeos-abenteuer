@@ -18,6 +18,7 @@ import { HedgeProp, StoryProp, mountainBoulder, standProp, thornHedge } from "..
 import { Player } from "../characters/Player";
 import { DialogueScript } from "../data/dialogues";
 import { BoulderLift, LiftPhase } from "./boulderLift";
+import { CHULETA_BEHIND_HEDGE } from "./chuletaLines";
 import { HedgeOpening } from "./hedgeOpening";
 import { Npc, Npcs, NpcId } from "./Npcs";
 import { OgreSpot, Sightings } from "./Sightings";
@@ -46,6 +47,11 @@ const PACO_DOCK_FACING = Math.PI;
 const DOCK_TALK_SHOT = { pos: new THREE.Vector3(-29.5, 4.8, -68.5), look: new THREE.Vector3(-39, 1.7, -75.5) };
 /** Tadeo stands on the lake's side of the arch: the hedge stands just behind it, so the beacon on the gate stays free. */
 const HEDGE_BEHIND_GATE = 0.9;
+/** Tadeo is behind the hedge from this many metres past it, up to this far from its middle: on the meadow it leaves open. */
+const BEHIND_HEDGE_PAST = 1.2;
+const BEHIND_HEDGE_WITHIN = 7;
+/** Seconds before Chuleta says it again to a child who stays on that meadow. */
+const BEHIND_HEDGE_REPEAT = 30;
 
 export interface StoryWorldState {
   wreck: boolean;
@@ -103,14 +109,16 @@ export class StoryWorld {
   private boulderLift: BoulderLift;
   private pacoHome: { at: P2; facing: number };
   private lastRumble = 0;
+  private hedgeRemarkIn = 0;
 
   constructor(
     private island: Island,
     private rig: CameraRig,
-    player: Player,
+    private player: Player,
     private npcs: Npcs,
     private sightings: Sightings,
     private talk: (script: string | DialogueScript, npc?: Npc) => Promise<void>,
+    private chuletaSay: (text: string) => void,
   ) {
     const { hf, colliders, landmarks } = island;
     const ground = (x: number, z: number) => hf.heightAt(x, z);
@@ -198,6 +206,19 @@ export class StoryWorld {
     this.hedge.prop.update(dt);
     this.hedgeOpening.update(dt);
     this.boulderLift.update(dt);
+    this.hedgeRemarkIn -= dt;
+    if (this.hedgeRemarkIn <= 0 && this.behindHedge(this.player.position.x, this.player.position.z)) {
+      this.chuletaSay(CHULETA_BEHIND_HEDGE);
+      this.hedgeRemarkIn = BEHIND_HEDGE_REPEAT;
+    }
+  }
+
+  /** Whether (x, z) is on the meadow behind the standing hedge, where walking round it ends up. */
+  behindHedge(x: number, z: number): boolean {
+    if (!this.hedge.up) return false;
+    const { position, rotation } = this.hedge.prop.group;
+    const [dx, dz] = [x - position.x, z - position.z];
+    return dx * Math.sin(rotation.y) + dz * Math.cos(rotation.y) > BEHIND_HEDGE_PAST && Math.hypot(dx, dz) < BEHIND_HEDGE_WITHIN;
   }
 
   /** What really stands on the island, read from the scene. */

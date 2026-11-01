@@ -51,7 +51,8 @@ interface Objective {
 const GATES: Record<number, { at: P2; challenge: ChallengeName; back?: P2 }> = {
   2: { at: LANDMARKS.volcanoGate, challenge: "volcano" },
   5: { at: [-60, -18.5], challenge: "cave" },
-  6: { at: LANDMARKS.forestGate, challenge: "forest" },
+  // Reason: on the lake's side of the arch, so the sword scene can never start behind the thorns
+  6: { at: [-12, 23.5], challenge: "forest", back: [-12, 28.5] },
   7: { at: VILLAGE.elder, challenge: "village" },
   8: { at: [53.5, 0.5], challenge: "ogre", back: [53.5, 0.5] },
   9: { at: [55.5, -13.5], challenge: "mountain" },
@@ -97,7 +98,7 @@ export class Game {
     this.bubble = new Bubble(this.ui.layer);
     this.chuletaBubble = new Bubble(this.ui.layer);
     this.sightings = new Sightings(walkHeight, colliders, this.ui.layer);
-    this.story = new StoryWorld(this.island.island, this.island.rig, this.island.player, this.npcs, this.sightings, (script, npc) => this.talk(script, npc));
+    this.story = new StoryWorld(this.island.island, this.island.rig, this.island.player, this.npcs, this.sightings, (script, npc) => this.talk(script, npc), (text) => this.chuletaSay(text));
     this.island.scene.add(this.sightings.group, this.story.group);
     this.lake = new Lake({ island: this.island, ui: this.ui, input: engine.input, talk: (script) => this.talk(script) });
     // Reason: coins come after the NPCs so none lands inside a villager, and after the story's rocks and thorns for the same reason
@@ -486,7 +487,7 @@ export class Game {
     this.ui.hud.setVisible(true);
     const goal = onBeach ? LANDMARKS.spawn : (this.objectives()[0]?.at ?? LANDMARKS.spawn);
     const hf = this.island.island.hf;
-    const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => hf.isWalkable(x, z));
+    const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => hf.isWalkable(x, z) && !this.story.behindHedge(x, z));
     const [x, z] = spot ?? LANDMARKS.spawn;
     this.placePlayer(x, z);
   }

@@ -25,6 +25,9 @@ export const CHULETA_HINTS: Record<number, string> = {
   12: "Schnell! Das Herz muss zurück auf den alten Stein am Vulkan!",
 };
 
+/** Said when Tadeo walks round the thorn hedge: the arch is the only way into the Zauberwald. */
+export const CHULETA_BEHIND_HEDGE = "Gack! Hier ist nur Wiese. In den Zauberwald kommst du nur durch das Tor!";
+
 /** Cheer after finishing a milestone (keyed by the milestone just finished). */
 export const CHULETA_CHEERS: Record<number, string> = {
   2: "Puh, war das heiß! Fast hätte ich ein gekochtes Ei gelegt!",

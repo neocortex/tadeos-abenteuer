@@ -9,6 +9,14 @@
 - The music starts as the page loads instead of waiting for a press. A browser that holds sound back until the first
   key or click starts it on that press
 
+### Thorn hedge
+
+- The forest arch is a magic door: the Zauberwald can only be entered through it. The hedge is about half as long and
+  plugs the arch, so it no longer looks like a wall you can simply walk round
+- "Los geht's!" only appears on the lake side, so the sword scene can no longer start behind the thorns with the camera
+  inside the arch
+- Walking behind the hedge makes Chuleta say there is only meadow there and the way in is through the arch
+
 ### Story rethink
 
 The adventure is one story now: the volcano's heart, the Feuerherz, was stolen, and every place and object on the

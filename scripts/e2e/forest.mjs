@@ -1,8 +1,9 @@
 /**
  * E2E proof for the forest challenge (quest 6): the thorn hedge and the berry hunt.
  *
- * Opens `?quest=6` on the island, where the hedge closes the forest gate. The
- * camera framing of the sword scene is measured from three sides of the gate.
+ * Opens `?quest=6` on the island, where the hedge closes the forest gate. The arch is
+ * a magic door: the thorns plug it, nothing starts from behind them, and Chuleta says
+ * there is only meadow there. The camera framing of the sword scene is measured from three sides of the gate.
  * Then Tadeo walks up from the lake path, confirms the gate prompt with one
  * Space and watches the hedge open before the forest starts. The challenge is
  * played with real key presses: it reads the live state
@@ -326,6 +327,26 @@ async function walkIsland(x, z, radius = 1, timeout = 8000) {
   await hold(new Set());
 }
 
+const HEN_LINE = "Chuleta: Gack! Hier ist nur Wiese. In den Zauberwald kommst du nur durch das Tor!";
+const henLines = async () => (await said()).filter((l) => l === HEN_LINE).length;
+const tadeoAt = () => page.evaluate(() => [window.game.island.player.position.x, window.game.island.player.position.z]);
+const promptShown = () =>
+  page.evaluate(() => {
+    const el = document.querySelector(".prompt");
+    return el && el.style.display !== "none" ? el.textContent.trim() : null;
+  });
+async function placeTadeo(x, z) {
+  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [x, z]);
+  await sleep(300);
+}
+/** Metres from the hedge to Tadeo along the way through it: below 0 on the lake side, above 0 on the forest side. */
+const hedgeSide = () =>
+  page.evaluate(() => {
+    const hedge = window.game.story.hedge.prop.group;
+    const p = window.game.island.player.position;
+    return (p.x - hedge.position.x) * Math.sin(hedge.rotation.y) + (p.z - hedge.position.z) * Math.cos(hedge.rotation.y);
+  });
+
 let passed = false;
 let fps = 0;
 let bounce = null;
@@ -344,6 +365,51 @@ try {
     return { circles: circles.length, shut: circles.every((c) => colliders.hits(c.x, c.z, 0)) };
   });
   check("the hedge stands on its colliders", walls.circles > 3 && walls.shut, JSON.stringify(walls));
+
+  // The arch is a door: the thorns plug it and no more, and going round them finds only meadow
+  check("Chuleta says nothing when Tadeo starts on the lake side", (await henLines()) === 0, String(await tadeoAt()));
+  const widths = await page.evaluate(() => {
+    const hedge = window.game.story.hedge;
+    const rot = hedge.prop.group.rotation.y;
+    const along = hedge.circles.map((c) => c.x * Math.cos(rot) - c.z * Math.sin(rot));
+    const colliders = Math.max(...along.map((a, i) => a + hedge.circles[i].r)) - Math.min(...along.map((a, i) => a - hedge.circles[i].r));
+    let thorns = 0;
+    hedge.prop.group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.geometry.computeBoundingBox();
+      thorns = Math.max(thorns, o.geometry.boundingBox.max.x - o.geometry.boundingBox.min.x);
+    });
+    return { colliders, thorns };
+  });
+  check("the hedge is a plug for the arch, not a wall across the meadow", widths.colliders <= 10 && widths.thorns <= 13, JSON.stringify(widths));
+  // The whole opening between the posts, which stand 2.7 m from the middle. Further out the hedge's round ends let him slide past: that is the walk round it
+  for (const x of [-13.7, -12, -10.3]) {
+    await placeTadeo(x, 23.2);
+    await hold(new Set(["ArrowDown"]));
+    await sleep(1200);
+    await hold(new Set());
+    const side = await hedgeSide();
+    check(`the thorns stop him running through the arch at x = ${x}`, side < 0, `${side.toFixed(2)} m past the hedge`);
+  }
+  check("Chuleta says nothing in front of the hedge", (await henLines()) === 0);
+  await shot("00_hedge_small");
+
+  await placeTadeo(-12, 37);
+  await hold(new Set(["ArrowUp"]));
+  await sleep(1800);
+  await hold(new Set());
+  await sleep(400);
+  const behindSide = await hedgeSide();
+  check("the thorns stop him from the forest side too", behindSide > 0, `${behindSide.toFixed(2)} m past the hedge`);
+  check("no prompt behind the hedge", (await promptShown()) === null, String(await promptShown()));
+  check("Chuleta explains the meadow when he goes behind the hedge", (await henLines()) === 1, JSON.stringify(await said()));
+  await shot("00_behind_hedge");
+  await page.keyboard.press("Space");
+  await sleep(600);
+  const behindSpace = await page.evaluate(() => ({ pose: window.game.island.player.avatar.pose, hedge: window.game.story.e2e.hedge }));
+  check("Space behind the hedge starts nothing", behindSpace.pose !== "holdUp" && behindSpace.hedge, JSON.stringify(behindSpace));
+  await sleep(3000);
+  check("she does not repeat herself straight away", (await henLines()) === 1, String(await henLines()));
 
   const spots = [];
   for (const [x, z] of GATE_SPOTS) {
@@ -508,6 +574,17 @@ try {
   });
   check("no wall of the hedge is left", open.walls === 0, JSON.stringify(open));
   check("Tadeo's hands are empty again", open.held === 0 && open.pose !== "holdUp", JSON.stringify(open));
+
+  // Her line belongs to the standing hedge: long before the sword it is true as well, once the thorns have gone it is not
+  for (const [quest, want] of [[3, 1], [7, 0]]) {
+    await page.goto(`${BASE}/?quest=${quest}`);
+    await waitFor(() => page.evaluate(() => window.game?.story && window.engine?.scene === window.game.island), "the island", 30000);
+    await sleep(800);
+    await recordLines();
+    await placeTadeo(-12, 30);
+    await sleep(800);
+    check(`behind the hedge's place at quest ${quest} Chuleta says her line ${want} time(s)`, (await henLines()) === want, JSON.stringify(await said()));
+  }
   passed = errors.length === 0 && checks.every((c) => c.ok);
 } catch (e) {
   log(`FAILED: ${e.message}`);

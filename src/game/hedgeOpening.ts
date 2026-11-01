@@ -193,7 +193,7 @@ export class HedgeOpening {
     if (t < LIGHT_AT || t >= GONE_AT) return;
     this.owed.motes += dt * 100;
     // Reason: motes come off the part of the hedge the light has crossed, as high as the thorns still stand
-    const reached = smoothstep(0, 1, ramp(t, [LIGHT_AT, LIGHT_AT + LIGHT_FOR])) * 11;
+    const reached = smoothstep(0, 1, ramp(t, [LIGHT_AT, LIGHT_AT + LIGHT_FOR])) * 5;
     const standing = 1 - smoothstep(0.08, 1, ramp(t, [SHRINK_AT, GONE_AT]));
     for (; this.owed.motes >= 1; this.owed.motes--) {
       const local = new THREE.Vector3((Math.random() * 2 - 1) * reached, Math.random() * (0.4 + 3.6 * standing), (Math.random() - 0.5) * 2.4);
