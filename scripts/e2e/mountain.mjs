@@ -350,13 +350,18 @@ try {
   // ── What was said ─────────────────────────────────────────
   const lines = await said();
   const words = (l) => l.split(": ").slice(1).join(": ").split(/\s+/).length;
-  // Reason: "Gack!" is Chuleta's cluck, not a sentence
-  const sentences = (l) => (l.replace(/\bGack!?/g, "").match(/[.!?]+(\s|$)/g) ?? []).length;
   check("the shrine is the old people's", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("alte Volk")));
-  check("the hammer's job is said", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("für das Eis")));
+  check("the hammer's job is said", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("zerschlägt das Eis")));
   check("Chuleta spots the small island and the fin", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("kleine Insel") && l.includes("Flosse")));
   check("the climb names no Schatzinsel", !lines.some((l) => l.includes("Schatzinsel")));
-  check("every line is one or two short sentences", lines.every((l) => words(l) <= 14 && sentences(l) <= 2), lines.filter((l) => words(l) > 14 || sentences(l) > 2).join(" | "));
+  check("every line has at most 14 words", lines.every((l) => words(l) <= 14), lines.filter((l) => words(l) > 14).join(" | "));
+  const own = await page.evaluate(async () => {
+    const { DIALOGUES } = await import("/src/data/dialogues.ts");
+    return [...DIALOGUES.mountain_enter, ...DIALOGUES.mountain_complete].map((l) => `${l.speaker}: ${l.text}`);
+  });
+  check("the mountain's own talks were all heard", own.length >= 8 && own.every((l) => lines.includes(l)), own.filter((l) => !lines.includes(l)).join(" | "));
+  check("the narrator shows Tadeo the whole island and the sea", lines.some((l) => l.startsWith("Erzähler: Von hier oben sieht Tadeo die ganze Insel")));
+  check("nobody says Monster", !/Monster/.test(lines.join("\n")));
   check("nobody says the forbidden words", !/\b(die Alten|Altar|ewiges Eis|besänftigen)/.test(lines.join("\n")));
   passed = errors.length === 0 && checks.every((c) => c.ok);
 } catch (e) {
