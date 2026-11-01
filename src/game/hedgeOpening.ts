@@ -80,8 +80,23 @@ export class HedgeOpening {
     r.done();
   }
 
-  /** Raise the sword, burn the hedge away and give the camera back to the follow rig. */
-  async play(): Promise<void> {
+  /** Take the opening's first shot and turn Tadeo to the hedge, so a talk before it flows into the scene. */
+  faceTheHedge(): void {
+    const toward = this.toward();
+    this.d.player.facing = Math.atan2(toward.x, toward.z);
+    const [first] = this.shots();
+    // Reason: the talk's dialogue box covers the bottom of the picture, so the view aims lower to lift Tadeo above it
+    first.look.y -= 1.4;
+    this.d.rig.setShot(first, 0.9);
+  }
+
+  /** Give the camera back to the follow rig after `play(true)`. */
+  release(): void {
+    this.d.rig.setShot(null, 1);
+  }
+
+  /** Raise the sword and burn the hedge away; the camera goes back to the follow rig, unless `keepShot` holds it for a talk. */
+  async play(keepShot = false): Promise<void> {
     const { rig, player, scene, hedge } = this.d;
     const avatar = player.avatar;
     const blade = this.drawSword();
@@ -122,8 +137,10 @@ export class HedgeOpening {
         };
       });
       await this.sinking;
+      // Reason: the dialogue box covers the bottom of the picture, so a held shot aims lower to lift Tadeo above it
+      if (keepShot) rig.setShot({ pos: to.pos, look: to.look.clone().setY(to.look.y - 1.4) }, 0.6);
     } finally {
-      rig.setShot(null, 1);
+      if (!keepShot) rig.setShot(null, 1);
       avatar.pose = "normal";
       avatar.handR.remove(blade.sword);
       hedge.prop.shine(0, 0);

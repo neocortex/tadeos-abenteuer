@@ -172,7 +172,14 @@ export class StoryWorld {
     switch (m) {
       case FOREST_QUEST:
         // Reason: a reload in the forest brings the hedge back, so the sword opens it again
-        if (this.hedge.up) await this.hedgeOpening.play();
+        if (this.hedge.up) {
+          this.hedgeOpening.faceTheHedge();
+          await this.talk("forest_hedge");
+          // Reason: the follow camera would show Tadeo from the forest side, so the opening's last shot stays on the open gate for this talk
+          await this.hedgeOpening.play(true);
+          await this.talk("forest_hedge_open");
+          this.hedgeOpening.release();
+        }
         return;
       case SEA_QUEST: {
         const talking = this.talk("sea_dock", this.npcs.get(PACO));
