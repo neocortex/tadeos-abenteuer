@@ -27,6 +27,7 @@ export async function finaleEnding(c: VolcanoChallenge): Promise<void> {
   c.rig.setShot(home.shots.stone, 1.8);
   await hero.walkTo(home.standAt.x, home.standAt.z);
   home.lookAtStone();
+  await ui.say("finale_stone");
   home.phase = "wait";
   c.prompt = { at: home.promptAt, verb: "Einsetzen" };
   await c.nextSpace();
@@ -53,6 +54,7 @@ export async function finaleEnding(c: VolcanoChallenge): Promise<void> {
   audio.playMusic("music_title", 2.5);
   await home.settle();
   await home.sleep(1.8);
+  await ui.say("finale_calm");
 
   // The old guardian can rest at last
   home.phase = "thanks";
