@@ -460,6 +460,16 @@ try {
   await advanceUntil("Mal sehen, ob das Schwert wirklich hilft");
   await sleep(500);
   const upAtLastLine = (await story()).hedge;
+  const looking = await page.evaluate(() => {
+    const g = window.game;
+    const cam = g.island.camera;
+    const hedge = g.story.hedge.prop.group;
+    const n = [Math.sin(hedge.rotation.y), Math.cos(hedge.rotation.y)];
+    const side = (v) => (v.x - hedge.position.x) * n[0] + (v.z - hedge.position.z) * n[1];
+    const mid = cam.position.clone().set(hedge.position.x, hedge.position.y + 1.5, hedge.position.z).project(cam);
+    return { camSide: side(cam.position), tadeoSide: side(g.island.player.position), x: mid.x, y: mid.y, ahead: mid.z < 1 };
+  });
+  check("the hedge talk looks at the hedge", looking.camSide < 0 && looking.tadeoSide < 0 && looking.ahead && Math.abs(looking.x) < 0.9 && Math.abs(looking.y) < 0.9, JSON.stringify(looking));
   await shot("hedge_talk");
   await skipDialogues();
   const openingStart = Date.now();
@@ -497,6 +507,7 @@ try {
   let hedgeGone = null;
   let forestAt = null;
   let upAtOpenTalk = null;
+  let openShot = false;
   while (forestAt === null && Date.now() - pressed < 120000) {
     const [hedgeUp, inForest] = await page.evaluate(() => [window.game.story.e2e.hedge, !!window.engine.scene?.e2e?.phase]);
     if (!hedgeUp && hedgeGone === null) hedgeGone = ((await page.evaluate(() => window.hedgeGoneAt)) - openingStart) / 1000;
@@ -504,6 +515,11 @@ try {
     else if (await dialogueOpen()) {
       // Reason: the first line of the talk after the opening is the moment the hedge must already be gone
       if (upAtOpenTalk === null && (await sawLine("Sie sind weg"))) upAtOpenTalk = hedgeUp;
+      if (!openShot && (await sawLine("Das Tor ist frei"))) {
+        await sleep(500);
+        openShot = true;
+        await shot("hedge_open_talk");
+      }
       await page.keyboard.press("Space");
       await sleep(350);
     } else await sleep(50);
