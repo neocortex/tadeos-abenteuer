@@ -578,14 +578,17 @@ try {
   check("Tadeo wears the crown", crowned);
   // Each moment waits for the camera to settle, takes its picture, and then proves what the line asks for
   const moments = {
-    [OPENING_LAST]: { name: "18b_festival_opening", run: async () => {
+    [OPENING_LAST]: { name: "18b_festival_opening", wait: 8500, run: async () => {
       const seen = await page.evaluate(() => {
         const sc = window.engine.scene;
         return { cheering: sc.stage.crowd.cheering, pacoSeated: sc.stage.crowd.watchers.find((w) => w.actor === sc.feast.paco).sitting };
       });
       check("the festival opens with the cheer", seen.cheering && seen.pacoSeated, JSON.stringify(seen));
     } },
-    "das war ich": { name: "19_paco_confesses" },
+    "das war ich": { name: "19_paco_confesses", wait: 300, run: async () => {
+      const cheering = await page.evaluate(() => window.engine.scene.stage.crowd.cheering);
+      check("the cheer has ended when Paco speaks", cheering === false);
+    } },
     "Auf einmal ist es ganz still": { name: "festival_still", before: async () => ({ spots: await guestSpots() }), run: async (ctx) => {
       await sleep(700);
       const after = await guestSpots();

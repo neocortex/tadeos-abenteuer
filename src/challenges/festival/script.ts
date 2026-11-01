@@ -44,9 +44,11 @@ export async function welcome(f: Feast): Promise<void> {
   s.tadeo.avatar.pose = "cheer";
   s.tadeo.jump(6);
   audio.playSfx("sfx_victory_fanfare", 0.6);
-  // Reason: the cheer outlasts the two spoken lines, so everybody is still cheering on the last one
-  s.crowd.cheer(8);
+  // Reason: lines stay until the player presses Space, so no clock fits them: cheer until the lines are done
+  s.crowd.cheer(Infinity);
   await s.ui.say("festival_opening");
+  // Reason: a 0.01 s cheer ends on the next frame, before Paco gets his own pose, so the end can't reset it
+  s.crowd.cheer(0.01);
   f.atWide = false;
   s.tadeo.avatar.pose = "normal";
 
