@@ -179,8 +179,16 @@ check("Space closes the map card", await until(async () => !(await mapCardOpen()
 await wait(500);
 await shot("03b-tadeo-sets-off");
 
+// Reason: only sayOverBlack lifts the dialogue's layer above the fade, so z-index 101 means the line is told over black
+const layerIndex = () => page.evaluate(() => window.game.ui.layer.style.zIndex);
+const onScreen = () => page.evaluate(() => (document.querySelector(".dialogue.open") ? window.game.ui.dialogue.full : ""));
+const sailingSeen = await readUntil(async () => (await onScreen()).startsWith("Noch am selben Tag"), 30000);
+const overBlack = await layerIndex();
+check("the sailing is told over black", sailingSeen && overBlack === "101" && (await screenBlack()), `z-index "${overBlack}"`);
+
 // The shark's hit at sea
 check("the sea cinematic starts", await readUntil(() => hasObject("opening-sea"), 12000));
+check("the dialogue layer is back down after the sailing", (await layerIndex()) === "", `z-index "${await layerIndex()}"`);
 const seaStart = Date.now();
 check("Chuleta stays in the backpack at sea", !(await chuletaVisible()));
 await wait(1500);
@@ -204,16 +212,26 @@ await wait(3500);
 await shot("08-flight");
 check("the arrival dialogue opens", await until(dialogueOpen, 20000));
 await shot("09-arrival");
-check("Chuleta is out of the backpack", await chuletaVisible());
+check("Chuleta is still in the backpack while Tadeo says where he is", !(await chuletaVisible()));
+check("Chuleta is out of the backpack after that", await readUntil(chuletaVisible, 30000));
 check("the banner comes after the talk", await readUntil(banner2Shows, 30000));
 await shot("10-quest2-banner");
 const bannerLine = await bannerText();
 check("intro has narrator, Tadeo, Chuleta and Stimme", ["Erzähler", "Tadeo", "Chuleta", "Stimme"].every((s) => speakers.has(s)), [...speakers].join(", "));
 check("no sign quest", !speakers.has("Schild"));
 check(
-  "Chuleta's last word sends him after the golden star, right after the call for help",
-  /^Chuleta: .*goldenen Stern/.test(spoken.at(-1)) && /^Tadeo: .*Vulkan/.test(spoken.at(-2)),
+  "the narrator's last word sends him after the golden star, right after Tadeo says he will look after her",
+  /^Erzähler: .*goldene Stern/.test(spoken.at(-1)) && /^Tadeo: .*wer da ruft/.test(spoken.at(-2)),
   spoken.slice(-2).join(" | "),
+);
+const at = (re) => spoken.findIndex((l) => re.test(l));
+const landingEnd = at(/^Tadeo: Und da hinten raucht ein Berg/);
+const chuletaOut = at(/^Chuleta: Und mich hast du wohl vergessen/);
+const arrivalStart = at(/^Chuleta: Gack! Der Hai/);
+check(
+  "Tadeo reacts before Chuleta climbs out",
+  landingEnd >= 0 && landingEnd < chuletaOut && chuletaOut < arrivalStart,
+  `${landingEnd} < ${chuletaOut} < ${arrivalStart}`,
 );
 check("player is free after intro", await waitUntilFree());
 
@@ -496,7 +514,7 @@ for (const k of ["villager3", "maulwurf", "hueter"]) {
 
 // Each new speaker in the real dialogue box: an image portrait, or the emoji for the voice nobody sees yet
 const faces = [
-  ["Käpt'n Paco", "img", "Danke, Junge! Ich bin Käpt'n Paco."],
+  ["Käpt'n Paco", "img", "Puh! Danke, Junge! Mein Fuß steckte ganz fest."],
   ["Stimme", "🗣️", "Hilfe! Hilfe!"],
   ["Maulwurf", "img", "Ich habe Hunger! Bring mir einen Leuchtpilz, dann grabe ich dir den Weg frei."],
   ["Hüter", "img", "Ich bin der Hüter. Ich habe auf das Herz aufgepasst."],
@@ -705,7 +723,7 @@ let mashing = true;
 const masher = (async () => {
   while (mashing) {
     await page.keyboard.press("Space");
-    await wait(90);
+    await wait(60);
   }
 })();
 let seaSeen = 0;
@@ -719,7 +737,7 @@ await masher;
 await wait(800);
 s = await state();
 const seaMs = seaSeen - 1e15;
-check("mashing Space ends with the game free", mashDone);
+check("mashing Space through the opening ends with the game free", mashDone);
 check("mashing Space cannot skip the sea cinematic", seaMs > 5000 && seaMs < 12000, `${seaMs} ms`);
 check("after mashing: quest 2, nothing open", s.milestone === 2 && s.free && !(await mapCardOpen()), JSON.stringify(s));
 check("after mashing: Tadeo and Chuleta are at the landing pier", Math.hypot(s.x + 66, s.z - 47) < 3 && (await chuletaVisible()), JSON.stringify(s));
@@ -731,6 +749,11 @@ check("after mashing: the camera is back with Tadeo", await page.evaluate(() => 
   return g.cinematic === null && g.island.camera.position.distanceTo(g.island.player.position) < 25;
 }));
 await shot("20-after-mashing");
+check("after mashing: no dialogue is open and the layer is down", !s.dialogue && (await layerIndex()) === "", `z-index "${await layerIndex()}"`);
+await page.keyboard.down("ArrowRight");
+await wait(500);
+await page.keyboard.up("ArrowRight");
+check("after mashing: Tadeo walks on an arrow press", Math.abs((await state()).x - s.x) > 0.5, `${s.x.toFixed(1)} -> ${(await state()).x.toFixed(1)}`);
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

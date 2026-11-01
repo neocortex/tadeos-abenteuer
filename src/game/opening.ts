@@ -468,6 +468,7 @@ async function findTheBottle(d: OpeningDeps): Promise<void> {
   await engine.fade(1, 450);
   island.player.avatar.pose = "normal";
   beach.dispose();
+  await d.ui.sayOverBlack("intro_sailing");
 }
 
 /** Sailing, the fin, the hit, the cut to black. Nothing but the picture for the whole of it. */
@@ -509,6 +510,8 @@ async function arrive(d: OpeningDeps): Promise<void> {
   await wait(1400);
   d.endCinematic(1.8);
   await wait(900);
+  // Reason: Tadeo says where he is before Chuleta climbs out
+  await d.talk("intro_landing");
   d.chuleta.climbOut();
   await wait(800);
   await d.talk(CHULETA_INTRO);

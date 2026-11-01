@@ -7,7 +7,7 @@ import { DialogueScript } from "../data/dialogues";
 
 export const CHULETA_INTRO: DialogueScript = [
   { speaker: "Chuleta", portrait: "", text: "Und mich hast du wohl vergessen? Ich saß die ganze Zeit in deinem Rucksack!" },
-  { speaker: "Tadeo", portrait: "", text: "Chuleta! Du bist ja mitgekommen!" },
+  { speaker: "Tadeo", portrait: "", text: "Chuleta! Du bist ja mitgekommen! Bin ich froh!" },
 ];
 
 /** Hint for the current milestone, said when nothing happened for a while. */

@@ -328,11 +328,21 @@ async function altarCloseUps() {
   });
 }
 
-/** Reads the conversations at the goal line by line, advancing with Space. */
-async function hearLines() {
+/**
+ * Reads the conversations at the goal line by line, advancing with Space, until `stop()` holds.
+ * On the stone line and Paco's answer it also takes the screenshots and checks the picture, and on the narrator's
+ * last line it checks that Paco starts to walk off.
+ */
+async function hearLines(stop = onIsland, tag = "g") {
   const heard = [];
   const end = Date.now() + 40000;
-  while (Date.now() < end && !(await onIsland())) {
+  let pacoBefore = null;
+  const pacoToExit = () =>
+    page.evaluate(() => {
+      const r = window.engine.scene.set.rescue;
+      return r ? Math.hypot(r.paco.position.x - r.exitAt.x, r.paco.position.z - r.exitAt.y) : null;
+    });
+  while (Date.now() < end && !(await stop())) {
     if (!(await dialogueOpen())) {
       await sleep(120);
       continue;
@@ -344,13 +354,81 @@ async function hearLines() {
     if (!heard.length || heard[heard.length - 1].text !== line.text) {
       heard.push(line);
       log(`${line.speaker}: ${line.text}`);
+      if (line.text.startsWith("Schau mal, der alte Stein")) {
+        // The camera glides to the stone in 1.3 s
+        await sleep(1500);
+        await shot("paco_stone");
+        const at = await page.evaluate(() => {
+          const sc = window.engine.scene;
+          const p = sc.set.altar.hollowAt.clone().project(sc.camera);
+          return { x: p.x, y: p.y, z: p.z };
+        });
+        check("the old stone is in shot on the hole line", Math.abs(at.x) < 0.7 && Math.abs(at.y) < 0.7 && at.z < 1, JSON.stringify(at));
+      } else if (line.text.startsWith("Ach, alter Kram")) {
+        // Back to the wide shot in 1.1 s
+        await sleep(1300);
+        await shot("paco_answer");
+        const at = await page.evaluate(() => {
+          const sc = window.engine.scene;
+          const p = sc.set.rescue.paco.position.clone().setY(sc.set.rescue.paco.position.y + 1).project(sc.camera);
+          return { x: p.x, y: p.y, z: p.z };
+        });
+        check("Paco is in shot on his answer", Math.abs(at.x) < 0.9 && Math.abs(at.y) < 0.9 && at.z < 1, JSON.stringify(at));
+      } else if (line.text.startsWith("Dort sitzt ein Oger")) {
+        pacoBefore = await pacoToExit();
+      } else if (line.speaker === "Erzähler" && line.text.startsWith("Käpt'n Paco geht voraus") && pacoBefore !== null) {
+        await sleep(1000);
+        const after = await pacoToExit();
+        check("Paco walks off on the narrator's last line", after < pacoBefore - 1.5, `${pacoBefore.toFixed(1)} m -> ${after.toFixed(1)} m from the exit`);
+      }
       await sleep(350);
-      await shot(`g${heard.length}_line`);
+      await shot(`${tag}${heard.length}_line`);
     }
     await page.keyboard.press("Space");
     await sleep(320);
   }
   return heard;
+}
+
+/** Space every 60 ms from the goal on: the rescue ends, and Tadeo is back in control on the island. */
+async function mashThroughTheRescue() {
+  // Reason: through the game's own quest flow, so that `busy` and the reward are the real ones
+  await page.goto(`${BASE}/?quest=2`);
+  await waitFor(() => page.evaluate(() => window.game?.busy === false && window.engine?.scene === window.game.island), "island for mashing", 30000);
+  await page.evaluate(() => void window.game.run(() => window.game.playChallenge(2)));
+  await waitFor(() => page.evaluate(() => window.engine?.scene?.state === "intro"), "volcano scene for mashing", 25000);
+  await waitFor(dialogueOpen, "volcano_enter dialogue for mashing", 20000);
+  await skipDialogues();
+  await waitFor(() => page.evaluate(() => window.engine.scene.state === "play"), "play state for mashing", 10000);
+  // Reason: the course itself is covered above; this puts Tadeo just past the goal
+  await page.evaluate(() => {
+    const sc = window.engine.scene;
+    const p = sc.course.pointAt(sc.course.goalS + 3.5);
+    sc.hero.teleport(p.x, p.y);
+  });
+  let mashing = true;
+  const masher = (async () => {
+    while (mashing) {
+      await page.keyboard.press("Space");
+      await sleep(60);
+    }
+  })();
+  let ended = false;
+  try {
+    await waitFor(() => page.evaluate(() => window.engine.scene === window.game.island && window.game.busy === false), "free island after the mashed rescue", 90000);
+    ended = true;
+  } catch {}
+  mashing = false;
+  await masher;
+  await sleep(1500);
+  const at = () => page.evaluate(() => window.game.island.player.position.x);
+  const x0 = await at();
+  await page.keyboard.down("ArrowRight");
+  await sleep(600);
+  await page.keyboard.up("ArrowRight");
+  const moved = Math.abs((await at()) - x0);
+  const open = await dialogueOpen();
+  check("mashing Space through the rescue ends the quest and gives Tadeo back", ended && !open && moved > 0.5, `dialogue ${open}, moved ${moved.toFixed(1)} m`);
 }
 
 /** A mode with the heart: Tadeo carries it, the sky and the rock rate follow the mode, and Paco is not there. */
@@ -404,6 +482,16 @@ try {
   await page.goto(`${BASE}/?challenge=volcano`);
   await waitFor(() => page.evaluate(() => window.engine?.scene?.state === "intro"), "volcano scene", 25000);
   log("volcano loaded");
+  // Every line the dialogue box begins, read from the box itself so a quick line is never missed
+  await page.evaluate(() => {
+    const box = Object.getPrototypeOf(window.game.ui.dialogue);
+    const begin = box.showLine;
+    window.said = [];
+    box.showLine = function () {
+      begin.call(this);
+      window.said.push(this.script[this.index].text);
+    };
+  });
 
   const facts = await page.evaluate(courseFacts);
   const maxGap = Math.max(...facts.gaps);
@@ -547,7 +635,15 @@ try {
   check("reaching the goal does not free Paco by itself", live.paco === "stuck" && live.lifts === 0, `${live.paco} ${live.lifts}`);
   await sleep(600);
   await shot("12_at_the_goal");
-  await waitFor(() => page.evaluate(() => !!document.querySelector(".prompt") && document.querySelector(".prompt").style.display !== "none"), "lift prompt", 15000);
+  const promptShows = () => page.evaluate(() => !!document.querySelector(".prompt") && document.querySelector(".prompt").style.display !== "none");
+  const foundLines = await hearLines(promptShows, "f");
+  const foundWant = await page.evaluate(async () => (await import("/src/data/dialogues.ts")).DIALOGUES.volcano_paco_found);
+  check(
+    "Tadeo sees who called before the lift",
+    foundLines.length === 3 && foundWant.every((l, i) => foundLines[i].speaker === l.speaker && foundLines[i].text === l.text) && foundLines.map((l) => l.speaker).join() === "Tadeo,Stimme,Tadeo",
+    foundLines.map((l) => l.speaker).join(),
+  );
+  await waitFor(promptShows, "lift prompt", 15000);
   await sleep(1300);
   await shot("13_paco_stuck");
   await sleep(2500);
@@ -567,21 +663,22 @@ try {
   await shot("16_paco_free");
 
   const heard = await hearLines();
-  const want = [
-    ["Käpt'n Paco", "Danke, Junge! Ich bin Käpt'n Paco."],
-    ["Tadeo", "Was ist das für ein Stein?"],
-    ["Käpt'n Paco", "Ach, alter Kram."],
-    ["Tadeo", "Mein Boot ist kaputt."],
-    ["Käpt'n Paco", "Das flicke ich dir. Komm ins Dorf!"],
-    ["Käpt'n Paco", "Nimm die Trittsteine. Auf der Brücke sitzt ein Oger."],
-  ];
-  check("the conversation plays in two beats, line by line", want.every(([sp, tx], i) => heard[i]?.speaker === sp && heard[i]?.text === tx) && heard.length === want.length, `${heard.length} lines`);
+  const want = await page.evaluate(async () => {
+    const { DIALOGUES } = await import("/src/data/dialogues.ts");
+    return ["volcano_paco_found", "volcano_paco_thanks", "volcano_paco_boat"].flatMap((k) => DIALOGUES[k].map((l) => [l.speaker, l.text]));
+  });
+  const all = [...foundLines, ...heard];
+  check("the conversation plays line by line", want.every(([sp, tx], i) => all[i]?.speaker === sp && all[i]?.text === tx) && all.length === want.length, `${all.length} of ${want.length} lines`);
   await waitFor(onIsland, "return to island", 30000);
   await sleep(1500);
   await shot("20_back_on_island");
   log("back on the island");
 
+  const said = await page.evaluate(() => window.said);
+  check("a hit doesn't replay the talk", hand.sawOuch && respawnCheck && said.filter((t) => t === "Hier oben kamen die Rufe her. Hallo? Wer ist da?").length === 1, `${said.filter((t) => t.startsWith("Hier oben")).length} times after ${last.hits} hits`);
+
   await heartModeChecks(facts.fog);
+  await mashThroughTheRescue();
 
   check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   passed = checks.every((c) => c.ok);
