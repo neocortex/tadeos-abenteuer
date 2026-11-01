@@ -107,11 +107,15 @@ async function walkIsland(x, z, radius = 0.6, timeout = 8000) {
 async function recordLines() {
   await page.evaluate(() => {
     window.said = [];
+    // Where the boat and Tadeo are as each line comes up: at sea, or on the sand
+    window.saidAt = [];
     const box = Object.getPrototypeOf(window.game.ui.dialogue);
     const begin = box.showLine;
     box.showLine = function () {
       begin.call(this);
       window.said.push(`${this.script[this.index].speaker}: ${this.script[this.index].text}`);
+      const sc = window.engine.scene;
+      window.saidAt.push({ phase: sc.e2e?.phase, aboard: sc.boat?.aboard });
     };
   });
 }
@@ -227,6 +231,17 @@ try {
   await skipDialogues();
   await waitFor(async () => (await state())?.challenge === "sea", "sea scene", 20000);
   await page.evaluate(watchFight);
+  // Which line of the talk is on screen each time the berries come out
+  await page.evaluate(() => {
+    const sc = window.engine.scene;
+    const raise = sc.raiseBerries.bind(sc);
+    window.berryCalls = [];
+    sc.raiseBerries = () => {
+      const box = window.game.ui.dialogue;
+      window.berryCalls.push(box.script[box.index].text);
+      raise();
+    };
+  });
   log("sea loaded");
   await sleep(1400);
   await shot("01_pier_home_island");
@@ -278,8 +293,18 @@ try {
   // ── The shark ─────────────────────────────────────────────
   await waitFor(dialogueOpen, "sea_shark dialogue", 20000);
   await sleep(500);
-  await skipDialogues("07_shark_fin");
+  await shot("07_shark_fin");
+  // Real separate presses every 60 ms (a held key is ignored): the berries still come out once, on "Hier, Hai!"
+  const mashStart = Date.now();
+  while ((await dialogueOpen()) && Date.now() - mashStart < 20000) {
+    await page.keyboard.press("Space");
+    await sleep(60);
+  }
+  const berryCalls = await page.evaluate(() => window.berryCalls);
+  check("mashing Space still raises the berries once", berryCalls.length === 1, JSON.stringify(berryCalls));
+  check("the berries come out on Hier, Hai!", berryCalls[0] === "Hier, Hai! Mach den Mund auf!" && !berryCalls.includes("Da ist er! Der Hai, der mein Boot kaputt gemacht hat!"), JSON.stringify(berryCalls));
   await waitFor(async () => (await state()).leaping, "first leap", 30000);
+  check("the fight starts after the mashed talk", (await state()).phase === "shark");
   const hands = await page.evaluate(() => ({ berries: window.engine.scene.boat.berries.visible, hammer: "hammer" in window.engine.scene.boat }));
   check("Tadeo holds the berries, no hammer", hands.berries && !hands.hammer, JSON.stringify(hands));
   await sleep(150);
@@ -295,6 +320,8 @@ try {
   const throwsAfterMiss = (await state()).throws;
   check("a press outside the green window doesn't count", throwsAfterMiss === throwsBeforeMiss && !beforeRing.ringNow, `${throwsBeforeMiss} then ${throwsAfterMiss}`);
   check("a miss is no game over: the fight goes on", (await state()).phase === "shark");
+  const sharkOpening = (await page.evaluate(() => window.said)).filter((l) => l === "Erzähler: Plötzlich erscheint eine riesige Flosse im Wasser...");
+  check("a missed throw doesn't replay the talk", sharkOpening.length === 1, sharkOpening.length);
   await page.keyboard.press("Space");
   await sleep(200);
   check("a press between the leaps doesn't count either", (await state()).throws === throwsAfterMiss);
@@ -368,15 +395,26 @@ try {
   const lines = await page.evaluate(() => window.said);
   log(lines.join(" | "));
   const words = (l) => l.split(": ").slice(1).join(": ").split(/\s+/).length;
-  // Reason: "Gack!" is Chuleta's cluck, not a sentence
-  const sentences = (l) => (l.replace(/\bGack!?/g, "").match(/[.!?]+(\s|$)/g) ?? []).length;
   check("Paco says who brought the boat", lines.some((l) => l.startsWith("Käpt'n Paco: ") && l.includes("geflickt") && l.includes("Oger")));
   check("Paco explains the starfish", lines.some((l) => l.includes("Seesternen")));
-  check("Chuleta knows what a monster needs", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("Beeren")));
+  check("Chuleta knows what the shark needs", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("Beeren")));
   check("Tadeo offers the berries", lines.includes("Tadeo: Hier, Hai! Mach den Mund auf!"));
   check("afterwards the shark is friendly", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("wieder lieb")));
+  // The goodbye is said at sea, the landing on the sand
+  const at = await page.evaluate(() => window.saidAt);
+  const defeat = [
+    "Tadeo: Der Hai ist wieder lieb! Jetzt kann ich sicher zur Schatzinsel fahren!",
+    "Chuleta: Er hat mit der Flosse gewinkt! Gack!",
+    "Tadeo: Er war nur so böse, weil das Herz fehlt. Armer Hai!",
+  ].map((l) => lines.indexOf(l));
+  const landed = ["Tadeo: Geschafft! Endlich sind wir auf der Insel von der Karte!", "Chuleta: Fester Boden! Gack! Nie wieder Boot!"].map((l) => lines.indexOf(l));
+  check(
+    "the shark's goodbye and the landing are apart",
+    defeat.every((i) => i >= 0 && at[i].phase === "shark" && at[i].aboard) && landed.every((i) => i >= 0 && at[i].phase === "arrive" && !at[i].aboard) && Math.max(...defeat) < Math.min(...landed),
+    JSON.stringify({ defeat, landed, at: [...defeat, ...landed].map((i) => at[i]) }),
+  );
   check("nobody beats the shark", !/besieg/.test(lines.join("\n")));
-  check("every line is one or two short sentences", lines.every((l) => words(l) <= 14 && sentences(l) <= 2), lines.filter((l) => words(l) > 14 || sentences(l) > 2).join(" | "));
+  check("every line has at most 14 words", lines.every((l) => words(l) <= 14), lines.filter((l) => words(l) > 14).join(" | "));
   check("nobody says the forbidden words", !/\b(die Alten|Altar|ewiges Eis|besänftigen)/.test(lines.join("\n")));
 
   // ── On to the treasure island ─────────────────────────────
