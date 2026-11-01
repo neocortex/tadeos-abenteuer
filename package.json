@@ -1,7 +1,7 @@
 {
   "name": "schatzkarten-spiel-2",
   "version": "2.0.0",
-  "description": "Schatzkartenspiel - A 3D treasure hunt adventure on a toon island (Three.js)",
+  "description": "Die Abenteuer von Tadeo: Die Schatzinsel - A 3D treasure hunt adventure on a toon island (Three.js)",
   "type": "module",
   "scripts": {
     "dev": "vite",

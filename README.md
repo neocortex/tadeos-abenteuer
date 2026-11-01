@@ -1,4 +1,4 @@
-# Schatzkartenspiel
+# Die Abenteuer von Tadeo: Die Schatzinsel
 
 A 3D treasure-hunt adventure built with **Three.js**, **TypeScript** and **Vite**, made for Tadeo
 (7 years old). You play as **Tadeo** with his hen **Chuleta**: explore a lush toon-style island,
@@ -6,7 +6,7 @@ follow a story of twelve quests: the volcano's heart was stolen, and Tadeo finds
 brings it home. Along the way he helps the villagers and sails to a treasure island. All text and
 narration are in German.
 
-![Schatzkartenspiel title screen](./title_screen.png)
+![Title screen of Die Abenteuer von Tadeo](./title_screen.png)
 
 ## Highlights
 
@@ -59,6 +59,9 @@ runaway hens. The first win earns a prize hat (fishing hat, golden crown).
 - **Space** (or Enter): talk, read, jump, confirm, advance dialogue
 - **M**: sound on/off
 - **V**: voice narration on/off
+
+The music starts as soon as the page loads if the browser allows sound. A browser that holds sound back
+until the first key or click (Chrome on a first visit, for example) starts it on that press.
 
 ## Getting started
 
@@ -127,6 +130,7 @@ npx vite --port 5199          # in one terminal
 npm run test:e2e              # all tests in a row (~30 min) → scripts/e2e/out/all.json
 node scripts/e2e/world.mjs    # one test: walks every region path, landmarks, region animals, fps, no lettered
                               # signs outside the village, the island's changes quest by quest (StoryWorld)
+node scripts/e2e/title.mjs    # the game's name fits every window; music with and without the browser's sound block
 node scripts/e2e/island.mjs   # likewise: title, opening, quests 1–4, map card, riddles, coins, fps
 node scripts/e2e/finale.mjs   # quest 12 from the sea to the festival and the end card
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback

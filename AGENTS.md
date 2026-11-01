@@ -14,7 +14,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
 - `npm run voices` — render new or changed spoken lines with ElevenLabs (needs `ELEVENLABS_API_KEY` in `.env`);
   `npm run voices -- --dry-run` shows what would be rendered without spending credits
 - `npx tsc --noEmit -p .` — type-check (must be clean)
-- E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (world, island, volcano, cave, forest,
+- E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (title, world, island, volcano, cave, forest,
   ogre, village, mountain, sea, treasure, finale, fishing, hens, voices, fps). Proof goes to `scripts/e2e/out/<name>/`.
 
 ## Architecture
@@ -52,6 +52,9 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   needs an `OWNERS` entry there. The game logs `[voice] no recording` and uses browser speech for a line it misses.
 - **Lines with a changing value** (a time, a length) cannot be recorded: give them a fixed `spoken` version.
 - **Controls are arrows + Space only** (M = mute, V = voice toggle are global).
+- **Sound before the first press:** a browser may hold audio back until a key or click. The audio clock stands still
+  meanwhile, so sounds scheduled on it all play at once on that press. E2E checks of this must read the page without
+  a gesture, because Playwright's `evaluate` and wait helpers count as one: see `inPage` in `scripts/e2e/title.mjs`.
 - **Input:** read presses with `input.consume(code)`. Presses stay readable from the start of a frame
   until the next frame begins, so code resuming after an `await` still sees them.
 - Instanced meshes spread over the whole island need `frustumCulled = false`.

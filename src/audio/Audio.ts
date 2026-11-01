@@ -16,7 +16,6 @@ class AudioSystem {
   private ambienceBus!: GainNode;
   private buffers = new Map<string, AudioBuffer>();
   private music: { key: string; src: AudioBufferSourceNode; gain: GainNode } | null = null;
-  private pendingMusic: string | null = null;
   private ambienceOn = false;
   private birdTimer: number | null = null;
   muted = false;
@@ -27,7 +26,7 @@ class AudioSystem {
     } catch {
       // Reason: storage may be unavailable (private mode); default to sound on
     }
-    // Reason: browsers only allow audio after a user gesture — unlock on the first key/click
+    // Reason: browsers may hold audio back until a user gesture — unlock on the first key/click
     const unlock = () => this.ensureContext();
     window.addEventListener("keydown", unlock);
     window.addEventListener("pointerdown", unlock);
@@ -50,12 +49,10 @@ class AudioSystem {
 
   /** Loop a music track, cross-fading from the current one. */
   playMusic(key: string, fade = 1.2): void {
-    if (!this.ctx) {
-      this.pendingMusic = key;
-      return;
-    }
+    // Reason: if the browser holds audio back, the track waits at its start and plays from the first key/click
+    this.ensureContext();
     if (this.music?.key === key) return;
-    const ctx = this.ctx;
+    const ctx = this.ctx!;
     const now = ctx.currentTime;
     if (this.music) {
       const old = this.music;
@@ -138,11 +135,6 @@ class AudioSystem {
     this.ambienceBus.connect(this.master);
     this.startSea();
 
-    if (this.pendingMusic) {
-      const key = this.pendingMusic;
-      this.pendingMusic = null;
-      this.playMusic(key);
-    }
     if (this.ambienceOn) this.setAmbience(true);
   }
 
@@ -204,7 +196,8 @@ class AudioSystem {
     this.birdTimer = window.setTimeout(() => {
       this.birdTimer = null;
       if (!this.ambienceOn || !this.ctx) return;
-      this.chirp();
+      // Reason: a held-back context's clock stands still, so every call made now would sound at once on the first press
+      if (this.ctx.state === "running") this.chirp();
       this.scheduleBird();
     }, 2500 + Math.random() * 6000);
   }

@@ -308,9 +308,9 @@ export class Game {
         look: new THREE.Vector3(18, 4, 28),
       };
     });
-    await this.engine.setScene(this.island, 1400);
     audio.playMusic("music_title");
     audio.setAmbience(true);
+    await this.engine.setScene(this.island, 1400);
     const save = SaveManager.getInstance();
     const hasSave = save.hasSave();
     this.title = new Title(this.ui.layer, hasSave);

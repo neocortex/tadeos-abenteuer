@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Title screen
+
+- The game is now called "Die Abenteuer von Tadeo", with the subtitle "Die Schatzinsel", on the title screen and in
+  the browser tab
+- The music starts as the page loads instead of waiting for a press. A browser that holds sound back until the first
+  key or click starts it on that press
+
 ### Story rethink
 
 The adventure is one story now: the volcano's heart, the Feuerherz, was stolen, and every place and object on the

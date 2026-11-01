@@ -20,8 +20,8 @@ export class Title {
     this.el = document.createElement("div");
     this.el.className = "title-screen";
     this.el.innerHTML = `
-      <div class="logo">Schatzkartenspiel</div>
-      <div class="sub">Das Abenteuer von Tadeo</div>
+      <div class="logo">Die Abenteuer von Tadeo</div>
+      <div class="sub">Die Schatzinsel</div>
       <div class="menu"></div>`;
     const menu = this.el.querySelector(".menu")!;
     for (const c of this.choices) {
