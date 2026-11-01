@@ -114,6 +114,8 @@ export class Feast {
   readonly tadeoAt = TADEO_AT;
   phase: "talk" | "party" = "talk";
   atWide = false;
+  /** How many camera beats the talk has run; the E2E proof compares it to the lines of the talk. */
+  beatsFired = 0;
   /** How low Paco hangs his head: 0 upright, 1 ashamed. */
   bow = 0;
   /** The hen's mood: she flaps for joy. */
