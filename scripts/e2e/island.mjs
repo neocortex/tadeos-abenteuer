@@ -214,6 +214,9 @@ await wait(3500);
 await shot("08-flight");
 check("the arrival dialogue opens", await until(dialogueOpen, 20000));
 await shot("09-arrival");
+// Reason: he turns to the volcano only after these, so the narrator and his first words play on the landing shot
+const firstWords = await readUntil(async () => (await onScreen()).startsWith("Uff!"), 30000);
+check("Tadeo has not turned to the volcano during his first words", firstWords && (await page.evaluate(() => window.game.island.player.facing)) === 0);
 // Reason: the camera glides round in 1.6 s; Space is held back until then so that the line stays on screen
 const volcanoLine = await readUntil(async () => (await onScreen()).startsWith("Und da hinten raucht ein Berg"), 30000);
 await wait(2200);
@@ -260,6 +263,12 @@ check(
   "Tadeo reacts before Chuleta climbs out",
   landingEnd >= 0 && landingEnd < chuletaOut && chuletaOut < arrivalStart,
   `${landingEnd} < ${chuletaOut} < ${arrivalStart}`,
+);
+const landingStart = at(/^Erzähler: Ein Hai hat Tadeos Boot angegriffen/);
+check(
+  "on the beach the narrator tells of the shark, then the waves, before Tadeo speaks",
+  landingStart >= 0 && /^Erzähler: Zum Glück haben die Wellen/.test(spoken[landingStart + 1]) && /^Tadeo: Uff!/.test(spoken[landingStart + 2]),
+  spoken.slice(landingStart, landingStart + 3).join(" | "),
 );
 check("player is free after intro", await waitUntilFree());
 

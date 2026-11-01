@@ -46,8 +46,8 @@ const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 // ── The beach ───────────────────────────────────────────────
 
-/** A white sand bar far from the landing beach, with only open sea behind it: "a beach near his home". */
-const HOME_BEACH: P2 = [90, 112];
+/** A white sand bar far from the landing beach, with only open sea behind it: the beach of his holiday. */
+const HOLIDAY_BEACH: P2 = [90, 112];
 /** From Tadeo to the bottle at his feet. */
 const BOTTLE_AT = v3(-1.15, 0, 0.8);
 /** Seconds the camera takes to tilt down from the sky to the beach. */
@@ -89,7 +89,7 @@ class BeachShot {
   constructor(island: IslandScene) {
     this.group.name = "opening-beach";
     const hf = island.island.hf;
-    const t = v3(HOME_BEACH[0], hf.heightAt(HOME_BEACH[0], HOME_BEACH[1]), HOME_BEACH[1]);
+    const t = v3(HOLIDAY_BEACH[0], hf.heightAt(HOLIDAY_BEACH[0], HOLIDAY_BEACH[1]), HOLIDAY_BEACH[1]);
     this.tadeo = t;
     const at = t.clone().add(BOTTLE_AT);
     at.y = hf.heightAt(at.x, at.z);
@@ -451,7 +451,7 @@ async function findTheBottle(d: OpeningDeps): Promise<void> {
   const { engine, island } = d;
   const beach = new BeachShot(island);
   // Reason: he looks down at the bottle, three-quarters towards the camera
-  d.placePlayer(HOME_BEACH[0], HOME_BEACH[1], Math.atan2(BOTTLE_AT.x, BOTTLE_AT.z));
+  d.placePlayer(HOLIDAY_BEACH[0], HOLIDAY_BEACH[1], Math.atan2(BOTTLE_AT.x, BOTTLE_AT.z));
   d.startCinematic((t) => beach.frame(t));
   audio.setAmbience(true);
   audio.stopMusic(1);
@@ -523,9 +523,9 @@ async function arrive(d: OpeningDeps): Promise<void> {
   await wait(900);
   // Reason: Tadeo says where he is before Chuleta climbs out
   const landing = DIALOGUES.intro_landing;
-  await d.talk(landing.slice(0, 2));
+  await d.talk(landing.slice(0, 3));
   lookAtTheVolcano(d);
-  await d.talk(landing.slice(2));
+  await d.talk(landing.slice(3));
   d.island.rig.setShot(null, 1.5);
   d.chuleta.climbOut();
   await wait(800);

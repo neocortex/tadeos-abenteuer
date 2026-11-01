@@ -85,9 +85,9 @@ out not to fit the picture, a small change of wording is fine as long as the fac
 
 ### 1. Ankunft
 
-`intro_bottle`: on the beach near his home.
+`intro_bottle`: on the beach of his holiday.
 
-- **Erzähler:** Das ist Tadeo. Er wohnt direkt am Meer.
+- **Erzähler:** Das ist Tadeo. Er macht gerade Ferien am Meer.
 - **Erzähler:** Jeden Morgen sucht er am Strand nach Muscheln und anderen Schätzen.
 - **Erzähler:** Eines Morgens findet er etwas ganz Besonderes: eine Flaschenpost!
 - **Tadeo:** Nanu? Da ist ja etwas drin!
@@ -107,7 +107,8 @@ out not to fit the picture, a small change of wording is fine as long as the fac
 
 `intro_landing` (*new*): after the flight, before Chuleta climbs out.
 
-- **Erzähler:** Die Wellen tragen Tadeo an einen fremden Strand.
+- **Erzähler:** Ein Hai hat Tadeos Boot angegriffen!
+- **Erzähler:** Zum Glück haben die Wellen Tadeo an einen fremden Strand getragen.
 - **Tadeo:** Uff! Das war knapp. Was für ein riesiger Hai!
 - **Tadeo:** Wo bin ich denn hier? So eine große Insel habe ich noch nie gesehen.
 - **Tadeo:** Und da hinten raucht ein Berg. Ist das etwa ein Vulkan?

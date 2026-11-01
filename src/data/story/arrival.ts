@@ -11,7 +11,7 @@ export const ARRIVAL: Record<string, DialogueScript> = {
   // Milestone 1: Arrival
   // -----------------------------------------------------------------------
   intro_bottle: [
-    line("Erzähler", "Das ist Tadeo. Er wohnt direkt am Meer."),
+    line("Erzähler", "Das ist Tadeo. Er macht gerade Ferien am Meer."),
     line("Erzähler", "Jeden Morgen sucht er am Strand nach Muscheln und anderen Schätzen."),
     line("Erzähler", "Eines Morgens findet er etwas ganz Besonderes: eine Flaschenpost!"),
     line("Tadeo", "Nanu? Da ist ja etwas drin!"),
@@ -26,7 +26,8 @@ export const ARRIVAL: Record<string, DialogueScript> = {
     line("Erzähler", "Noch am selben Tag packt Tadeo seinen Rucksack und segelt los."),
   ],
   intro_landing: [
-    line("Erzähler", "Die Wellen tragen Tadeo an einen fremden Strand."),
+    line("Erzähler", "Ein Hai hat Tadeos Boot angegriffen!"),
+    line("Erzähler", "Zum Glück haben die Wellen Tadeo an einen fremden Strand getragen."),
     line("Tadeo", "Uff! Das war knapp. Was für ein riesiger Hai!"),
     line("Tadeo", "Wo bin ich denn hier? So eine große Insel habe ich noch nie gesehen."),
     line("Tadeo", "Und da hinten raucht ein Berg. Ist das etwa ein Vulkan?"),
