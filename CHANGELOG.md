@@ -147,6 +147,7 @@ Sachen gefunden und das Herz zurückgebracht. Und der Pirat war Paco!"
   port no longer drops Tadeo into the sea at the start
 - A tree no longer hides the Hüter when he rises: the grove south of the first tablet, where the camera stood in the
   leaves, is now a clearing
+- After a debug start with `?challenge=<name>`, Tadeo can walk again once the challenge is won, so the story goes on
 
 ## 2.0.0
 

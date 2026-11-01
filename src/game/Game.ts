@@ -145,6 +145,7 @@ export class Game {
       const m = Number(Object.keys(GATES).find((k) => GATES[Number(k)].challenge === challenge) ?? 1);
       this.setupMilestone(m);
       await this.playChallenge(m);
+      this.busy = false;
       return;
     }
     if (milestone || params.has("notitle")) {

@@ -128,14 +128,16 @@ also goes into `EFFECTS` in `src/audio/Audio.ts`, so that it loads with the game
 
 | Parameter | Effect |
 |-----------|--------|
-| `?quest=N` | Start at quest N (skips the title; earlier rewards are in the inventory) |
-| `?challenge=<name>` | Jump straight into a challenge: `volcano`, `cave`, `forest`, `ogre`, `village`, `mountain`, `sea`, `treasure`, `finale`, `fishing`, `hens` |
+| `?quest=N` | Start at quest N and play on from there (skips the title; earlier rewards are in the inventory) |
+| `?challenge=<name>` | Jump straight into a challenge and play on after it: `volcano`, `cave`, `forest`, `ogre`, `village`, `mountain`, `sea`, `treasure`, `finale`, `fishing`, `hens` |
 | `?notitle` | Skip the title screen |
 | `?coins=N` | Pretend N coins are collected (outfits) |
 | `?spawn=x,z` | Start Tadeo at a world position |
 | `?cam=px,py,pz,lx,ly,lz` | Fixed debug camera (no UI) |
 | `?closeup` | Close-up camera on Tadeo (character work) |
 | `?tm=aces\|agx\|neutral` | Tone-mapping operator |
+
+Progress made after `?quest` or `?challenge` is saved like any other, and replaces the save in that browser.
 
 `window.game`, `window.engine`, `window.audio` and `window.narration` are exposed in the browser console.
 
@@ -153,6 +155,7 @@ node scripts/e2e/world.mjs    # one test: walks every region path, landmarks, re
 node scripts/e2e/title.mjs    # the game's name fits every window; music with and without the browser's sound block
 node scripts/e2e/island.mjs   # likewise: title, opening, quests 1–4, map card, riddles, coins, fps
 node scripts/e2e/finale.mjs   # quest 12 from the sea to the festival and the end card
+node scripts/e2e/jumpIn.mjs   # a game started with ?quest or ?challenge plays on, up to the end card
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback
 node scripts/e2e/music.mjs    # every sound and loop seam, music by place and quest, island sounds by region, voices over music
 node scripts/e2e/fps.mjs      # 60 fps cap on fast screens, no dropped frames at 60 Hz

@@ -17,8 +17,8 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   prompts are `SOUNDS` in `scripts/audio/generate.mjs`, and deleting an MP3 renders a new take of it
 - `npx tsc --noEmit -p .` — type-check (must be clean)
 - E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (title, world, island, volcano, cave, forest,
-  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, voices, storyLines, music, fps).
-  Proof goes to `scripts/e2e/out/<name>/`.
+  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, jumpIn, voices,
+  storyLines, music, fps). Proof goes to `scripts/e2e/out/<name>/`.
 
 ## Architecture
 
