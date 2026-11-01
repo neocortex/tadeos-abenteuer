@@ -29,7 +29,7 @@ import { InventoryManager } from "../systems/InventoryManager";
 import { SaveManager } from "../systems/SaveManager";
 import { NarrationManager } from "../systems/NarrationManager";
 import { QUESTS } from "../data/quests";
-import { DIALOGUES, DialogueScript } from "../data/dialogues";
+import { DialogueScript } from "../data/dialogues";
 import { LANDMARKS, VILLAGE, P2 } from "../world/layout";
 import { loadChallenge } from "../challenges/registry";
 import { ChallengeName } from "../challenges/types";
@@ -258,24 +258,20 @@ export class Game {
   /** The legend of the Feuerherz; Tadeo's map shows where the heart is. */
   private async meetElder(): Promise<void> {
     const elder = this.npcs.get("elder");
-    await this.talk("elder_legend", elder);
+    await this.talk("elder_legend", elder, this.npcs.get("villager3"));
     // Reason: the card closes on Space, which the island leaves alone while controls are off
     await showMapCard(this.ui.layer, this.engine.input);
-    await this.talk("elder_after_map", elder);
+    await this.talk("elder_after_map", elder, this.npcs.get("villager3"));
     await this.advance();
   }
 
   /** A riddle at a tablet. The third one wakes the Hüter, who speaks the rhyme of the four things. */
   private async readTablet(i: number): Promise<void> {
-    if (!(await this.lake.solve(i))) return;
-    await this.lake.rise();
-    await this.talk([...DIALOGUES.lake_hueter, ...DIALOGUES.lake_rhyme, ...DIALOGUES.lake_after_rhyme]);
-    await this.lake.fade();
-    await this.advance();
+    if (await this.lake.solve(i)) await this.lake.awaken().then(() => this.advance());
   }
 
   private async villageElder(): Promise<void> {
-    await this.talk("village_enter", this.npcs.get("elder"));
+    await this.talk("village_enter", this.npcs.get("elder"), this.npcs.get("villager3"));
     await this.playChallenge(7);
   }
 
@@ -447,13 +443,15 @@ export class Game {
 
   // ── Helpers ───────────────────────────────────────────────
 
-  /** Play a conversation; with an NPC the camera frames both of them. */
-  private async talk(script: string | DialogueScript, npc?: Npc): Promise<void> {
+  /** Play a conversation; with an NPC the camera frames both of them, and with `also` a third person too. */
+  private async talk(script: string | DialogueScript, npc?: Npc, also?: Npc): Promise<void> {
     const rig = this.island.rig;
     const p = this.island.player;
     if (npc) {
       p.facing = Math.atan2(npc.position.x - p.position.x, npc.position.z - p.position.z);
       const mid = p.position.clone().lerp(npc.position, 0.5);
+      // Reason: a third person stands off to one side, so the middle moves towards him to hold all three
+      if (also) mid.lerp(also.position, 1 / 3);
       const dir = npc.position.clone().sub(p.position).setY(0).normalize();
       const side = new THREE.Vector3(dir.z, 0, -dir.x);
       // Reason: on the village's south-west side; with the two north and south of each other one step would otherwise swing the camera round
