@@ -32,7 +32,7 @@ export const CHULETA_BEHIND_HEDGE = "Gack! Hier ist nur Wiese. In den Zauberwald
 export const CHULETA_CHEERS: Record<number, string> = {
   2: "Puh, war das heiß! Fast hätte ich ein gekochtes Ei gelegt!",
   3: "Ein Geist? Gack! Mir stehen jetzt schon die Federn zu Berge!",
-  4: "Gack! Wie meint er das?",
+  4: "Näher, als du denkst? Gack! Jetzt schaue ich mich dauernd um!",
   5: "Ein echtes Zauberschwert! Du bist ein richtiger Held!",
   6: "Mmmh, Zauberbeeren! Darf ich eine picken? Nein? Schade!",
   7: "Schwert, Beeren und Schlüssel! Drei Sachen hast du schon. Gack!",

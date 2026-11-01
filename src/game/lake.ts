@@ -1,7 +1,8 @@
 /**
  * Lake — quest 4. Each of the three tablets asks a riddle: the Steintafel says it, then a stone card offers
  * three answers. A wrong answer gets a kind line and another try; the right one lights the tablet's runes.
- * The third lit tablet wakes the Hüter, who rises out of the water.
+ * Each lit tablet gets a few words from Tadeo and Chuleta; the third wakes the Hüter, who rises out of the water
+ * and tells how the heart was lost.
  */
 
 import * as THREE from "three";
@@ -11,7 +12,7 @@ import { IslandScene } from "../scenes/IslandScene";
 import { GameUI } from "../ui/GameUI";
 import { askRiddle } from "../ui/RiddleCard";
 import { createHueter } from "../characters/Hueter";
-import { DialogueScript } from "../data/dialogues";
+import { DIALOGUES, DialogueScript } from "../data/dialogues";
 import { LANDMARKS, WATER_LEVEL } from "../world/layout";
 import { audio } from "../audio/Audio";
 
@@ -67,6 +68,8 @@ export class Lake {
     const [tx, tz] = LANDMARKS.tablets[i];
     const player = this.d.island.player;
     player.facing = Math.atan2(tx - player.position.x, tz - player.position.z);
+    // Reason: `solved` forgets the tablets on a reload, so this plays once per visit to the lake and not again after a wrong answer
+    if (this.solved.size === 0) await this.d.talk("lake_first_tablet");
     await this.d.talk(lines.map((text) => ({ speaker: "Steintafel", portrait: "", text })));
     while ((await askRiddle(this.d.ui.layer, this.d.input, answers, lines)) !== right) await this.d.talk("lake_wrong");
 
@@ -79,8 +82,19 @@ export class Lake {
     audio.playSfx("sfx_item_get", 0.6);
     await wait(2000);
     if (this.solved.size === RIDDLES.length) return true;
+    // Reason: the tablet is still in shot while they talk about it
+    await this.d.talk(this.solved.size === 1 ? "lake_lit_first" : "lake_lit_second");
     rig.setShot(null, 1);
     return false;
+  }
+
+  /** After the third tablet: the lake goes still, the Hüter rises and tells the legend's other half, then he is gone. */
+  async awaken(): Promise<void> {
+    await this.d.talk("lake_still");
+    await this.rise();
+    await this.d.talk([...DIALOGUES.lake_hueter, ...DIALOGUES.lake_rhyme, ...DIALOGUES.lake_after_rhyme]);
+    await this.fade();
+    await this.d.talk("lake_gone");
   }
 
   /** The Hüter rises out of the lake, facing Tadeo, while the camera watches from behind Tadeo. */
