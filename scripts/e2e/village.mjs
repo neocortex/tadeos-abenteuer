@@ -135,8 +135,9 @@ while (Date.now() - started < TIMEOUT_MS) {
     if (!entered) await shotOnce("00a-the-key-came-at-night", 900);
     if (st.phase === "intro") await shotOnce("01-welcome", 900);
     if (st.phase === "reward") await shotOnce("05-key-dialogue", 600);
+    // Reason: a child mashes Space, so every talk is pressed through at 60 ms (separate presses, as Input ignores key repeat)
     await page.keyboard.press("Space");
-    await page.waitForTimeout(260);
+    await page.waitForTimeout(60);
     continue;
   }
   switch (st.phase) {
@@ -215,14 +216,13 @@ const inventory = await page.evaluate(() => JSON.parse(localStorage.getItem("sch
 // ── What was said ─────────────────────────────────────────────
 
 const lines = await said();
-// Reason: "Gack!" is Chuleta's cluck, not a sentence
-const sentences = (l) => (l.replace(/\bGack!?/g, "").match(/[.!?]+(\s|$)/g) ?? []).length;
 const words = (l) => l.split(": ").slice(1).join(": ").split(/\s+/).length;
 check("elder explains the key before the trials", lines.some((l) => l.includes("eines Morgens vor meiner Tür")));
 check("the note says the key is for someone clever", lines.some((l) => l.includes("Nur für jemanden, der klug ist")));
 check("the welcome at the fire says what the test is for", lines.some((l) => l.startsWith("Dorfältester: Willkommen am Feuerkreis") && l.includes("klug")));
 check("after the trials he sends Tadeo to the ogre", lines.some((l) => l.includes("Riesenfels")) && lines.some((l) => l.includes("Nur der Oger ist stark genug")));
-check("Chuleta wants her berries for the monster", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("Die Beeren")));
+check("Chuleta wants her berries for the angry ogre", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("Die Beeren")));
+check("Tadeo brings up the hammer on the mountain", lines.some((l) => l.startsWith("Tadeo: Jetzt fehlt nur noch der Hammer")));
 // Reason: the trials' own lines stay as they were, so only what the story added around them is measured
 const added = await page.evaluate(async () => {
   const { DIALOGUES } = await import("/src/data/dialogues.ts");
@@ -230,7 +230,24 @@ const added = await page.evaluate(async () => {
 });
 const welcome = lines.filter((l) => l.startsWith("Dorfältester: Willkommen am Feuerkreis"));
 check("the elder's talks were all heard in this run", added.length >= 6 && added.every((l) => lines.includes(l)), added.filter((l) => !lines.includes(l)).join(" | "));
-check("every added line is one or two short sentences", [...added, ...welcome].every((l) => words(l) <= 14 && sentences(l) <= 2), [...added, ...welcome].filter((l) => words(l) > 14 || sentences(l) > 2).join(" | "));
+check("every line has at most 14 words", [...added, ...welcome].every((l) => words(l) <= 14), [...added, ...welcome].filter((l) => words(l) > 14).join(" | "));
+check("the welcome at the fire says there are three trials", welcome.some((l) => l.includes("drei Prüfungen")) || lines.some((l) => l.includes("Es gibt drei Prüfungen")));
+check("nobody says Monster", !/Monster/.test(lines.join("\n")));
+// Reason: the whole run pressed Space every 60 ms through village_enter, WELCOME and village_after
+await page.waitForFunction(() => !window.game.busy, null, { timeout: 15_000 }).catch(() => {});
+const control = await page.evaluate(async () => {
+  const before = [window.game.island.player.position.x, window.game.island.player.position.z];
+  return { before, milestone: window.game.quest.currentMilestone, busy: window.game.busy, talking: !!document.querySelector(".dialogue.open") };
+});
+await page.keyboard.down("ArrowLeft");
+await page.waitForTimeout(700);
+await page.keyboard.up("ArrowLeft");
+const movedTo = await page.evaluate(() => [window.game.island.player.position.x, window.game.island.player.position.z]);
+check(
+  "mashing Space through the village talks: the quest advances and Tadeo is in control",
+  control.milestone === 8 && !control.busy && !control.talking && Math.hypot(movedTo[0] - control.before[0], movedTo[1] - control.before[1]) > 0.5,
+  JSON.stringify({ ...control, movedTo }),
+);
 check("nobody says the forbidden words", !/\b(die Alten|Altar|ewiges Eis|besänftigen)/.test(lines.join("\n")));
 
 const summary = {

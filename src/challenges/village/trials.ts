@@ -19,6 +19,7 @@ const line = (speaker: string, text: string) => ({ speaker, portrait: "", text }
 
 const WELCOME: DialogueScript = [
   line("Dorfältester", "Willkommen am Feuerkreis, Tadeo! Nur wer klug ist, bekommt den Schlüssel."),
+  line("Dorfältester", "Es gibt drei Prüfungen. Zwei auf den Zaubertrommeln und eine mit Zahlen."),
 ];
 const PRACTICE: DialogueScript = [
   line("Weise Frau", "Das sind unsere Zaubertrommeln. Jede Pfeiltaste spielt eine Trommel. Probier sie aus!"),
