@@ -172,7 +172,11 @@ export class StoryWorld {
     switch (m) {
       case FOREST_QUEST:
         // Reason: a reload in the forest brings the hedge back, so the sword opens it again
-        if (this.hedge.up) await this.hedgeOpening.play();
+        if (this.hedge.up) {
+          await this.talk("forest_hedge");
+          await this.hedgeOpening.play();
+          await this.talk("forest_hedge_open");
+        }
         return;
       case SEA_QUEST: {
         const talking = this.talk("sea_dock", this.npcs.get(PACO));
