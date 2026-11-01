@@ -287,13 +287,17 @@ await shot("11-quest2");
 
 // ── 3. Coins ────────────────────────────────────────────────
 const coinsBefore = (await state()).coins;
-const coin = await page.evaluate(() => {
-  const p = window.game.island.player.position;
-  const spots = window.game.coins.spots.filter((_, i) => !window.game.coins.taken.has(i));
+const [coin, coinStart] = await page.evaluate(() => {
+  const g = window.game;
+  const p = g.island.player.position;
+  const spots = g.coins.spots.filter((_, i) => !g.coins.taken.has(i));
   spots.sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z));
-  return [spots[0].x, spots[0].z];
+  const { x, z } = spots[0];
+  // Reason: a coin can lie beside a tree or a pond, so Tadeo walks in from a side where he can stand
+  const start = [[0, 4], [4, 0], [0, -4], [-4, 0]].map(([dx, dz]) => [x + dx, z + dz]).find(([sx, sz]) => g.island.player.world.canStand(sx, sz));
+  return [[x, z], start];
 });
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 4), coin);
+await page.evaluate(([x, z]) => window.game.placePlayer(x, z), coinStart);
 await wait(500);
 await walkTo(coin[0], coin[1], 0.6, 8000);
 await wait(300);
