@@ -1,7 +1,7 @@
 /**
  * Wardrobe — turns collected coins into outfits: a straw hat at 10 coins, a
  * pirate hat at 20 and sunglasses for all 30. Side games add prize hats (a
- * fishing hat, a golden crown). Tadeo wears the hat he got most recently.
+ * fishing hat, a golden crown, a turtle hat). Tadeo wears the hat he got most recently.
  * Dresses Tadeo, keeps the HUD coin counter current and celebrates every unlock.
  */
 
@@ -19,7 +19,7 @@ const UNLOCKS: { coins: number; id: OutfitId; name: string; cheer: string }[] = 
   { coins: 30, id: "sunglasses", name: "Coole Sonnenbrille", cheer: "Alle Münzen gefunden! Du bist der coolste Pirat der Welt!" },
 ];
 
-const HATS: OutfitId[] = ["strawHat", "pirateHat", "fishingHat", "crown"];
+const HATS: OutfitId[] = ["strawHat", "pirateHat", "fishingHat", "crown", "shellHat"];
 /** Side-game prizes won so far, and the hat Tadeo picked last. */
 const PRIZES_KEY = "schatzkarten_prizes";
 const HAT_KEY = "schatzkarten_hat";

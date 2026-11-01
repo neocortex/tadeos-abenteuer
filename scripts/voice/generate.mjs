@@ -40,6 +40,7 @@ const CAST = {
   "Bäckerin Lina": { voice: "1iF3vHdwHKuVKSPDK23Z", model: V4 }, // Louisa
   "Fischer Jonas": { voice: "Cx9eG8CNCDtCPeLiemtm", model: V4 }, // Holger
   Hüter: { voice: "XSqtBhCcfQ9Pn4yLIHsk", model: V4 }, // Fritz
+  "Frau Moos": { voice: "mlDV16PgT63p9bCPQh7X", model: V4 }, // Nadine
 };
 
 /** The text as the voices read it: Chuleta is a Spanish name, and a German voice only says its "ch" right as "tsch". */

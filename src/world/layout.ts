@@ -55,6 +55,9 @@ export const SPOTS = {
   wreck: [-71.5, 43] as P2,
   /** The giant boulder that closes the mountain trail until the ogre lifts it. */
   trailBoulder: [55.5, -8.6] as P2,
+  /** Frau Moos on the flat sand above the lagoon's west shore (the bank to the water is too steep for her), and the water behind her where her babies swim. */
+  turtleMum: [84, 92] as P2,
+  turtlePool: [91, 93] as P2,
 } as const;
 
 export const LANDMARKS = {

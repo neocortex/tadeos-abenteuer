@@ -13,6 +13,22 @@ import { piece, flat, mirrored, sphere, along, V3 } from "./critterModels";
 /** Warm off-white that the instance tint leaves alone (pure white would be tinted). */
 const EYE_WHITE = "#fff6e6";
 
+/** Frau Moos: an old sea turtle with moss and two little flowers growing on her shell. */
+export function mossyTurtleModel(): THREE.BufferGeometry {
+  const moss = "#6f9a3c";
+  const flower = (x: number, z: number, petals: string): THREE.BufferGeometry[] => [
+    piece(sphere(0.05, 8, 6), petals, 0, { pos: [x, 0.31, z], scale: [1.3, 0.5, 1.3] }),
+    piece(sphere(0.022, 6, 4), "#ffd23f", 0, { pos: [x, 0.335, z] }),
+  ];
+  return merge([
+    turtleModel(),
+    piece(sphere(0.14, 8, 6), moss, 0, { pos: [-0.12, 0.26, 0.06], scale: [1.5, 0.35, 1.3] }),
+    piece(sphere(0.11, 8, 6), moss, 0, { pos: [0.14, 0.25, -0.14], scale: [1.4, 0.35, 1.2] }),
+    ...flower(-0.14, 0.09, "#ff7a9c"),
+    ...flower(0.12, -0.12, "#fff1d6"),
+  ]);
+}
+
 /** Sea turtle: patterned shell, cream rim; front flippers (part 1), back flippers (part 2), head (part 3). Shell ≈ 0.85 long. */
 export function turtleModel(): THREE.BufferGeometry {
   const skin = "#8fae6a";

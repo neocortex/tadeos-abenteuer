@@ -29,6 +29,7 @@ const SPEAKERS: Record<string, { portrait?: string; emoji?: string; color: strin
   Stimme: { emoji: "🗣️", color: PACO_COLOR },
   Maulwurf: { portrait: "maulwurf", color: "#96623f" },
   Fuchs: { emoji: "🦊", color: "#e8762b" },
+  "Frau Moos": { emoji: "🐢", color: "#4f8a3a" },
 };
 
 const CHAR_MS = 26;

@@ -15,7 +15,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   `npm run voices -- --dry-run` shows what would be rendered without spending credits
 - `npx tsc --noEmit -p .` — type-check (must be clean)
 - E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (title, world, island, volcano, cave, forest,
-  ogre, village, mountain, sea, treasure, finale, fishing, hens, coins, voices, fps). Proof goes to
+  ogre, village, mountain, sea, treasure, finale, fishing, hens, coins, turtles, voices, fps). Proof goes to
   `scripts/e2e/out/<name>/`.
 
 ## Architecture
@@ -28,7 +28,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
 - `game/Game.ts` is the adventure flow on the island (title, intro, objectives, NPC talks, coins,
   launching challenges, rewards, saving). Keep it under ~550 lines: put new features in their own
   module in `game/` (see `Sightings.ts`, `sideGames.ts`, `Wardrobe.ts`, `lake.ts`, `hedgeOpening.ts`,
-  `boulderLift.ts`).
+  `boulderLift.ts`, `TurtleFamily.ts`).
 - `game/StoryWorld.ts` makes the island follow the story. `apply(milestone)` sets what stands where (the thorn hedge,
   the mountain boulder, Tadeo's wreck or his mended boat, Paco's and the ogre's places), `rumble(finished)` shakes the
   volcano a bit harder after every quest, and `beforeQuest` / `afterQuest` hold the island scenes around a challenge.

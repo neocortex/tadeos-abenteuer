@@ -50,6 +50,9 @@ turns out to be Käpt'n Paco, who has been helping him all along.
 **Side games** (any time, in the village): fishing with *Fischer Jonas* and catching *Kleine Mia's*
 runaway hens. The first win earns a prize hat (fishing hat, golden crown).
 
+**The turtle family** (any time, at the lagoon): *Frau Moos'* five babies have run off along the beach. Walk close
+to one and it runs after Tadeo; bring them all to her at the water for the turtle hat.
+
 **Coins and outfits:** 30 gold coins are hidden on the island, along the paths and in secret corners of the
 outer regions. 10 coins unlock a straw hat,
 20 a pirate hat, 30 cool sunglasses. Tadeo wears the hat he got most recently.

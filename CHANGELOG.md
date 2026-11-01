@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Turtle family
+
+- New side quest at the lagoon, for any time in the game: the rumbling volcano scared Frau Moos' five babies off along
+  the beach. A baby runs after Tadeo once he comes close, in a line that follows his way and copies his jumps. Beside
+  their mother they scuttle into the water
+- All five home earns the Schildkrötenhut, a little turtle that sits on Tadeo's head. Afterwards the babies swim behind
+  her for good
+- Frau Moos has a voice of her own
+
 ### Coins
 
 - The ten quiet coins now lie in secret corners of the outer regions: behind the windmill and the stone head, past the

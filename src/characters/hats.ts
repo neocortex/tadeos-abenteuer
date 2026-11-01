@@ -1,17 +1,17 @@
 /**
  * Outfit pieces Tadeo unlocks: a straw hat, a pirate hat and cool sunglasses
- * for gold coins, a fishing hat and a golden crown as side-game prizes. Each
- * model is built to sit on the Humanoid head (head radius 0.36, origin at the
- * head centre).
+ * for gold coins, a fishing hat, a golden crown and a turtle hat as side-game
+ * prizes. Each model is built to sit on the Humanoid head (head radius 0.36,
+ * origin at the head centre).
  */
 
 import * as THREE from "three";
 import { mat, toonMesh } from "./parts";
 
-export type OutfitId = "strawHat" | "pirateHat" | "sunglasses" | "fishingHat" | "crown";
+export type OutfitId = "strawHat" | "pirateHat" | "sunglasses" | "fishingHat" | "crown" | "shellHat";
 
 /** How far the top of each hat sits above the head centre (Chuleta perches there). */
-export const HAT_TOP: Partial<Record<OutfitId, number>> = { strawHat: 0.62, pirateHat: 0.66, fishingHat: 0.58, crown: 0.64 };
+export const HAT_TOP: Partial<Record<OutfitId, number>> = { strawHat: 0.62, pirateHat: 0.66, fishingHat: 0.58, crown: 0.64, shellHat: 0.56 };
 
 function strawHat(): THREE.Group {
   const g = new THREE.Group();
@@ -158,6 +158,55 @@ function crown(): THREE.Group {
   return g;
 }
 
+/** Frau Moos' prize: a little turtle sitting on Tadeo's head, with a plated shell, a friendly face and four flippers. */
+function shellHat(): THREE.Group {
+  const g = new THREE.Group();
+  const skin = mat("#8fae6a", 0.7);
+  const shell = toonMesh(new THREE.SphereGeometry(0.4, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat("#55783a", 0.65));
+  shell.scale.set(1, 0.62, 1.12);
+  shell.position.y = 0.26;
+  g.add(shell);
+  const rim = toonMesh(new THREE.TorusGeometry(0.4, 0.035, 8, 30), mat("#e3d39a", 0.6), false);
+  rim.rotation.x = Math.PI / 2;
+  rim.scale.set(1, 1.12, 1);
+  rim.position.y = 0.26;
+  g.add(rim);
+  // Reason: lighter plates set into the dome read as a turtle's shell from behind, where the camera mostly sees it
+  const plateMat = mat("#8fb25a", 0.6);
+  const up = new THREE.Vector3(0, 1, 0);
+  const plates: [number, number][] = [[0, 0], ...[0, 1, 2, 3, 4, 5].map((i): [number, number] => [(i / 6) * Math.PI * 2, 0.75])];
+  for (const [around, tilt] of plates) {
+    const normal = new THREE.Vector3(Math.sin(around) * Math.sin(tilt), Math.cos(tilt), Math.cos(around) * Math.sin(tilt));
+    const plate = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.115, 0.03, 6), plateMat);
+    plate.position.set(normal.x * 0.4, 0.26 + normal.y * 0.4 * 0.62, normal.z * 0.4 * 1.12);
+    plate.quaternion.setFromUnitVectors(up, normal.clone().multiply(new THREE.Vector3(1, 1.5, 1)).normalize());
+    g.add(plate);
+  }
+  // A little head looking the way Tadeo looks, a tail behind and four flippers
+  const head = toonMesh(new THREE.SphereGeometry(0.1, 14, 10), skin);
+  head.scale.set(0.95, 0.85, 1.1);
+  head.position.set(0, 0.3, 0.52);
+  g.add(head);
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), mat("#22202a", 0.4));
+    eye.position.set(side * 0.05, 0.33, 0.61);
+    g.add(eye);
+    for (const [z, length] of [[0.26, 0.17], [-0.28, 0.13]]) {
+      const flipper = toonMesh(new THREE.SphereGeometry(length, 10, 6), skin);
+      flipper.scale.set(1, 0.22, 0.6);
+      flipper.position.set(side * 0.43, 0.27, z);
+      flipper.rotation.y = side * (z > 0 ? -0.5 : 0.5);
+      g.add(flipper);
+    }
+  }
+  const tail = toonMesh(new THREE.ConeGeometry(0.04, 0.12, 6), skin);
+  tail.rotation.x = -Math.PI / 2;
+  tail.position.set(0, 0.26, -0.49);
+  g.add(tail);
+  g.rotation.x = -0.08;
+  return g;
+}
+
 export function createOutfit(id: OutfitId): THREE.Group {
   switch (id) {
     case "strawHat":
@@ -170,5 +219,7 @@ export function createOutfit(id: OutfitId): THREE.Group {
       return fishingHat();
     case "crown":
       return crown();
+    case "shellHat":
+      return shellHat();
   }
 }

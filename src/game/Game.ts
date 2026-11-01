@@ -20,6 +20,7 @@ import { Wardrobe } from "./Wardrobe";
 import { SIDE_GAMES, SideGame } from "./sideGames";
 import { Sightings } from "./Sightings";
 import { StoryWorld } from "./StoryWorld";
+import { TurtleFamily } from "./TurtleFamily";
 import { Lake } from "./lake";
 import { playOpening } from "./opening";
 import { playEnding } from "./ending";
@@ -78,6 +79,7 @@ export class Game {
   private sightings: Sightings;
   private story: StoryWorld;
   private lake: Lake;
+  private family: TurtleFamily;
   private quest = QuestManager.getInstance();
   /** True while a cutscene, conversation or challenge owns the controls. */
   private busy = true;
@@ -105,6 +107,7 @@ export class Game {
     this.island.scene.add(this.coins.group);
     this.wardrobe = new Wardrobe(this.island.player.avatar, this.chuleta, this.ui, (t) => this.chuletaSay(t));
     this.wardrobe.dress(this.coins.collected);
+    this.family = new TurtleFamily({ island: this.island, ui: this.ui, wardrobe: this.wardrobe, coins: this.coins, talk: (script) => this.talk(script), chuletaSay: (t) => this.chuletaSay(t) });
     this.story.apply(this.quest.currentMilestone);
     engine.onFrame = (dt, time) => this.frame(dt, time);
   }
@@ -182,7 +185,7 @@ export class Game {
     this.ui.hud.updateCompass(main ? this.project(this.tmp.x, this.tmp.y, this.tmp.z) : null);
 
     // Interaction prompt: quest objectives first, then casual chats
-    const near = objectives.find((o) => this.distance(o.at) < o.radius);
+    const near = objectives.find((o) => this.distance(o.at) < o.radius) ?? (free ? this.family.offer() : null);
     const npc = !near && free ? this.npcs.nearest(player.position, TALK_RANGE) : null;
     if (near) {
       this.showPrompt(near.at, near.verb);
@@ -194,6 +197,9 @@ export class Game {
     } else {
       this.ui.prompt.show(null);
     }
+    // Reason: not just `free`: a talk started just above has made the game busy since `free` was read
+    const familyScene = this.family.update(dt, free && !this.busy);
+    if (familyScene) void this.run(familyScene);
 
     this.remarkCooldown -= dt;
     if (free) this.remarkAtFutureGates(objectives);

@@ -36,6 +36,7 @@ const OWNERS = {
   "game/Wardrobe.ts": { cheer: "Chuleta" },
   "game/sideGames.ts": { cheer: "Chuleta" },
   "game/Sightings.ts": { GUARD_LINES: "Oger", FRIEND_LINES: "Oger" },
+  "game/TurtleFamily.ts": { ARRIVALS: "Frau Moos", WHERE_IS_MUM: "Chuleta", LAST_BABY: "Chuleta", CHEER: "Chuleta" },
 };
 
 const sourceFiles = (dir) =>

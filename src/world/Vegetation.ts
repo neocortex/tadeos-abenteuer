@@ -65,6 +65,8 @@ const CLEARINGS: { at: P2; r: number }[] = [
   { at: [-11, 31.5], r: 7.6 },
   // So the Hüter can be seen when he rises: the lake shot stands here when Tadeo reads the first tablet from the south.
   { at: [-12.5, -15.5], r: 5 },
+  // So no palm or bush stands in front of Frau Moos: her talk shot can stand anywhere this far from her, wherever Tadeo comes from.
+  { at: SPOTS.turtleMum, r: 8 },
 ];
 
 export class Vegetation {
