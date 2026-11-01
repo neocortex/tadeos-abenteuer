@@ -23,7 +23,7 @@ export const ITEMS: Record<string, ItemDef> = {
   berry: {
     key: "berry",
     name: "Zauberbeeren",
-    description: "Magische Beeren aus dem Zauberwald. Damit werden Monster wieder lieb.",
+    description: "Magische Beeren aus dem Zauberwald. Damit werden Wesen wieder lieb.",
     frame: 1,
     usableInCombat: true,
   },

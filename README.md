@@ -19,8 +19,9 @@ narration are in German.
 - Rendering capped at 60 FPS and 1.25× pixel density, with 2× multisample anti-aliasing to limit GPU load
 - Chibi toon characters with outlines; Chuleta the hen runs along, rides on Tadeo's head and gives hints
 - Twelve quests that tell one story. Most play in their own 3D challenge scene (loaded on demand), and the
-  island follows the story: the volcano rumbles harder after every quest, a thorn hedge and a boulder close
-  two paths until Tadeo can open them, and his mended boat appears at the north dock
+  island follows the story: the volcano rumbles harder after every quest, thorns block the magic arch that is
+  the only way into the Zauberwald and a boulder closes the mountain trail until Tadeo can open them, and his
+  mended boat appears at the north dock
 - Side games in the village, gold coins all over the island, and outfits to unlock
 - Natural-sounding German voices for every line (recorded with ElevenLabs), with browser speech as fallback
 - A recorded acoustic soundtrack that changes with the place and the quest, and island sounds that follow Tadeo

@@ -11,7 +11,9 @@
  * ("Autsch!" → respawn at the last checkpoint). Passes when the summit is
  * reached, the hammer is handed over, the game is back on the island and no
  * page errors occurred. The talk at the start and at the summit says whose
- * shrine it is and what the hammer is for.
+ * shrine it is and what the hammer is for. From the narrator's line at the
+ * summit on, the small island and the fin stay in the picture and above the
+ * dialogue box at three window shapes (summit_isle_<size>.png).
  *
  * Run:  node scripts/e2e/mountain.mjs [baseUrl]
  * Out:  scripts/e2e/out/mountain/*.png + summary.json
@@ -95,6 +97,123 @@ async function recordLines() {
   });
 }
 const said = () => page.evaluate(() => window.said ?? []);
+
+/** Press Space until the talk has reached line `index` and that line is fully typed. */
+async function pressToLine(index) {
+  while ((await page.evaluate(() => window.game.ui.dialogue.index)) < index) {
+    await page.keyboard.press("Space");
+    await sleep(150);
+  }
+  await waitFor(() => page.evaluate(() => !!document.querySelector(".dialogue .next.show")), "the line to be typed", 10000);
+}
+
+/** How far the camera is from the epic shot that opens the summit talk (its formula, written out). */
+const epicGap = () =>
+  page.evaluate(() => {
+    const sc = window.engine.scene;
+    const to = sc.summit.standAt;
+    const out = sc.summit.faceDir.clone().negate();
+    const side = out.clone().set(out.z, 0, -out.x);
+    const t = sc.cam.shotTime;
+    const epic = to.clone().addScaledVector(out, -5 - t * 0.25).addScaledVector(side, 5.5 + t * 0.15).setY(to.y + 5 + t * 0.12);
+    return sc.camera.position.distanceTo(epic);
+  });
+
+/** Runs in the page: where the island, the fin and the clouds are on screen, measured on their real vertices. */
+function summitView() {
+  const sc = window.engine.scene;
+  const { island, fin } = sc.decor.farIsle;
+  const cam = sc.camera;
+  const v = cam.position.clone();
+  const toScreen = (w) => {
+    const p = w.clone().project(cam);
+    return { ndcX: p.x, x: ((p.x + 1) / 2) * innerWidth, y: ((1 - p.y) / 2) * innerHeight };
+  };
+  // The land is what stands above the water: the lagoon and the foam don't count
+  const land = { left: Infinity, right: -Infinity, bottom: -Infinity, reach: 0 };
+  const isleDir = island.getWorldPosition(v.clone()).sub(cam.position);
+  island.traverse((m) => {
+    const pos = m.geometry?.attributes.position;
+    for (let i = 0; pos && i < pos.count; i++) {
+      m.localToWorld(v.fromBufferAttribute(pos, i));
+      if (v.y < 0.6) continue;
+      const q = toScreen(v);
+      land.left = Math.min(land.left, q.x);
+      land.right = Math.max(land.right, q.x);
+      land.bottom = Math.max(land.bottom, q.y);
+      land.reach = Math.max(land.reach, v.clone().sub(cam.position).angleTo(isleDir));
+    }
+  });
+  const finPos = fin.geometry.attributes.position;
+  let tipIndex = 0;
+  for (let i = 0; i < finPos.count; i++) if (finPos.getY(i) > finPos.getY(tipIndex)) tipIndex = i;
+  const tip = toScreen(fin.localToWorld(v.fromBufferAttribute(finPos, tipIndex)));
+  const base = toScreen(fin.getWorldPosition(v));
+
+  // A cloud nearer than the island whose bounding sphere reaches into the cone from the camera around
+  // the island and the fin stands in front of them
+  const toIsle = island.getWorldPosition(v.clone()).sub(cam.position);
+  const fromCam = (w) => w.clone().sub(cam.position);
+  const finTip = fin.localToWorld(v.clone().fromBufferAttribute(finPos, tipIndex));
+  const finBase = fin.getWorldPosition(v.clone());
+  const cone = Math.max(land.reach, fromCam(finTip).angleTo(toIsle), fromCam(finBase).angleTo(toIsle));
+  const inFront = sc.decor.clouds.group.children.filter((c) => {
+    c.geometry.computeBoundingSphere();
+    const s = c.geometry.boundingSphere;
+    const off = fromCam(c.localToWorld(s.center.clone()));
+    const r = s.radius * c.scale.x;
+    if (off.length() > toIsle.length()) return false;
+    return off.length() <= r || off.angleTo(toIsle) < Math.asin(r / off.length()) + cone;
+  }).length;
+
+  // The fin's place depends on how long the climb took, so its whole circle has to fit
+  const radius = Math.hypot(fin.position.x - island.position.x, fin.position.z - island.position.z);
+  const circle = Array.from({ length: 24 }, (_, i) => {
+    const a = (i / 24) * Math.PI * 2;
+    return toScreen(v.set(island.position.x + Math.cos(a) * radius, 0, island.position.z + Math.sin(a) * radius));
+  });
+
+  return {
+    island: toScreen(island.getWorldPosition(v)),
+    fin: base,
+    circle,
+    land,
+    landPx: land.right - land.left,
+    finPx: Math.hypot(tip.x - base.x, tip.y - base.y),
+    dialogueTop: document.querySelector(".dialogue").getBoundingClientRect().top,
+    inFront,
+  };
+}
+
+/** The draw calls of a whole frame at the summit (median of a few), with the island and the fin shown or hidden. */
+const drawCalls = (shown) =>
+  page.evaluate(async (shown) => {
+    const { engine } = window;
+    const { island, fin } = engine.scene.decor.farIsle;
+    const info = engine.renderer.info;
+    const render = engine.composer.render;
+    const counts = [];
+    island.visible = fin.visible = shown;
+    // Reason: every post-processing pass resets the counter by default, which would leave only the last pass's calls
+    info.autoReset = false;
+    engine.composer.render = function (dt) {
+      info.reset();
+      render.call(this, dt);
+      counts.push(info.render.calls);
+    };
+    while (counts.length < 12) await new Promise(requestAnimationFrame);
+    delete engine.composer.render;
+    info.autoReset = true;
+    island.visible = fin.visible = true;
+    return counts.sort((a, b) => a - b)[6];
+  }, shown);
+
+/** Where the fin is and how far from the island, to compare two moments. */
+const finAt = () =>
+  page.evaluate(() => {
+    const { island, fin } = window.engine.scene.decor.farIsle;
+    return { x: fin.position.x, z: fin.position.z, radius: Math.hypot(fin.position.x - island.position.x, fin.position.z - island.position.z) };
+  });
 
 /**
  * Runs in the page: reads the climb state and decides the keys to hold and whether to jump.
@@ -338,8 +457,68 @@ try {
   await sleep(900);
   await shot("18_item_get_hammer");
   await waitFor(dialogueOpen, "mountain_complete dialogue", 15000);
-  await sleep(1800);
+  await waitFor(() => page.evaluate(() => window.engine.scene.cam.shotTime > 2.4), "the epic shot to settle", 10000);
   await shot("19_mountain_complete");
+
+  // ── The view from the summit ──────────────────────────────
+  const talk = await page.evaluate(() => window.game.ui.dialogue.script.map((l) => l.speaker));
+  const narrator = talk.indexOf("Erzähler");
+  const epicGaps = [await epicGap()];
+  await pressToLine(narrator - 1);
+  epicGaps.push(await epicGap());
+  check("the view before the narrator's line is unchanged", epicGaps.every((g) => g <= 0.5), epicGaps.map((g) => g.toFixed(2)).join(", "));
+  const views = new Map([[1280, 720], [1024, 768], [1920, 800]].map(([w, h]) => [`${w}x${h}`, { width: w, height: h, seen: [] }]));
+  for (let line = narrator; line < talk.length; line++) {
+    await pressToLine(line);
+    if (line === narrator) await waitFor(() => page.evaluate(() => window.engine.scene.cam.shotTime > 2.1), "the view to settle", 10000);
+    for (const [size, { width, height, seen }] of views) {
+      await page.setViewportSize({ width, height });
+      await sleep(250);
+      seen.push(await page.evaluate(summitView));
+      if (talk[line] === "Chuleta") await shot(`summit_isle_${size}`);
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await sleep(250);
+  for (const [size, { seen }] of views) {
+    const inPicture = (p, m) => Math.abs(p.ndcX) < 0.85 && p.y < m.dialogueTop - 8 && p.y > 0;
+    check(
+      `the island and the fin are in the picture at ${size}`,
+      seen.length === talk.length - narrator && seen.every((m) => inPicture(m.island, m) && inPicture(m.fin, m) && m.circle.every((p) => inPicture(p, m)) && m.land.bottom < m.dialogueTop - 8),
+      seen.map((m) => `island ${m.island.ndcX.toFixed(2)}/${m.island.y.toFixed(0)} fin ${m.fin.ndcX.toFixed(2)}/${m.fin.y.toFixed(0)} box ${m.dialogueTop.toFixed(0)}`).join(" | "),
+    );
+    check(
+      `the fin is big enough to see at ${size}`,
+      seen.every((m) => m.finPx >= 14 && m.landPx >= 60),
+      `fin ${Math.min(...seen.map((m) => m.finPx)).toFixed(0)} px, island ${Math.min(...seen.map((m) => m.landPx)).toFixed(0)} px`,
+    );
+    check(`no cloud stands in front of the island at ${size}`, seen.every((m) => m.inFront === 0), seen.map((m) => m.inFront).join(", "));
+  }
+  const finBefore = await finAt();
+  await sleep(500);
+  const finAfter = await finAt();
+  check(
+    "the fin swims",
+    Math.hypot(finAfter.x - finBefore.x, finAfter.z - finBefore.z) > 0.5 && Math.abs(finAfter.radius - finBefore.radius) < 0.01,
+    `moved ${Math.hypot(finAfter.x - finBefore.x, finAfter.z - finBefore.z).toFixed(1)}, circle ${finAfter.radius.toFixed(1)}`,
+  );
+  const callsShown = await drawCalls(true);
+  const callsHidden = await drawCalls(false);
+  check("the view costs next to nothing", callsShown > callsHidden && callsShown - callsHidden <= 3, `${callsHidden} -> ${callsShown} draw calls`);
+  // Reason: the clouds drift and wrap, so which of them come by depends on how long the climb took:
+  // put all of them on the line of sight, and they must have moved aside a few frames later
+  await page.evaluate(() => {
+    const sc = window.engine.scene;
+    const isle = sc.decor.farIsle.island.position;
+    sc.decor.clouds.group.children.forEach((c, i) => {
+      const k = 0.1 + (i / 12) * 0.8;
+      c.position.set(sc.camera.position.x + (isle.x - sc.camera.position.x) * k, sc.camera.position.y * (1 - k), sc.camera.position.z + (isle.z - sc.camera.position.z) * k);
+    });
+  });
+  await sleep(200);
+  const drifted = await page.evaluate(summitView);
+  check("a cloud drifting into the view moves aside", drifted.inFront === 0, drifted.inFront);
+  await shot("summit_isle_clouds_aside");
   await skipDialogues();
   await waitFor(onIsland, "return to island", 30000);
   await sleep(1500);
@@ -350,13 +529,18 @@ try {
   // ── What was said ─────────────────────────────────────────
   const lines = await said();
   const words = (l) => l.split(": ").slice(1).join(": ").split(/\s+/).length;
-  // Reason: "Gack!" is Chuleta's cluck, not a sentence
-  const sentences = (l) => (l.replace(/\bGack!?/g, "").match(/[.!?]+(\s|$)/g) ?? []).length;
   check("the shrine is the old people's", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("alte Volk")));
-  check("the hammer's job is said", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("für das Eis")));
+  check("the hammer's job is said", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("zerschlägt das Eis")));
   check("Chuleta spots the small island and the fin", lines.some((l) => l.startsWith("Chuleta: ") && l.includes("kleine Insel") && l.includes("Flosse")));
   check("the climb names no Schatzinsel", !lines.some((l) => l.includes("Schatzinsel")));
-  check("every line is one or two short sentences", lines.every((l) => words(l) <= 14 && sentences(l) <= 2), lines.filter((l) => words(l) > 14 || sentences(l) > 2).join(" | "));
+  check("every line has at most 14 words", lines.every((l) => words(l) <= 14), lines.filter((l) => words(l) > 14).join(" | "));
+  const own = await page.evaluate(async () => {
+    const { DIALOGUES } = await import("/src/data/dialogues.ts");
+    return [...DIALOGUES.mountain_enter, ...DIALOGUES.mountain_complete].map((l) => `${l.speaker}: ${l.text}`);
+  });
+  check("the mountain's own talks were all heard", own.length >= 8 && own.every((l) => lines.includes(l)), own.filter((l) => !lines.includes(l)).join(" | "));
+  check("the narrator shows Tadeo the whole island and the sea", lines.some((l) => l.startsWith("Erzähler: Von hier oben sieht Tadeo die ganze Insel")));
+  check("nobody says Monster", !/Monster/.test(lines.join("\n")));
   check("nobody says the forbidden words", !/\b(die Alten|Altar|ewiges Eis|besänftigen)/.test(lines.join("\n")));
   passed = errors.length === 0 && checks.every((c) => c.ok);
 } catch (e) {

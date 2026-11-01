@@ -28,10 +28,14 @@ const OUT = join(HERE, "out", "finale");
 const NORTH_DOCK_END = [-36, -76];
 const SAIL_BACK = "Tadeo segelt zurück, so schnell er kann.";
 const HUETER_THANKS = "Danke, Tadeo. Jetzt kann ich endlich ruhen.";
+const HUETER_LAST = "Leb wohl, Hüter!";
+const STONE_LINE = "Da ist der alte Stein! Und das Loch wie ein Herz.";
+const CALM_LINE = "Das Licht läuft durch den ganzen Berg. Dann wird der Vulkan ganz still.";
+const OPENING_LAST = "Hoch lebe Tadeo! Er hat unsere Insel gerettet!";
+const TALK_FIRST = "Ich muss euch etwas sagen";
 const FESTIVAL_GUESTS = ["Oger", "Fuchs", "Käpt'n Paco", "Dorfältester", "Kleine Mia", "Fischer Jonas", "Bäckerin Lina", "Maulwurf", "Chuleta", "Tadeo"];
 const FORBIDDEN = ["die Alten", "Altar", "ewiges Eis", "besänftigen"];
 const MAX_WORDS = 14;
-const MAX_FESTIVAL_LINES = 12;
 /** In the wide shot: a part of the cone with the lava river on it and no sky, column or word in it. */
 const LAVA_ON_THE_CONE = [0.35, 0.4, 0.48, 0.66];
 // Start from an empty folder so every screenshot belongs to this run
@@ -283,6 +287,43 @@ const guestsInFrame = () =>
     return inFrame;
   });
 
+/** Where a thing stands in the frame: normalised device coordinates, plus whether it is in front of the camera. */
+const projectedInFrame = (what) =>
+  page.evaluate((what) => {
+    const sc = window.engine.scene;
+    const f = sc.feast;
+    const V = sc.camera.position.constructor;
+    const world = {
+      ogreHead: () => f.ogre.head.getWorldPosition(new V()),
+      plan: () => f.plan.getWorldPosition(new V()),
+      elder: () => sc.stage.crowd.sages.elder.avatar.root.getWorldPosition(new V()).add(new V(0, 1.4, 0)),
+      paco: () => f.paco.avatar.root.getWorldPosition(new V()).add(new V(0, 1.4, 0)),
+    }[what]();
+    const v = world.project(sc.camera);
+    const box = document.querySelector(".dialogue.open")?.getBoundingClientRect();
+    // Reason: the dialogue box covers the bottom of the frame; a thing under it is not in the picture
+    const px = ((1 - v.y) / 2) * innerHeight;
+    return { x: v.x, y: v.y, inFrame: Math.abs(v.x) < 0.95 && Math.abs(v.y) < 0.95 && v.z < 1, aboveBox: !box || px < box.top };
+  }, what);
+
+/** Where everyone stands, to tell a still picture from a moving one. */
+const guestSpots = () =>
+  page.evaluate(() => {
+    const V = window.engine.scene.camera.position.constructor;
+    return window.engine.scene.guests.map((g) => g.object.getWorldPosition(new V()).toArray());
+  });
+
+/** Space every 60 ms until `done()` says so: separate presses, as a child mashing the key makes them. */
+async function mashUntil(done, what, timeout = 240000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    if (await done()) return;
+    await page.keyboard.press("Space");
+    await sleep(60);
+  }
+  throw new Error(`timeout mashing until ${what}`);
+}
+
 // ── Play ──────────────────────────────────────────────────────
 
 let passed = false;
@@ -425,6 +466,10 @@ try {
 
   // ── At the stone ──────────────────────────────────────────
   const hollowEmpty = await page.evaluate(() => !window.engine.scene.set.altar.heart.visible);
+  await waitFor(() => page.evaluate((l) => window.game.ui.dialogue.full === l, STONE_LINE), "the stone's first line", 30000);
+  const beforePrompt = await page.evaluate(() => ({ prompt: window.engine.scene.prompt, shown: document.querySelector(".prompt")?.style.display !== "none" }));
+  check("the stone is told before the prompt", beforePrompt.prompt === null && !beforePrompt.shown, JSON.stringify(beforePrompt));
+  await skipDialogues();
   await waitFor(() => page.evaluate(() => !!window.engine.scene.prompt), "the prompt at the stone", 15000);
   check("the distance pill is gone at the stone", !(await page.isVisible(".status")));
   await sleep(1200);
@@ -483,11 +528,21 @@ try {
   check("the rocks stop and the lava dims", after.stopped && after.flying === 0 && after.launches === home.launches && lavaMaterial.every((v) => v === 1) && lavaAfter.hot < lavaBefore.hot * 0.5, `flying ${after.flying}, launches before the heart was home ${home.launches} and by now ${after.launches}, white-hot pixels on the cone ${lavaBefore.hot}→${lavaAfter.hot}`);
   check("the sky clears", hotAfter.b > hotBefore.b + 15 || hotAfter.bright > hotBefore.bright + 15, `r${hotBefore.r} g${hotBefore.g} b${hotBefore.b} → r${hotAfter.r} g${hotAfter.g} b${hotAfter.b}`);
   check("the rainbow rises", after.reveal >= 1, after.reveal);
+  await waitFor(() => page.evaluate((l) => window.game.ui.dialogue.full === l, CALM_LINE), "the calm told", 30000);
+  const calmAt = await page.evaluate(() => ({ phase: window.engine.scene.ending.phase, cool: window.engine.scene.ending.cool.value, ghost: window.engine.scene.ending.hueter.root.visible }));
+  check("it is calm before the Hüter rises", calmAt.phase === "calm" && calmAt.cool >= 1 && calmAt.ghost === false, JSON.stringify(calmAt));
+  await skipDialogues();
   await waitFor(dialogueOpen, "the Hüter's thanks", 30000);
   await sleep(900);
   await shot("15_hueter_thanks");
   const smiling = await page.evaluate(() => window.engine.scene.ending.hueter.smiling);
   check("the Hüter smiles when he thanks Tadeo", smiling === true);
+  while ((await page.evaluate(() => window.game.ui.dialogue.full)) !== HUETER_LAST) {
+    await page.keyboard.press("Space");
+    await sleep(260);
+  }
+  const ghostOnLast = await page.evaluate(() => window.engine.scene.ending.hueter.root.visible);
+  check("the Hüter is still there on his last line", ghostOnLast === true);
   await skipDialogues();
   await sleep(1400);
   await shot("16_hueter_fading");
@@ -521,19 +576,65 @@ try {
     return crown;
   });
   check("Tadeo wears the crown", crowned);
-  const shotAt = { "das war ich": "19_paco_confesses", "P wie Paco": "20_p_wie_paco", "gut gemacht": "21_elder_forgives", "Gold ist": "22_gold_for_the_village", Rakete: "23_rocket_plan", "goldenes Ei": "24_golden_egg" };
-  const festivalEnd = Date.now() + 120000;
+  // Each moment waits for the camera to settle, takes its picture, and then proves what the line asks for
+  const moments = {
+    [OPENING_LAST]: { name: "18b_festival_opening", wait: 8500, run: async () => {
+      const seen = await page.evaluate(() => {
+        const sc = window.engine.scene;
+        return { cheering: sc.stage.crowd.cheering, pacoSeated: sc.stage.crowd.watchers.find((w) => w.actor === sc.feast.paco).sitting };
+      });
+      check("the festival opens with the cheer", seen.cheering && seen.pacoSeated, JSON.stringify(seen));
+    } },
+    "das war ich": { name: "19_paco_confesses", wait: 300, run: async () => {
+      const cheering = await page.evaluate(() => window.engine.scene.stage.crowd.cheering);
+      check("the cheer has ended when Paco speaks", cheering === false);
+    } },
+    "Auf einmal ist es ganz still": { name: "festival_still", before: async () => ({ spots: await guestSpots() }), run: async (ctx) => {
+      await sleep(700);
+      const after = await guestSpots();
+      const moved = Math.max(...after.map((p, i) => Math.hypot(p[0] - ctx.spots[i][0], p[2] - ctx.spots[i][2])));
+      const framed = await guestsInFrame();
+      check("wide on the stillness", moved < 0.05 && FESTIVAL_GUESTS.every((n) => framed.includes(n)), `most moved ${moved.toFixed(3)}, in frame ${framed.length}`);
+    } },
+    "P wie Paco": { name: "20_p_wie_paco" },
+    "gut gemacht": { name: "21_elder_forgives" },
+    "Gold ist": { name: "22_gold_for_the_village" },
+    "Und ich? Gibt es auch Kuchen": { name: "festival_ogre", run: async () => {
+      const at = await projectedInFrame("ogreHead");
+      check("the camera is on the ogre", at.inFrame && at.aboveBox, JSON.stringify(at));
+    } },
+    "Und das hier war auch in der Truhe": { name: "22b_plan_comes_out", wait: 400, run: async () => {
+      check("the plan comes out", await page.evaluate(() => window.engine.scene.feast.plan.visible));
+    } },
+    "Zeig mal her": { name: "23_rocket_plan", run: async () => {
+      const [elder, paco] = [await projectedInFrame("elder"), await projectedInFrame("paco")];
+      check("the elder takes over", elder.inFrame && Math.abs(elder.x) < 0.5 && Math.abs(elder.x) < Math.abs(paco.x), `elder x ${elder.x.toFixed(2)}, Paco x ${paco.x.toFixed(2)}`);
+    } },
+    "Eine alte Legende": { name: "festival_plan", run: async () => {
+      const plan = await projectedInFrame("plan");
+      const visible = await page.evaluate(() => window.engine.scene.feast.plan.visible);
+      check("the drawing is in the picture", visible && plan.inFrame && plan.aboveBox, JSON.stringify(plan));
+    } },
+    "goldenes Ei": { name: "24_golden_egg" },
+    "schaut hinauf zu den Sternen": { name: "24b_stars", run: async () => {
+      const pitch = await page.evaluate(() => window.engine.scene.stage.tadeo.avatar.head.rotation.x);
+      check("Tadeo looks at the stars", pitch < -0.3, pitch.toFixed(2));
+    } },
+  };
+  const festivalEnd = Date.now() + 180000;
   while (Date.now() < festivalEnd) {
     const open = await dialogueOpen();
     const st = await page.evaluate(() => window.engine.scene?.state?.phase).catch(() => null);
     if (st === "party") break;
     if (open) {
       const current = await page.evaluate(() => window.game.ui.dialogue.full);
-      for (const [text, name] of Object.entries(shotAt)) {
+      for (const [text, m] of Object.entries(moments)) {
         if (current.includes(text)) {
-          delete shotAt[text];
-          await sleep(1300);
-          await shot(name);
+          delete moments[text];
+          const ctx = m.before ? await m.before() : {};
+          await sleep(m.wait ?? 1300);
+          await shot(m.name);
+          await m.run?.(ctx);
         }
       }
       await page.keyboard.press("Space");
@@ -542,13 +643,17 @@ try {
       await sleep(100);
     }
   }
+  check("every moment of the festival was met", Object.keys(moments).length === 0, Object.keys(moments).join(" | "));
   const all = await heard();
   const lines = all.map((l) => l.text);
   check("Paco confesses", all.some((l) => l.speaker === "Käpt'n Paco" && l.text.includes("das war ich")));
   check("P wie Paco", lines.includes("P wie Paco!"));
+  const beatsFired = await page.evaluate(async () => {
+    const { DIALOGUES } = await import("/src/data/dialogues.ts");
+    return { fired: window.engine.scene.feast.beatsFired, lines: DIALOGUES.festival_talk.length };
+  });
+  check("every festival line has its own beat", beatsFired.fired === beatsFired.lines && beatsFired.lines === 25, JSON.stringify(beatsFired));
   check("the rocket plan and the golden egg", lines.some((l) => l.includes("Rakete")) && lines.some((l) => l.includes("goldenes Ei")));
-  const festivalLines = all.slice(all.findIndex((l) => l.text.includes("das war ich")));
-  check("the festival stays a short conversation", festivalLines.length <= MAX_FESTIVAL_LINES, festivalLines.length);
   const wordy = all.filter((l) => l.text.split(/\s+/).length > MAX_WORDS).map((l) => l.text);
   check(`no line of the last quest is longer than ${MAX_WORDS} words`, wordy.length === 0, wordy.join(" | "));
   // Reason: "..." is a pause inside a sentence, not the end of one
@@ -609,6 +714,47 @@ try {
   await page.keyboard.press("Space");
   await page.waitForFunction(() => window.game?.title, null, { timeout: 40000 });
   check("Space on the end card starts the game again, with no Continue", (await page.evaluate(() => window.game.title.choices)).join() === "new");
+
+  // ── Mashing Space from the stone on: the ending, then the festival ──
+  await page.goto(`${BASE}/?challenge=finale`);
+  await recordLines();
+  await mashUntil(() => page.evaluate(() => window.engine.scene?.state === "play").catch(() => false), "the climb to open", 60000);
+  await page.evaluate(() => {
+    const sc = window.engine.scene;
+    const p = sc.course.pointAt(sc.course.goalS + 4);
+    sc.hero.teleport(p.x, p.y);
+  });
+  const sawGhost = { up: false, gone: false };
+  const ghostAndPhase = () =>
+    page.evaluate(() => {
+      const sc = window.engine.scene;
+      return { ghost: sc.ending?.hueter.root.visible ?? null, festival: sc.state?.phase ?? null };
+    });
+  await mashUntil(async () => {
+    const g = await ghostAndPhase();
+    if (g.ghost === true) sawGhost.up = true;
+    if (sawGhost.up && g.ghost === false) sawGhost.gone = true;
+    return g.festival !== null;
+  }, "the festival to start");
+  const mashedEnding = (await heard()).map((l) => l.text);
+  check("mashing Space through the ending", sawGhost.up && sawGhost.gone && mashedEnding.includes(STONE_LINE) && mashedEnding.includes(CALM_LINE) && mashedEnding.includes(HUETER_LAST), JSON.stringify(sawGhost));
+  await mashUntil(() => page.isVisible(".endcard"), "the end card");
+  const mashedRead = () =>
+    page.evaluate(() => {
+      const sc = window.engine.scene;
+      const cam = sc.camera.position;
+      return { phase: sc.state.phase, orbitRadius: Math.hypot(cam.x, cam.z + 2.5), beats: sc.feast.beatsFired, tracking: sc.stage.director.tracker !== null };
+    });
+  // Reason: the end card comes while the camera is still gliding out to the party's circle
+  await waitFor(async () => Math.abs((await mashedRead()).orbitRadius - 14.5) < 1.2, "the camera back on the party's circle", 12000).catch(() => {});
+  const mashedFestival = await mashedRead();
+  const mashedCard = await page.textContent(".endcard");
+  // Reason: the party's camera orbits the fire at 14.5; a camera left on a close-up would be far from that circle
+  check(
+    "mashing Space through the festival",
+    mashedFestival.phase === "party" && mashedFestival.tracking && Math.abs(mashedFestival.orbitRadius - 14.5) < 1.2 && mashedFestival.beats === 25 && mashedCard.includes("Und bald kommt die Rakete!"),
+    JSON.stringify(mashedFestival),
+  );
 
   check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
   passed = checks.every((c) => c.ok);

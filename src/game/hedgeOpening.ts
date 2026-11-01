@@ -80,8 +80,23 @@ export class HedgeOpening {
     r.done();
   }
 
-  /** Raise the sword, burn the hedge away and give the camera back to the follow rig. */
-  async play(): Promise<void> {
+  /** Take the opening's first shot and turn Tadeo to the hedge, so a talk before it flows into the scene. */
+  faceTheHedge(): void {
+    const toward = this.toward();
+    this.d.player.facing = Math.atan2(toward.x, toward.z);
+    const [first] = this.shots();
+    // Reason: the talk's dialogue box covers the bottom of the picture, so the view aims lower to lift Tadeo above it
+    first.look.y -= 1.4;
+    this.d.rig.setShot(first, 0.9);
+  }
+
+  /** Give the camera back to the follow rig after `play(true)`. */
+  release(): void {
+    this.d.rig.setShot(null, 1);
+  }
+
+  /** Raise the sword and burn the hedge away; the camera goes back to the follow rig, unless `keepShot` holds it for a talk. */
+  async play(keepShot = false): Promise<void> {
     const { rig, player, scene, hedge } = this.d;
     const avatar = player.avatar;
     const blade = this.drawSword();
@@ -122,8 +137,10 @@ export class HedgeOpening {
         };
       });
       await this.sinking;
+      // Reason: the dialogue box covers the bottom of the picture, so a held shot aims lower to lift Tadeo above it
+      if (keepShot) rig.setShot({ pos: to.pos, look: to.look.clone().setY(to.look.y - 1.4) }, 0.6);
     } finally {
-      rig.setShot(null, 1);
+      if (!keepShot) rig.setShot(null, 1);
       avatar.pose = "normal";
       avatar.handR.remove(blade.sword);
       hedge.prop.shine(0, 0);
@@ -193,7 +210,7 @@ export class HedgeOpening {
     if (t < LIGHT_AT || t >= GONE_AT) return;
     this.owed.motes += dt * 100;
     // Reason: motes come off the part of the hedge the light has crossed, as high as the thorns still stand
-    const reached = smoothstep(0, 1, ramp(t, [LIGHT_AT, LIGHT_AT + LIGHT_FOR])) * 11;
+    const reached = smoothstep(0, 1, ramp(t, [LIGHT_AT, LIGHT_AT + LIGHT_FOR])) * 5;
     const standing = 1 - smoothstep(0.08, 1, ramp(t, [SHRINK_AT, GONE_AT]));
     for (; this.owed.motes >= 1; this.owed.motes--) {
       const local = new THREE.Vector3((Math.random() * 2 - 1) * reached, Math.random() * (0.4 + 3.6 * standing), (Math.random() - 0.5) * 2.4);

@@ -1,6 +1,6 @@
 /**
- * Short German lines for the cave challenge (the main story lines `cave_enter`
- * and `cave_sword` live in data/dialogues.ts).
+ * Short German lines for the cave challenge (the main story lines `cave_enter`,
+ * `cave_sword_before` and `cave_sword_after` live in data/dialogues.ts).
  */
 
 import { DialogueScript } from "../../data/dialogues";
@@ -9,12 +9,26 @@ const tadeo = (text: string) => ({ speaker: "Tadeo", portrait: "portrait_tadeo",
 const maulwurf = (text: string) => ({ speaker: "Maulwurf", portrait: "", text });
 
 export const LINES = {
-  moleAsks: [maulwurf("Ich habe Hunger! Bring mir einen Leuchtpilz, dann grabe ich dir den Weg frei.")] as DialogueScript,
-  moleSmells: [maulwurf("Ich rieche einen Leuchtpilz! Gib ihn mir, dann grabe ich dir den Weg frei.")] as DialogueScript,
+  moleAsks: [
+    tadeo("Hallo, Maulwurf! Ich suche das Schwert vom Hüter."),
+    maulwurf("Das Schwert? Das liegt ganz hinten in der Höhle."),
+    maulwurf("Aber der Vulkan wackelt so viel. Überall fallen Steine herunter."),
+    tadeo("Kannst du sie wegräumen? Du kannst doch graben!"),
+    maulwurf("Ich habe Hunger! Bring mir einen Leuchtpilz, dann grabe ich dir den Weg frei."),
+  ] as DialogueScript,
+  moleSmells: [
+    tadeo("Hallo, Maulwurf! Ich suche das Schwert vom Hüter."),
+    maulwurf("Das Schwert? Das liegt ganz hinten in der Höhle."),
+    maulwurf("Aber der Vulkan wackelt so viel. Überall fallen Steine herunter."),
+    tadeo("Kannst du sie wegräumen? Du kannst doch graben!"),
+    maulwurf("Ich rieche einen Leuchtpilz! Gib ihn mir, dann grabe ich dir den Weg frei."),
+  ] as DialogueScript,
   moleReminder: [maulwurf("Mein Bauch knurrt! Der Leuchtpilz wächst links, hinten im Dunkeln.")] as DialogueScript,
   moleAsksTwo: [
     maulwurf("Noch mehr Steine! Bring mir zwei Leuchtpilze, dann grabe ich wieder."),
-    tadeo("Zwei Pilze? Ich suche links und rechts!"),
+    tadeo("Zwei? Du isst aber viel!"),
+    maulwurf("Graben macht hungrig!"),
+    tadeo("Also gut. Ich suche links und rechts!"),
   ] as DialogueScript,
   moleReminderTwo: [maulwurf("Zwei Pilze, bitte! Sie wachsen links und rechts, ganz hinten.")] as DialogueScript,
   moleOneMore: [maulwurf("Mmh, einer! Ich brauche noch einen von der anderen Seite.")] as DialogueScript,
@@ -23,11 +37,18 @@ export const LINES = {
   /** The mole with his mouth full, one script per rockfall. */
   moleFed: [
     [maulwurf("Mmh, lecker! Jetzt grabe ich.")],
-    [maulwurf("Mmh, satt! Hinter den Steinen ist die Wand vom alten Volk.")],
+    [
+      maulwurf("Mmh, satt! Hinter den Steinen ist die Wand vom alten Volk."),
+      tadeo("Das alte Volk? Wer ist das?"),
+      maulwurf("Die haben hier vor langer Zeit gelebt. Sie haben das Schwert aus Kristall gemacht."),
+      maulwurf("Sie wollten, dass nur kluge Leute es finden. Viel Glück!"),
+    ],
   ] as DialogueScript[],
   paintings: [
+    tadeo("Eine Wand aus Kristall! Wie komme ich da durch?"),
     tadeo("Die Bilder an der Wand! Erst der Vulkan, dann der Schneeberg, dann der Wald."),
     tadeo("Rot wie der Vulkan, weiß wie der Schnee, grün wie der Wald!"),
+    tadeo("Das ist bestimmt die Reihenfolge für die Kristalle!"),
   ] as DialogueScript,
 };
 

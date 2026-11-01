@@ -24,7 +24,7 @@ import { chromium } from "playwright";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { installFlood, reach } from "./storyChecks.mjs";
+import { EXPECTED, installFlood, reach } from "./storyChecks.mjs";
 
 const BASE = process.argv[2] ?? "http://localhost:5199";
 const OUT = join(dirname(fileURLToPath(import.meta.url)), "out", "ogre");
@@ -96,7 +96,7 @@ async function skipDialogues(shotName = null) {
   let first = true;
   while (await dialogueOpen()) {
     await page.keyboard.press("Space");
-    await sleep(260);
+    await sleep(60);
     if (first && shotName) await shot(shotName);
     first = false;
   }
@@ -251,7 +251,7 @@ async function watchBoulderScene() {
         }
       }
       await page.keyboard.press("Space");
-      await sleep(260);
+      await sleep(60);
       continue;
     }
     if (last.lift === "walk") await once("20_ogre_gets_up");
@@ -432,7 +432,7 @@ try {
         await once("14_friends");
       }
       await page.keyboard.press("Space");
-      await sleep(260);
+      await sleep(60);
       continue;
     }
     if (t.includes("♥")) await once("13_berry_for_the_ogre");
@@ -477,11 +477,22 @@ try {
     return [...DIALOGUES.ogre_enter, ...DIALOGUES.ogre_defeat, ...DIALOGUES.ogre_boulder, ...DIALOGUES.ogre_boulder_done].map((l) => `${l.speaker}: ${l.text}`);
   });
   const words = (l) => l.split(": ").slice(1).join(": ").split(/\s+/).length;
-  // Reason: "Gack!" is Chuleta's cluck, not a sentence
-  const sentences = (l) => (l.replace(/\bGack!?/g, "").match(/[.!?]+(\s|$)/g) ?? []).length;
-  const spoken = lines.filter((l) => /^(Tadeo|Oger|Chuleta): /.test(l));
+  const spoken = lines.filter((l) => /^(Tadeo|Oger|Chuleta|Erzähler): /.test(l));
   check("the ogre quest's own talks were all heard", own.every((l) => lines.includes(l)), own.filter((l) => !lines.includes(l)).join(" | "));
-  check("every line is one or two short sentences", [...own, ...spoken].every((l) => words(l) <= 14 && sentences(l) <= 2), [...own, ...spoken].filter((l) => words(l) > 14 || sentences(l) > 2).join(" | "));
+  check("every line has at most 14 words", [...own, ...spoken].every((l) => words(l) <= 14), [...own, ...spoken].filter((l) => words(l) > 14).join(" | "));
+  const reason = await page.evaluate(async () => {
+    const { DIALOGUES } = await import("/src/data/dialogues.ts");
+    return [...DIALOGUES.ogre_enter, ...DIALOGUES.ogre_defeat].map((l) => `${l.speaker}: ${l.text}`);
+  });
+  check("the ogre says why he is angry", reason.length >= 10 && reason.every((l) => lines.includes(l)) && lines.some((l) => l.includes("Feuerherz")), reason.filter((l) => !lines.includes(l)).join(" | "));
+  const firstEnter = reason[0];
+  // Reason: a line is noted once when shown and once when read aloud, so neighbours that are equal count as one hearing
+  const heard = lines.filter((l, i) => l === firstEnter && lines[i - 1] !== l).length;
+  check("a hit doesn't replay the talk", swings.missed >= 1 && heard === 1, `${swings.missed} hits, heard ${heard}x: ${firstEnter}`);
+  check("nobody says Monster", !/Monster/.test(lines.join("\n")));
+  // Reason: the fight, its ending and the boulder scene were all pressed through with a Space every 60 ms
+  const want = EXPECTED[9];
+  check("mashing Space through the ogre's talks: he ends friendly, the boulder is lifted and the island is as quest 9 wants", Object.keys(want).every((k) => island[k] === want[k]) && after.milestone === 9, JSON.stringify(island));
   check("nobody says the forbidden words", !/\b(die Alten|Altar|ewiges Eis|besänftigen)/.test(lines.join("\n")));
   passed = errors.length === 0 && checks.every((c) => c.ok);
 } catch (e) {

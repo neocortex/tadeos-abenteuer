@@ -20,7 +20,7 @@ import { Bursts } from "../challenges/shared/bursts";
 import { Owned } from "../challenges/shared/dispose";
 import { Particles } from "../challenges/shared/particles";
 import { NOISE_GLSL } from "../core/glsl";
-import { DialogueScript } from "../data/dialogues";
+import { DialogueScript, DIALOGUES } from "../data/dialogues";
 import { QUESTS } from "../data/quests";
 import { audio } from "../audio/Audio";
 import { waterHeight } from "../world/Water";
@@ -46,8 +46,8 @@ const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 
 // ── The beach ───────────────────────────────────────────────
 
-/** A white sand bar far from the landing beach, with only open sea behind it: "a beach near his home". */
-const HOME_BEACH: P2 = [90, 112];
+/** A white sand bar far from the landing beach, with only open sea behind it: the beach of his holiday. */
+const HOLIDAY_BEACH: P2 = [90, 112];
 /** From Tadeo to the bottle at his feet. */
 const BOTTLE_AT = v3(-1.15, 0, 0.8);
 /** Seconds the camera takes to tilt down from the sky to the beach. */
@@ -89,7 +89,7 @@ class BeachShot {
   constructor(island: IslandScene) {
     this.group.name = "opening-beach";
     const hf = island.island.hf;
-    const t = v3(HOME_BEACH[0], hf.heightAt(HOME_BEACH[0], HOME_BEACH[1]), HOME_BEACH[1]);
+    const t = v3(HOLIDAY_BEACH[0], hf.heightAt(HOLIDAY_BEACH[0], HOLIDAY_BEACH[1]), HOLIDAY_BEACH[1]);
     this.tadeo = t;
     const at = t.clone().add(BOTTLE_AT);
     at.y = hf.heightAt(at.x, at.z);
@@ -451,7 +451,7 @@ async function findTheBottle(d: OpeningDeps): Promise<void> {
   const { engine, island } = d;
   const beach = new BeachShot(island);
   // Reason: he looks down at the bottle, three-quarters towards the camera
-  d.placePlayer(HOME_BEACH[0], HOME_BEACH[1], Math.atan2(BOTTLE_AT.x, BOTTLE_AT.z));
+  d.placePlayer(HOLIDAY_BEACH[0], HOLIDAY_BEACH[1], Math.atan2(BOTTLE_AT.x, BOTTLE_AT.z));
   d.startCinematic((t) => beach.frame(t));
   audio.setAmbience(true);
   audio.stopMusic(1);
@@ -468,6 +468,7 @@ async function findTheBottle(d: OpeningDeps): Promise<void> {
   await engine.fade(1, 450);
   island.player.avatar.pose = "normal";
   beach.dispose();
+  await d.ui.sayOverBlack("intro_sailing");
 }
 
 /** Sailing, the fin, the hit, the cut to black. Nothing but the picture for the whole of it. */
@@ -499,6 +500,17 @@ function flyToTheLandingBeach(d: OpeningDeps): void {
   });
 }
 
+/** Tadeo turns to the smoking mountain, and the camera looks over his shoulder so that it fills the top of the picture. */
+function lookAtTheVolcano(d: OpeningDeps): void {
+  const p = d.island.player.position;
+  const [vx, vz] = LANDMARKS.volcano;
+  const dir = v3(vx - p.x, 0, vz - p.z).normalize();
+  d.island.player.facing = Math.atan2(dir.x, dir.z);
+  // Reason: the lens is narrow (40°), so the camera aims above the crater to keep the smoke in the upper half
+  const vent = v3(vx, d.island.island.hf.heightAt(vx, vz) + 5, vz);
+  d.island.rig.setShot({ pos: p.clone().addScaledVector(dir, -8).add(v3(0, 10, 0)), look: vent }, 1.6);
+}
+
 /** Washed ashore: the flight's end, Chuleta out of the backpack, the wreck, the voice from the volcano. */
 async function arrive(d: OpeningDeps): Promise<void> {
   audio.playMusic("music_overworld");
@@ -509,6 +521,12 @@ async function arrive(d: OpeningDeps): Promise<void> {
   await wait(1400);
   d.endCinematic(1.8);
   await wait(900);
+  // Reason: Tadeo says where he is before Chuleta climbs out
+  const landing = DIALOGUES.intro_landing;
+  await d.talk(landing.slice(0, 3));
+  lookAtTheVolcano(d);
+  await d.talk(landing.slice(3));
+  d.island.rig.setShot(null, 1.5);
   d.chuleta.climbOut();
   await wait(800);
   await d.talk(CHULETA_INTRO);

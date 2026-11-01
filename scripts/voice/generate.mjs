@@ -34,7 +34,7 @@ const CAST = {
   Stimme: PACO,
   Maulwurf: { voice: "2HDQZbLZn0MJCgru92h7", model: V4 }, // Knurps
   "Kleine Mia": { voice: "QNDh5mDABxDpT3PEzjST", model: V4 }, // Emmy
-  Fuchs: { voice: "1TdRi8sZB0xAhMlS3uBQ", model: V4 }, // Skylo
+  Fuchs: { voice: "aHb0rsWUX1Fsr1L8EX7f", model: V4 }, // Wally
   "Weise Frau": { voice: "yL6cMfg79EwETG98xIR2", model: V4 }, // Laura Mondschein
   "Weiser Mann": { voice: "2baru8J0e15nxuG3bzXy", model: V4 }, // Cornelius
   "Bäckerin Lina": { voice: "1iF3vHdwHKuVKSPDK23Z", model: V4 }, // Louisa
@@ -43,8 +43,12 @@ const CAST = {
   "Frau Moos": { voice: "mlDV16PgT63p9bCPQh7X", model: V4 }, // Nadine
 };
 
-/** The text as the voices read it: Chuleta is a Spanish name, and a German voice only says its "ch" right as "tsch". */
-const forVoice = (text) => text.replaceAll("Chuleta", "Tschuleta");
+/**
+ * The text as the voices read it. Chuleta is a Spanish name, stressed on its second syllable, and a German voice only
+ * says that from IPA. Eleven v4 reads IPA and v2 doesn't, so nobody cast on V2 can say the name.
+ */
+// Reason: the long u keeps the first vowel open; with a short one Tadeo's voice drifts to "Choleta"
+const forVoice = (text) => text.replaceAll("Chuleta", '"/tʃuːˈleta/"');
 
 /** File name of a recording; it changes with the voice, model or text, so changed lines are rendered again. */
 const fileName = ({ voice, model }, text) =>

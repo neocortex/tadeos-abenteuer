@@ -232,14 +232,37 @@ export class MountainChallenge implements Challenge {
     }, 1.0);
     await this.wait(1.2);
     await this.ui.itemGet("hammer");
+    // Reason: the camera still looks inland here, so nothing pops up on the sea
+    this.decor.addFarIsle(out);
     // Epic view: over his shoulder, out across the island and the sea
     this.cam.setShot((t) => {
       const pos = to.clone().addScaledVector(out, -5 - t * 0.25).addScaledVector(side, 5.5 + t * 0.15).setY(SUMMIT_Y + 5 + t * 0.12);
       return { pos, look: to.clone().addScaledVector(out, 6).setY(SUMMIT_Y - 1) };
     }, 2.4);
+    this.ui.dialogue.onLine = (speaker) => {
+      if (speaker !== "Erzähler") return;
+      this.ui.dialogue.onLine = null;
+      this.cam.setShot(this.isleShot(to, out, side), 2.0);
+    };
     await this.ui.say("mountain_complete");
+    this.ui.dialogue.onLine = null;
     this.state = "done";
     this.resolveFinished();
+  }
+
+  /** The narrator's view: past Tadeo's shoulder to the small island and the fin, above the dialogue box. */
+  private isleShot(to: THREE.Vector3, out: THREE.Vector3, side: THREE.Vector3): (t: number) => Shot {
+    const pos = to.clone().addScaledVector(out, -6).addScaledVector(side, 5).setY(SUMMIT_Y + 4.5);
+    // Reason: aim right of the island and below it, so that Tadeo fits on the right and the island sits above the box
+    const aim = this.decor.farIsle!.island.position.clone().addScaledVector(side, -56).setY(-44);
+    // Reason: the shadows are centred on the look point, so it stays up here on the summit
+    const view: Shot = { pos, look: pos.clone().add(aim.sub(pos).setLength(12)) };
+    // Reason: setShot only blends from the follow camera and cuts between two shots, so this one glides by itself
+    const from: Shot = { pos: this.camera.position.clone(), look: this.cam.focus.clone() };
+    return (t) => {
+      const k = THREE.MathUtils.smoothstep(t, 0, 2);
+      return { pos: from.pos.clone().lerp(view.pos, k), look: from.look.clone().lerp(view.look, k) };
+    };
   }
 
   // ── Per-frame ─────────────────────────────────────────────

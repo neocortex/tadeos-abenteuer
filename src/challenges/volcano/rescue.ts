@@ -197,6 +197,14 @@ export async function rescueEnding(c: VolcanoChallenge): Promise<void> {
   hero.facing = Math.atan2(r.promptAt.x - hero.position.x, r.promptAt.z - hero.position.z);
   r.heaver = hero.avatar;
 
+  // Tadeo has found who called; the name tag still says Stimme, as he doesn't know the name yet
+  ui.dialogue.onLine = (speaker) => {
+    hero.avatar.pose = speaker === "Tadeo" ? "talk" : "normal";
+  };
+  await ui.say("volcano_paco_found");
+  ui.dialogue.onLine = null;
+  hero.avatar.pose = "normal";
+
   c.statusBar("💪", 0, "Stein heben");
   c.prompt = { at: r.promptAt, verb: "Heben" };
   while (r.lifts < LIFTS_NEEDED) {
@@ -235,11 +243,11 @@ export async function rescueEnding(c: VolcanoChallenge): Promise<void> {
     line++;
     hero.avatar.pose = speaker === "Tadeo" ? "talk" : "normal";
     paco.avatar.pose = speaker === "Tadeo" ? "normal" : "talk";
-    if (line === 2) {
+    if (line === 8) {
       c.rig.setShot(r.stoneShot, 1.3);
       const stone = c.set.altar.hollowAt;
       hero.facing = Math.atan2(stone.x - hero.position.x, stone.z - hero.position.z);
-    } else if (line === 3) {
+    } else if (line === 9) {
       c.rig.setShot(r.wideShot, 1.1);
       turnToEachOther();
     }
@@ -250,17 +258,19 @@ export async function rescueEnding(c: VolcanoChallenge): Promise<void> {
   await wait(600);
 
   // Beat two: the boat, the way to the village
+  // Reason: Paco goes ahead on the narrator's last line, so the picture shows what it says; Tadeo waves him off
   ui.dialogue.onLine = (speaker) => {
+    if (speaker === "Erzähler") {
+      paco.avatar.pose = "normal";
+      hero.avatar.pose = "cheer";
+      hero.facing = Math.atan2(r.exitAt.x - hero.position.x, r.exitAt.y - hero.position.z);
+      void paco.walkTo(r.exitAt.x, r.exitAt.y, 3.4);
+      return;
+    }
     hero.avatar.pose = speaker === "Tadeo" ? "talk" : "normal";
     paco.avatar.pose = speaker === "Tadeo" ? "normal" : "talk";
   };
   await ui.say("volcano_paco_boat");
   ui.dialogue.onLine = null;
-
-  // Paco goes ahead; Tadeo waves him off
-  paco.avatar.pose = "normal";
-  hero.avatar.pose = "cheer";
-  hero.facing = Math.atan2(r.exitAt.x - hero.position.x, r.exitAt.y - hero.position.z);
-  void paco.walkTo(r.exitAt.x, r.exitAt.y, 3.4);
   await wait(1900);
 }

@@ -44,7 +44,11 @@ export async function welcome(f: Feast): Promise<void> {
   s.tadeo.avatar.pose = "cheer";
   s.tadeo.jump(6);
   audio.playSfx("sfx_victory_fanfare", 0.6);
-  await s.sleep(2.2);
+  // Reason: lines stay until the player presses Space, so no clock fits them: cheer until the lines are done
+  s.crowd.cheer(Infinity);
+  await s.ui.say("festival_opening");
+  // Reason: a 0.01 s cheer ends on the next frame, before Paco gets his own pose, so the end can't reset it
+  s.crowd.cheer(0.01);
   f.atWide = false;
   s.tadeo.avatar.pose = "normal";
 
@@ -70,29 +74,83 @@ export async function talk(f: Feast): Promise<void> {
   const { paco, chest, hen, egg, plan } = f;
   const elder = s.crowd.sages.elder;
   const t = s.tadeo;
+  const ogreHead = f.ogre.head.getWorldPosition(new THREE.Vector3());
+  // Reason: from the fire side, a little below his chin, so the big face looks down on the camera
+  const ogreShot = shot(ogreHead.x + 4.2, 1.9, ogreHead.z + 5.4, ogreHead.x, ogreHead.y - 0.3, ogreHead.z);
   const treasureTop = chest.group.position.clone().add(new THREE.Vector3(0, 0.9, 0.1));
 
+  /** The camera moves to a speaker; Tadeo is looked at from his left, like the talk has always done. */
+  const onTadeo = () => void s.director.move(faceShot(t, 4.2, -1), 0.8);
+  const onPaco = () => void s.director.move(faceShot(paco, 3.6), 1.4);
+  /** The elder, with the plan above Tadeo's head still in the corner of the picture. */
+  const onElderWithPlan = () => void s.director.move(shot(3, 2.3, 9, 0.2, 1.9, 0), 1.2);
+
+  // One beat per line of `festival_talk`, in the order the design gives them
   const beats: (() => void)[] = [
+    // 0 Paco: the pirate was me
     () => {
       paco.avatar.pose = "talk";
       void s.director.move(faceShot(paco), 1.6);
     },
+    // 1 Erzähler: it is quiet at the fire. Nobody moves, the camera takes in everyone
     () => {
-      f.bow = 1;
-      void s.director.move(faceShot(paco, 3.6), 1.4);
+      paco.avatar.pose = "normal";
+      void s.director.move(ALL_OF_THEM, 1.6);
     },
+    // 2 Tadeo: But you are my friend
+    () => {
+      t.avatar.pose = "talk";
+      onTadeo();
+    },
+    // 3 Paco: young and silly, sorry
+    () => {
+      t.avatar.pose = "normal";
+      paco.avatar.pose = "talk";
+      f.bow = 1;
+      onPaco();
+    },
+    // 4 Paco: the heart shone so nicely
     () => {},
+    // 5 Paco: so he froze it and buried it
+    () => {},
+    // 6 Tadeo: the shark!
+    () => {
+      paco.avatar.pose = "normal";
+      t.avatar.pose = "talk";
+      onTadeo();
+    },
+    // 7 Paco: yes, and I was ashamed
+    () => {
+      t.avatar.pose = "normal";
+      paco.avatar.pose = "talk";
+      onPaco();
+    },
+    // 8 Paco: only the key
+    () => {},
+    // 9 Paco: the message in the bottle too
+    () => {},
+    // 10 Tadeo: P for Paco!
     () => {
       paco.avatar.pose = "normal";
       t.avatar.pose = "cheer";
       t.jump(6);
       f.henPose.flap = 1;
       t.face(Math.atan2(0.3, 1));
-      void s.director.move(faceShot(t, 4.2, -1), 0.8);
+      onTadeo();
     },
+    // 11 Tadeo: that is why you always said Hm, hm
+    () => t.jump(5),
+    // 12 Paco: I was too old to go myself
     () => {
       t.avatar.pose = "normal";
       f.henPose.flap = 0;
+      paco.avatar.pose = "talk";
+      onPaco();
+    },
+    // 13 Elder: you sent us Tadeo
+    () => {
+      t.avatar.pose = "normal";
+      paco.avatar.pose = "normal";
       elder.avatar.pose = "talk";
       void elder.walkTo(ELDER_SPOT[0], ELDER_SPOT[1], 1.5).then(() => elder.faceTo(paco.position.x, paco.position.z));
       paco.faceTo(ELDER_SPOT[0], ELDER_SPOT[1]);
@@ -101,6 +159,9 @@ export async function talk(f: Feast): Promise<void> {
       s.crowd.cheer(2.4);
       void s.director.move(shot(2.9, 2.1, 4.7, 1.8, 1.15, -1.2), 1.5);
     },
+    // 14 Elder: and you told the truth
+    () => {},
+    // 15 Tadeo: the gold is for the village
     () => {
       elder.avatar.pose = "normal";
       paco.face(0);
@@ -116,7 +177,15 @@ export async function talk(f: Feast): Promise<void> {
       s.crowd.cheer(3);
       void s.director.move(shot(0.7, 3, 10.4, 1.5, 0.9, 1.2), 1.2);
     },
+    // 16 Oger: and me? Is there cake?
     () => {
+      t.avatar.pose = "normal";
+      f.ogre.setPose("wave");
+      void s.director.move(ogreShot, 1.2);
+    },
+    // 17 Tadeo: this was in the chest too
+    () => {
+      f.ogre.setPose("sit");
       chest.endBeam();
       plan.visible = true;
       audio.playSfx("sfx_menu_confirm", 0.8, 0.8);
@@ -125,7 +194,35 @@ export async function talk(f: Feast): Promise<void> {
       s.sparkleAt(t.position.clone().add(new THREE.Vector3(0, 1.6, 0.6)), 40, "#bfe0ff", 2);
       void s.director.move(shot(0, 1.5, t.position.z + 6, 0, 1.25, t.position.z), 1.2);
     },
+    // 18 Elder: show me... a plan for a rocket
     () => {
+      elder.avatar.pose = "talk";
+      elder.faceTo(t.position.x, t.position.z);
+      onElderWithPlan();
+    },
+    // 19 Tadeo: a rocket?
+    () => {
+      elder.avatar.pose = "normal";
+      void s.director.move(shot(0, 1.5, t.position.z + 6, 0, 1.25, t.position.z), 1);
+    },
+    // 20 Elder: an old legend of a rocket
+    () => {
+      elder.avatar.pose = "talk";
+      onElderWithPlan();
+    },
+    // 21 Tadeo: another world?
+    () => {
+      elder.avatar.pose = "normal";
+      void s.director.move(shot(0, 1.5, t.position.z + 6, 0, 1.25, t.position.z), 1);
+    },
+    // 22 Elder: a story for another time
+    () => {
+      elder.avatar.pose = "talk";
+      onElderWithPlan();
+    },
+    // 23 Chuleta: a golden egg
+    () => {
+      elder.avatar.pose = "normal";
       plan.visible = false;
       t.avatar.pose = "normal";
       hen.cluck(0.8);
@@ -137,12 +234,30 @@ export async function talk(f: Feast): Promise<void> {
       // Reason: from a little to the left, or Tadeo's side would fill the right of the frame
       void s.director.move(shot(egg.position.x - 0.5, 0.95, egg.position.z + 2.4, egg.position.x - 0.55, 0.3, egg.position.z), 0.9);
     },
+    // 24 Erzähler: the volcano sleeps, and Tadeo looks up at the stars
+    () => {
+      f.henPose.flap = 0;
+      const stock = t.overlay;
+      t.overlay = (h, dt) => {
+        stock?.(h, dt);
+        h.head.rotation.x = -0.5;
+      };
+      t.face(Math.atan2(0.3, 1));
+      void s.director.move(faceShot(t, 4.2, -1), 1.2);
+    },
   ];
 
+  const tadeoOverlay = t.overlay;
   let line = 0;
-  s.ui.dialogue.onLine = () => beats[line++]?.();
+  s.ui.dialogue.onLine = () => {
+    const beat = beats[line++];
+    if (!beat) return;
+    beat();
+    f.beatsFired++;
+  };
   await s.ui.say("festival_talk");
   s.ui.dialogue.onLine = null;
+  t.overlay = tadeoOverlay;
   f.henPose.flap = 0;
 }
 

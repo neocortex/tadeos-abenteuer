@@ -118,7 +118,7 @@ export async function takeHeart(s: TreasureStage): Promise<void> {
   s.state.heart = true;
   audio.playSfx("sfx_special", 0.45, 0.8);
   await s.sleep(1.5);
-  await s.say(lines("treasure_heart", 0, 1));
+  await s.say(lines("treasure_heart_before"));
 
   // He reaches out: warm, not hot
   t.actor.face(0);
@@ -128,7 +128,7 @@ export async function takeHeart(s: TreasureStage): Promise<void> {
   s.sparkleAt(heart.position, 46, "#ffb04a", 2.6, 1.1);
   audio.playSfx("sfx_heal", 0.8);
   await s.sleep(0.9);
-  await s.say(lines("treasure_heart", 1));
+  await s.say(lines("treasure_heart_held"));
 
   const back = t.avatar.back;
   await glide(s, heart, back.localToWorld(CARRIED_HEART.at.clone()), CARRIED_HEART.scale, 0.8, 0.3);
@@ -186,6 +186,8 @@ export async function takeGold(s: TreasureStage): Promise<void> {
   t.avatar.pose = "cheer";
   t.actor.jump(6);
   await s.sleep(2.2);
+  // Reason: he talks about the crown only once it sits on his head, and before the ground starts to shake
+  await s.say(lines("treasure_crown"), HERO_SHOT);
 }
 
 /** Extra bloom while the treasure glows. */

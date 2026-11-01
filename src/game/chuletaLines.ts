@@ -7,7 +7,7 @@ import { DialogueScript } from "../data/dialogues";
 
 export const CHULETA_INTRO: DialogueScript = [
   { speaker: "Chuleta", portrait: "", text: "Und mich hast du wohl vergessen? Ich saß die ganze Zeit in deinem Rucksack!" },
-  { speaker: "Tadeo", portrait: "", text: "Chuleta! Du bist ja mitgekommen!" },
+  { speaker: "Tadeo", portrait: "", text: "Chuleta! Du bist ja mitgekommen! Bin ich froh!" },
 ];
 
 /** Hint for the current milestone, said when nothing happened for a while. */
@@ -25,11 +25,14 @@ export const CHULETA_HINTS: Record<number, string> = {
   12: "Schnell! Das Herz muss zurück auf den alten Stein am Vulkan!",
 };
 
+/** Said when Tadeo walks round the thorn hedge: the arch is the only way into the Zauberwald. */
+export const CHULETA_BEHIND_HEDGE = "Gack! Hier ist nur Wiese. In den Zauberwald kommst du nur durch das Tor!";
+
 /** Cheer after finishing a milestone (keyed by the milestone just finished). */
 export const CHULETA_CHEERS: Record<number, string> = {
   2: "Puh, war das heiß! Fast hätte ich ein gekochtes Ei gelegt!",
   3: "Ein Geist? Gack! Mir stehen jetzt schon die Federn zu Berge!",
-  4: "Gack! Wie meint er das?",
+  4: "Näher, als du denkst? Gack! Jetzt schaue ich mich dauernd um!",
   5: "Ein echtes Zauberschwert! Du bist ein richtiger Held!",
   6: "Mmmh, Zauberbeeren! Darf ich eine picken? Nein? Schade!",
   7: "Schwert, Beeren und Schlüssel! Drei Sachen hast du schon. Gack!",

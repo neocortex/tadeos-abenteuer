@@ -1,8 +1,9 @@
 /**
  * E2E proof for the forest challenge (quest 6): the thorn hedge and the berry hunt.
  *
- * Opens `?quest=6` on the island, where the hedge closes the forest gate. The
- * camera framing of the sword scene is measured from three sides of the gate.
+ * Opens `?quest=6` on the island, where the hedge closes the forest gate. The arch is
+ * a magic door: the thorns plug it, nothing starts from behind them, and Chuleta says
+ * there is only meadow there. The camera framing of the sword scene is measured from three sides of the gate.
  * Then Tadeo walks up from the lake path, confirms the gate prompt with one
  * Space and watches the hedge open before the forest starts. The challenge is
  * played with real key presses: it reads the live state
@@ -293,7 +294,10 @@ async function sceneFraming(spots) {
       if (watching) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
-    const done = g.story.beforeQuest(6);
+    // Reason: this measures the camera in the opening, so the hedge talks, which wait for a key, are left out
+    const talk = g.story.talk;
+    g.story.talk = async () => {};
+    const done = g.story.beforeQuest(6).finally(() => (g.story.talk = talk));
     const samples = [];
     for (const wait of [1300, 1700]) {
       await new Promise((r) => setTimeout(r, wait));
@@ -326,6 +330,26 @@ async function walkIsland(x, z, radius = 1, timeout = 8000) {
   await hold(new Set());
 }
 
+const HEN_LINE = "Chuleta: Gack! Hier ist nur Wiese. In den Zauberwald kommst du nur durch das Tor!";
+const henLines = async () => (await said()).filter((l) => l === HEN_LINE).length;
+const tadeoAt = () => page.evaluate(() => [window.game.island.player.position.x, window.game.island.player.position.z]);
+const promptShown = () =>
+  page.evaluate(() => {
+    const el = document.querySelector(".prompt");
+    return el && el.style.display !== "none" ? el.textContent.trim() : null;
+  });
+async function placeTadeo(x, z) {
+  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [x, z]);
+  await sleep(300);
+}
+/** Metres from the hedge to Tadeo along the way through it: below 0 on the lake side, above 0 on the forest side. */
+const hedgeSide = () =>
+  page.evaluate(() => {
+    const hedge = window.game.story.hedge.prop.group;
+    const p = window.game.island.player.position;
+    return (p.x - hedge.position.x) * Math.sin(hedge.rotation.y) + (p.z - hedge.position.z) * Math.cos(hedge.rotation.y);
+  });
+
 let passed = false;
 let fps = 0;
 let bounce = null;
@@ -344,6 +368,51 @@ try {
     return { circles: circles.length, shut: circles.every((c) => colliders.hits(c.x, c.z, 0)) };
   });
   check("the hedge stands on its colliders", walls.circles > 3 && walls.shut, JSON.stringify(walls));
+
+  // The arch is a door: the thorns plug it and no more, and going round them finds only meadow
+  check("Chuleta says nothing when Tadeo starts on the lake side", (await henLines()) === 0, String(await tadeoAt()));
+  const widths = await page.evaluate(() => {
+    const hedge = window.game.story.hedge;
+    const rot = hedge.prop.group.rotation.y;
+    const along = hedge.circles.map((c) => c.x * Math.cos(rot) - c.z * Math.sin(rot));
+    const colliders = Math.max(...along.map((a, i) => a + hedge.circles[i].r)) - Math.min(...along.map((a, i) => a - hedge.circles[i].r));
+    let thorns = 0;
+    hedge.prop.group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.geometry.computeBoundingBox();
+      thorns = Math.max(thorns, o.geometry.boundingBox.max.x - o.geometry.boundingBox.min.x);
+    });
+    return { colliders, thorns };
+  });
+  check("the hedge is a plug for the arch, not a wall across the meadow", widths.colliders <= 10 && widths.thorns <= 13, JSON.stringify(widths));
+  // The whole opening between the posts, which stand 2.7 m from the middle. Further out the hedge's round ends let him slide past: that is the walk round it
+  for (const x of [-13.7, -12, -10.3]) {
+    await placeTadeo(x, 23.2);
+    await hold(new Set(["ArrowDown"]));
+    await sleep(1200);
+    await hold(new Set());
+    const side = await hedgeSide();
+    check(`the thorns stop him running through the arch at x = ${x}`, side < 0, `${side.toFixed(2)} m past the hedge`);
+  }
+  check("Chuleta says nothing in front of the hedge", (await henLines()) === 0);
+  await shot("00_hedge_small");
+
+  await placeTadeo(-12, 37);
+  await hold(new Set(["ArrowUp"]));
+  await sleep(1800);
+  await hold(new Set());
+  await sleep(400);
+  const behindSide = await hedgeSide();
+  check("the thorns stop him from the forest side too", behindSide > 0, `${behindSide.toFixed(2)} m past the hedge`);
+  check("no prompt behind the hedge", (await promptShown()) === null, String(await promptShown()));
+  check("Chuleta explains the meadow when he goes behind the hedge", (await henLines()) === 1, JSON.stringify(await said()));
+  await shot("00_behind_hedge");
+  await page.keyboard.press("Space");
+  await sleep(600);
+  const behindSpace = await page.evaluate(() => ({ pose: window.game.island.player.avatar.pose, hedge: window.game.story.e2e.hedge }));
+  check("Space behind the hedge starts nothing", behindSpace.pose !== "holdUp" && behindSpace.hedge, JSON.stringify(behindSpace));
+  await sleep(3000);
+  check("she does not repeat herself straight away", (await henLines()) === 1, String(await henLines()));
 
   const spots = [];
   for (const [x, z] of GATE_SPOTS) {
@@ -375,8 +444,45 @@ try {
     const p = window.game.island.player.position;
     return [p.x, p.z];
   });
-  const pressed = Date.now();
+  // The hedge talk comes first, with the thorns still up
   await page.keyboard.press("Space");
+  const pressed = Date.now();
+  const sawLine = async (text) => (await said()).some((l) => l.includes(text));
+  const advanceUntil = async (text) => {
+    const end = Date.now() + 20000;
+    while (!(await sawLine(text))) {
+      if (Date.now() > end) throw new Error(`never heard "${text}"`);
+      if (await dialogueOpen()) await page.keyboard.press("Space");
+      await sleep(350);
+    }
+  };
+  await advanceUntil("Das ist das Tor zum Zauberwald");
+  await advanceUntil("Mal sehen, ob das Schwert wirklich hilft");
+  await sleep(500);
+  const upAtLastLine = (await story()).hedge;
+  const looking = await page.evaluate(() => {
+    const g = window.game;
+    const cam = g.island.camera;
+    const hedge = g.story.hedge.prop.group;
+    const n = [Math.sin(hedge.rotation.y), Math.cos(hedge.rotation.y)];
+    const side = (v) => (v.x - hedge.position.x) * n[0] + (v.z - hedge.position.z) * n[1];
+    const mid = cam.position.clone().set(hedge.position.x, hedge.position.y + 1.5, hedge.position.z).project(cam);
+    return { camSide: side(cam.position), tadeoSide: side(g.island.player.position), x: mid.x, y: mid.y, ahead: mid.z < 1 };
+  });
+  check("the hedge talk looks at the hedge", looking.camSide < 0 && looking.tadeoSide < 0 && looking.ahead && Math.abs(looking.x) < 0.9 && Math.abs(looking.y) < 0.9, JSON.stringify(looking));
+  await shot("hedge_talk");
+  await skipDialogues();
+  const openingStart = Date.now();
+  // Reason: screenshots can take seconds, so the page itself notes when the thorns are gone
+  await page.evaluate(() => {
+    window.hedgeGoneAt = null;
+    const watch = () => {
+      if (!window.game.story.e2e.hedge) window.hedgeGoneAt = Date.now();
+      else requestAnimationFrame(watch);
+    };
+    watch();
+  });
+  check("the thorns are up on the last line of the hedge talk", upAtLastLine);
   await hold(new Set(["ArrowRight"]));
   await sleep(450);
   const raised = await page.evaluate(() => {
@@ -400,15 +506,27 @@ try {
   check("the arrow keys do nothing during the scene", Math.hypot(during[0] - start[0], during[1] - start[1]) < 0.3, `${start} -> ${during}`);
   let hedgeGone = null;
   let forestAt = null;
-  while (forestAt === null && Date.now() - pressed < 20000) {
+  let upAtOpenTalk = null;
+  let openShot = false;
+  while (forestAt === null && Date.now() - pressed < 120000) {
     const [hedgeUp, inForest] = await page.evaluate(() => [window.game.story.e2e.hedge, !!window.engine.scene?.e2e?.phase]);
-    if (!hedgeUp && hedgeGone === null) hedgeGone = (Date.now() - pressed) / 1000;
+    if (!hedgeUp && hedgeGone === null) hedgeGone = ((await page.evaluate(() => window.hedgeGoneAt)) - openingStart) / 1000;
     if (inForest) forestAt = (Date.now() - pressed) / 1000;
-    else await sleep(50);
+    else if (await dialogueOpen()) {
+      // Reason: the first line of the talk after the opening is the moment the hedge must already be gone
+      if (upAtOpenTalk === null && (await sawLine("Sie sind weg"))) upAtOpenTalk = hedgeUp;
+      if (!openShot && (await sawLine("Das Tor ist frei"))) {
+        await sleep(500);
+        openShot = true;
+        await shot("hedge_open_talk");
+      }
+      await page.keyboard.press("Space");
+      await sleep(350);
+    } else await sleep(50);
   }
   opening = { hedgeGone, forestAt };
-  check("pressing Space opens the hedge before the forest starts", hedgeGone !== null && forestAt !== null && hedgeGone <= forestAt, JSON.stringify(opening));
-  check("the scene is a few seconds, not a wait", forestAt !== null && forestAt > 3 && forestAt < 8, String(forestAt));
+  check("the hedge talk surrounds the opening", hedgeGone !== null && forestAt !== null && upAtOpenTalk === false, JSON.stringify({ ...opening, upAtOpenTalk }));
+  check("the opening itself is a few seconds, not a wait", hedgeGone !== null && hedgeGone > 2 && hedgeGone < 8, String(hedgeGone));
 
   await waitFor(async () => !!(await state()), "forest scene", 20000);
   log("forest loaded");
@@ -495,7 +613,12 @@ try {
   const lines = await said();
   check("Flocke explains the hedge", lines.some((l) => l.startsWith("Fuchs: ") && l.includes("Nur vor seinem Licht")));
   check("Flocke calls the other bushes wild thorns", lines.some((l) => l.startsWith("Fuchs: ") && l.includes("wilde Dornen")));
+  check("the berries' card says Wesen", await page.evaluate(async () => (await import("/src/data/items.ts")).ITEMS.berry.description.includes("Wesen")));
   check("the berries' job is said", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("wieder lieb")));
+  const at = (text) => lines.findIndex((l) => l.includes(text));
+  const order = ["Das ist das Tor zum Zauberwald", "Mal sehen, ob das Schwert", "Sie sind weg", "Auf in den Zauberwald", "Hinter der Hecke beginnt"].map(at);
+  check("the hedge talk, the opening talk and the forest talk come in that order", order.every((n, i) => n >= 0 && (i === 0 || n > order[i - 1])), order.join());
+  check("Flocke asks Tadeo's name and he asks about the berries", lines.some((l) => l.includes("Woher kennst du meinen Namen")) && lines.some((l) => l.includes("böse Wesen wieder lieb")));
   const words = (l) => l.split(": ").slice(1).join(": ").split(/\s+/).length;
   check("no line is longer than 14 words", lines.every((l) => words(l) <= 14), lines.filter((l) => words(l) > 14).join(" | "));
   check("nobody says the forbidden words", !/\b(die Alten|Altar|ewiges Eis|besänftigen)/.test(lines.join("\n")));
@@ -508,6 +631,67 @@ try {
   });
   check("no wall of the hedge is left", open.walls === 0, JSON.stringify(open));
   check("Tadeo's hands are empty again", open.held === 0 && open.pose !== "holdUp", JSON.stringify(open));
+
+  // The hedge is gone: asking again plays no talk and no second opening
+  const talked = (await said()).length;
+  const again = await page.evaluate(async () => {
+    const story = window.game.story;
+    let plays = 0;
+    const play = story.hedgeOpening.play.bind(story.hedgeOpening);
+    story.hedgeOpening.play = () => (plays++, play());
+    await Promise.race([story.beforeQuest(6), new Promise((r) => setTimeout(r, 1500))]);
+    return { plays, open: !!document.querySelector(".dialogue.open") };
+  });
+  check("no hedge talk when the hedge is gone", again.plays === 0 && !again.open && (await said()).length === talked, JSON.stringify(again));
+
+  // Her line belongs to the standing hedge: long before the sword it is true as well, once the thorns have gone it is not
+  for (const [quest, want] of [[3, 1], [7, 0]]) {
+    await page.goto(`${BASE}/?quest=${quest}`);
+    await waitFor(() => page.evaluate(() => window.game?.story && window.engine?.scene === window.game.island), "the island", 30000);
+    await sleep(800);
+    await recordLines();
+    await placeTadeo(-12, 30);
+    await sleep(800);
+    check(`behind the hedge's place at quest ${quest} Chuleta says her line ${want} time(s)`, (await henLines()) === want, JSON.stringify(await said()));
+  }
+  // Mashing Space from the gate on goes through both talks and the opening into the forest
+  await page.goto(`${BASE}/?quest=6`);
+  await waitFor(() => page.evaluate(() => window.game?.story && window.engine?.scene === window.game.island), "the island", 30000);
+  await sleep(800);
+  await placeTadeo(FOREST_GATE[0], FOREST_GATE[1] - 2.6);
+  await waitFor(async () => (await promptShown())?.includes("Los geht"), "the gate prompt", 10000);
+  let mashedHedge = null;
+  const mashEnd = Date.now() + 60000;
+  while (Date.now() < mashEnd) {
+    await page.keyboard.press("Space");
+    await sleep(60);
+    const [hedgeUp, phase] = await page.evaluate(() => [window.game.story.e2e.hedge, window.engine.scene?.e2e?.phase ?? null]);
+    if (!hedgeUp) mashedHedge = true;
+    if (phase === "hunt") break;
+  }
+  const mashed = await state();
+  check("mashing Space through the hedge talks", mashedHedge === true && !!mashed?.phase, JSON.stringify({ mashedHedge, phase: mashed?.phase }));
+
+  // A Continue from a save puts Tadeo in front of the arch: the same talk plays
+  await page.evaluate(([x, z]) => {
+    localStorage.clear();
+    localStorage.setItem("schatzkarten_save", JSON.stringify({ version: 4, milestone: 6, items: ["sword"], playerX: x, playerY: z, timestamp: 1 }));
+  }, [FOREST_GATE[0], FOREST_GATE[1] - 2.6]);
+  await page.goto(BASE);
+  await waitFor(() => page.evaluate(() => window.game?.title?.choices?.length > 0), "the title", 30000);
+  await sleep(1500);
+  await recordLines();
+  check("the save offers Continue", (await page.evaluate(() => window.game.title.choices)).join() === "continue,new");
+  await page.keyboard.press("Space");
+  await waitFor(() => page.evaluate(() => window.engine?.scene === window.game.island && !!document.querySelector(".prompt") && document.querySelector(".prompt").style.display !== "none"), "the gate prompt after Continue", 30000);
+  await page.keyboard.press("Space");
+  await waitFor(async () => (await said()).some((l) => l.includes("Das ist das Tor zum Zauberwald")), "the hedge talk after Continue", 10000);
+  const continued = Date.now() + 60000;
+  while (Date.now() < continued && !(await state())?.phase) {
+    await page.keyboard.press("Space");
+    await sleep(60);
+  }
+  check("a Continue at the arch plays the talk", (await said()).some((l) => l.includes("Das Tor ist frei")) && !!(await state())?.phase && !(await story()).hedge);
   passed = errors.length === 0 && checks.every((c) => c.ok);
 } catch (e) {
   log(`FAILED: ${e.message}`);

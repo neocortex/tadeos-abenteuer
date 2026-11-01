@@ -2,8 +2,9 @@
  * Mountain scenery: instanced pines (snowy higher up), round trees, bushes,
  * rocks, flowers and grass tufts on the foothills and around the path, kept
  * out of the camera's line of sight; drifting clouds around the peak, gulls
- * circling the cliffs, the island's smoking volcano far to the west, and
- * falling snow that thickens above the snow line.
+ * circling the cliffs, the island's smoking volcano far to the west, falling
+ * snow that thickens above the snow line, and for the view from the summit the
+ * small island far out at sea with the shark's fin circling it.
  */
 
 import * as THREE from "three";
@@ -22,6 +23,16 @@ import { Course, DEPTH } from "./course";
 /** Where the island's volcano stands, seen from the mountain (far west-south-west). */
 export const VOLCANO_AT = new THREE.Vector3(-290, 0, 85);
 const GULLS = 9;
+/** The sky colour that far things are washed towards. */
+const HAZE = "#a9c4dd";
+/** How far out to sea the small island lies (the fog ends at 820), and the radius of its sand. */
+const ISLE_AT = 240;
+const ISLE_R = 36;
+/** The fin's circle around the island, and its speed (a round in about 40 s). */
+const FIN_CIRCLE = 52;
+const FIN_OMEGA = 0.16;
+/** Half the width of the lane from the summit out over the island: the fin's circle plus the biggest cloud. */
+const CLOUD_LANE = FIN_CIRCLE + 35;
 
 interface Gull {
   radius: number;
@@ -47,6 +58,92 @@ function tuft(): THREE.BufferGeometry {
     parts.push(part(new THREE.ConeGeometry(0.06, 0.45, 3), "#5fae3a", { pos: [Math.cos(a) * 0.08, 0.2, Math.sin(a) * 0.08], rot: [Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35] }));
   }
   return merge(parts);
+}
+
+/** How far the small island's coast reaches at angle a, so that it doesn't look turned on a lathe. */
+const coast = (a: number): number => 1 + Math.sin(a * 2 + 1) * 0.1 + Math.sin(a * 3 + 2.2) * 0.06 + Math.sin(a * 5) * 0.03;
+
+/** The small island: foam at the waterline, a sand rim, one low green hump and palms, all in one mesh. */
+function isleGeometry(): THREE.BufferGeometry {
+  const R = ISLE_R;
+  const profile = (
+    [
+      [R + 4, -1],
+      [R + 2.5, 0.35],
+      [R + 0.5, 0.6],
+      [R - 3, 1],
+      [R - 7, 1.5],
+      [R - 10, 1.9],
+      [R - 12, 2.5],
+      [R - 15, 4.2],
+      [R - 19, 6.2],
+      [R - 24, 7.8],
+      [R - 30, 8.8],
+      [0, 9.2],
+    ] as const
+  ).map(([r, y]) => new THREE.Vector2(r, y));
+  const lathe = new THREE.LatheGeometry(profile, 56);
+  const pos = lathe.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) {
+    const k = coast(Math.atan2(pos.getZ(i), pos.getX(i)));
+    pos.setXYZ(i, pos.getX(i) * k, pos.getY(i), pos.getZ(i) * k);
+  }
+  const hump = part(lathe, (p) => {
+    const r = Math.hypot(p.x, p.z) / coast(Math.atan2(p.z, p.x));
+    if (r > R + 1) return new THREE.Color("#ffffff");
+    return new THREE.Color("#f2dc9b").lerp(new THREE.Color("#7cc243"), smoothstep(R - 10, R - 12, r)).lerp(new THREE.Color("#4f9a3a"), smoothstep(R - 15, R - 28, r));
+  });
+  // Reason: bigger than life, like the fin, so that a child can tell the palms from the summit
+  const palms = (
+    [
+      [-13, 6.3, 7, 2.9, 0.4],
+      [-4, 7.6, 12, 2.5, 2.2],
+      [9, 6.8, 8, 3.1, 3.9],
+      [23, 1.4, 12, 2.3, 5.2],
+    ] as const
+  ).map(([x, y, z, s, yaw], i) =>
+    flora.palmTree(i + 2).geometry.applyMatrix4(new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw), new THREE.Vector3(s, s, s))),
+  );
+  const geo = merge([hump, ...palms]);
+  // Reason: wash the colours towards the sky, as on the far volcano, so that the island sits out in the haze
+  const colors = geo.attributes.color as THREE.BufferAttribute;
+  const tint = new THREE.Color();
+  const haze = new THREE.Color(HAZE);
+  for (let i = 0; i < colors.count; i++) {
+    tint.fromBufferAttribute(colors, i).lerp(haze, 0.25);
+    colors.setXYZ(i, tint.r, tint.g, tint.b);
+  }
+  return geo;
+}
+
+/** The turquoise shallows around the small island, fading out into the open sea. */
+function lagoonGeometry(): THREE.BufferGeometry {
+  const outer = ISLE_R * 1.6;
+  const g = new THREE.RingGeometry(ISLE_R, outer, 56, 5).rotateX(-Math.PI / 2);
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  const rgba = new Float32Array(pos.count * 4);
+  const c = new THREE.Color("#5fe0d2");
+  for (let i = 0; i < pos.count; i++) {
+    const k = coast(Math.atan2(pos.getZ(i), pos.getX(i)));
+    rgba.set([c.r, c.g, c.b, smoothstep(outer, ISLE_R, Math.hypot(pos.getX(i), pos.getZ(i))) * 0.9], i * 4);
+    pos.setXYZ(i, pos.getX(i) * k, 0.3, pos.getZ(i) * k);
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(rgba, 4));
+  return g;
+}
+
+/** The shark's dorsal fin (nose towards +z) far bigger than life, with its white wake on the water. */
+function farFinGeometry(): THREE.BufferGeometry {
+  const shape = new THREE.Shape().moveTo(0.46, -0.05).quadraticCurveTo(0.16, 0.62, -0.4, 1).quadraticCurveTo(-0.2, 0.5, -0.42, -0.05).closePath();
+  const fin = new THREE.ExtrudeGeometry(shape, { depth: 0.14, bevelEnabled: true, bevelSize: 0.05, bevelThickness: 0.05, bevelSegments: 2, curveSegments: 10 });
+  fin.translate(0, 0, -0.07);
+  // Reason: shape x becomes the fin's z axis, the extrusion its thickness (x)
+  fin.rotateY(-Math.PI / 2);
+  // Reason: thin towards the tip, so that seen from the front it is a spike and not a slab
+  const pos = fin.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) pos.setX(i, pos.getX(i) * (1 - Math.max(pos.getY(i), 0) * 0.8));
+  const foam = (z: number, width: number, length: number) => part(new THREE.SphereGeometry(1, 12, 6), "#ffffff", { pos: [0, 0.15, z], scale: [width, 0.4, length] });
+  return merge([part(fin, "#1b2733", { scale: 12 }), foam(1.5, 3, 7), foam(-14, 1.1, 16)]);
 }
 
 const SNOW_VERT = /* glsl */ `
@@ -84,6 +181,8 @@ void main() {
 export class Decor {
   readonly group = new THREE.Group();
   readonly snowMaterial: THREE.ShaderMaterial;
+  /** The small island and the fin, once `addFarIsle` has put them on the sea. */
+  farIsle: { island: THREE.Object3D; fin: THREE.Object3D } | null = null;
   private clouds: Clouds;
   private gullMesh: CritterMesh;
   private gulls: Gull[] = [];
@@ -291,7 +390,7 @@ export class Decor {
     profile.push(new THREE.Vector2(8, 44), new THREE.Vector2(3, 39));
     const g = new THREE.LatheGeometry(profile, 40);
     // Reason: wash the colours towards the sky so the far island sits back in the haze
-    const haze = new THREE.Color("#a9c4dd");
+    const haze = new THREE.Color(HAZE);
     const geo = part(g, (p) => {
       const t = smoothstep(-2, 44, p.y);
       return new THREE.Color("#e6d09a")
@@ -317,6 +416,53 @@ export class Decor {
     void world;
   }
 
+  /** Puts the small island on the sea in direction `out` (a unit vector) with the shark's fin circling it. */
+  addFarIsle(out: THREE.Vector3): void {
+    const landGeo = isleGeometry();
+    const landMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide });
+    const lagoonGeo = lagoonGeometry();
+    const lagoonMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false });
+    const lagoon = new THREE.Mesh(lagoonGeo, lagoonMat);
+    // Reason: the water blends too and draws at renderOrder 1; the shallows lie on top of it
+    lagoon.renderOrder = 2;
+    const island = new THREE.Group();
+    island.add(new THREE.Mesh(landGeo, landMat), lagoon);
+    island.position.copy(out).multiplyScalar(ISLE_AT);
+    // Reason: the palms are arranged for this side, so the island's +z looks back at the summit
+    island.rotation.y = Math.atan2(-out.x, -out.z);
+    const finGeo = farFinGeometry();
+    // Reason: no shine, so that the fin stays dark on the side the sun shines on
+    const finMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+    const fin = new THREE.Mesh(finGeo, finMat);
+    this.group.add(island, fin);
+    this.owned.push(landGeo, landMat, lagoonGeo, lagoonMat, finGeo, finMat);
+    this.farIsle = { island, fin };
+  }
+
+  /** The fin swims its circle, and the clouds keep out of the view. */
+  private updateFarIsle(island: THREE.Object3D, fin: THREE.Object3D, time: number): void {
+    const th = time * FIN_OMEGA;
+    fin.position.set(island.position.x + Math.cos(th) * FIN_CIRCLE, 0, island.position.z + Math.sin(th) * FIN_CIRCLE);
+    const ox = island.position.x / ISLE_AT;
+    const oz = island.position.z / ISLE_AT;
+    // Reason: its nose (+z) points along the circle, but seen end-on a fin is a mere spike from the summit: the part
+    // of its heading towards or away from the summit is squeezed, so it swings through that view and shows its side
+    const a = th - Math.atan2(oz, ox);
+    const away = -Math.sin(a) * 0.3;
+    const sideways = Math.cos(a);
+    fin.rotation.y = Math.atan2(away * ox - sideways * oz, away * oz + sideways * ox);
+    // Reason: the clouds drift and wrap all through the climb, so any of them may have come to stand between
+    // the summit and the island, however far out it lies; they slide along the edge of this lane instead
+    for (const c of this.clouds.group.children) {
+      const along = c.position.x * ox + c.position.z * oz;
+      const across = c.position.z * ox - c.position.x * oz;
+      if (along < -30 || Math.abs(across) >= CLOUD_LANE) continue;
+      const push = (across < 0 ? -CLOUD_LANE : CLOUD_LANE) - across;
+      c.position.x -= oz * push;
+      c.position.z += ox * push;
+    }
+  }
+
   update(dt: number, time: number, camera: THREE.Camera, snowAmount: number): void {
     this.clouds.update(dt);
     this.snowMaterial.uniforms.uCenter.value.copy(camera.position);
@@ -332,6 +478,7 @@ export class Decor {
       this.gullMesh.set(i, x, y, z, yaw, 0.05, dir * 0.35, wing, 0.8);
     });
     this.gullMesh.commit();
+    if (this.farIsle) this.updateFarIsle(this.farIsle.island, this.farIsle.fin, time);
   }
 
   dispose(): void {

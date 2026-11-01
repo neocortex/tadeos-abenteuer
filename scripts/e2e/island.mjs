@@ -5,9 +5,11 @@
  *     down to the landing beach, Chuleta and the call for help
  *  2. Quest 1 ends with the opening → quest 2 starts, game is saved (version 4), twelve quests exist
  *  3. Coins: walk through a coin → counter goes up
- *  4. Quest 3 (debug start): the elder tells the legend, the map card opens and closes → quest 4 starts
- *  5. Quest 4 (debug start): three riddles at the lake (mashing Space, a wrong answer, any order), the Hüter rises,
- *     speaks the rhyme and Tadeo repeats it → quest 5 starts
+ *  4. Quest 3 (debug start): the elder tells the legend whole, the map card opens and closes → quest 4 starts;
+ *     a reload in his talk keeps the quest and tells the legend again
+ *  5. Quest 4 (debug start): three riddles at the lake (mashing Space, a wrong answer, any order, a lit tablet is silent),
+ *     the Hüter rises and tells the lake in order → quest 5 starts; a reload in his talk keeps the quest;
+ *     mashing Space through the lake; a reload forgets the tablets and the first-tablet talk plays again
  *  6. Village (debug start): chat with a villager
  *  6b. The new cast: portraits, faces in the dialogue box, Paco beside the elder, the mole in the cave, the Hüter on the lake,
  *      and no tree hides him when he rises (hueterView.mjs)
@@ -179,8 +181,16 @@ check("Space closes the map card", await until(async () => !(await mapCardOpen()
 await wait(500);
 await shot("03b-tadeo-sets-off");
 
+// Reason: only sayOverBlack lifts the dialogue's layer above the fade, so z-index 101 means the line is told over black
+const layerIndex = () => page.evaluate(() => window.game.ui.layer.style.zIndex);
+const onScreen = () => page.evaluate(() => (document.querySelector(".dialogue.open") ? window.game.ui.dialogue.full : ""));
+const sailingSeen = await readUntil(async () => (await onScreen()).startsWith("Noch am selben Tag"), 30000);
+const overBlack = await layerIndex();
+check("the sailing is told over black", sailingSeen && overBlack === "101" && (await screenBlack()), `z-index "${overBlack}"`);
+
 // The shark's hit at sea
 check("the sea cinematic starts", await readUntil(() => hasObject("opening-sea"), 12000));
+check("the dialogue layer is back down after the sailing", (await layerIndex()) === "", `z-index "${await layerIndex()}"`);
 const seaStart = Date.now();
 check("Chuleta stays in the backpack at sea", !(await chuletaVisible()));
 await wait(1500);
@@ -204,16 +214,61 @@ await wait(3500);
 await shot("08-flight");
 check("the arrival dialogue opens", await until(dialogueOpen, 20000));
 await shot("09-arrival");
-check("Chuleta is out of the backpack", await chuletaVisible());
+// Reason: he turns to the volcano only after these, so the narrator and his first words play on the landing shot
+const firstWords = await readUntil(async () => (await onScreen()).startsWith("Uff!"), 30000);
+check("Tadeo has not turned to the volcano during his first words", firstWords && (await page.evaluate(() => window.game.island.player.facing)) === 0);
+// Reason: the camera glides round in 1.6 s; Space is held back until then so that the line stays on screen
+const volcanoLine = await readUntil(async () => (await onScreen()).startsWith("Und da hinten raucht ein Berg"), 30000);
+await wait(2200);
+const view = await page.evaluate(async () => {
+  const THREE = await import(performance.getEntriesByType("resource").map((e) => e.name).find((n) => /deps\/three\.js/.test(n)));
+  const { LANDMARKS } = await import("/src/world/layout.ts");
+  const { island } = window.game;
+  const [vx, vz] = LANDMARKS.volcano;
+  // The crater rim is about nine metres above the floor
+  const top = new THREE.Vector3(vx, island.island.hf.heightAt(vx, vz) + 9, vz);
+  const ndc = top.clone().project(island.camera);
+  const box = document.querySelector(".dialogue").getBoundingClientRect();
+  const py = ((1 - ndc.y) / 2) * innerHeight;
+  const from = island.camera.position;
+  const dist = from.distanceTo(top);
+  const ray = new THREE.Raycaster(from, top.clone().sub(from).normalize(), 0.3, dist);
+  ray.camera = island.camera;
+  const blockers = ray.intersectObjects(island.scene.children, true).filter((h) => h.object.isMesh && h.object.visible && h.distance < dist - 6);
+  return { x: ndc.x, py, boxTop: box.top, blockers: blockers.map((h) => `${h.object.name || h.object.type}@${h.distance.toFixed(0)}/${dist.toFixed(0)}`).slice(0, 4) };
+});
+await shot("landing_volcano");
+check(
+  "the volcano is in the picture when Tadeo talks about it",
+  volcanoLine && Math.abs(view.x) < 0.9 && view.py > 0 && view.py < view.boxTop && view.blockers.length === 0,
+  JSON.stringify(view),
+);
+check("Chuleta is still in the backpack while Tadeo says where he is", !(await chuletaVisible()));
+check("Chuleta is out of the backpack after that", await readUntil(chuletaVisible, 30000));
 check("the banner comes after the talk", await readUntil(banner2Shows, 30000));
 await shot("10-quest2-banner");
 const bannerLine = await bannerText();
 check("intro has narrator, Tadeo, Chuleta and Stimme", ["Erzähler", "Tadeo", "Chuleta", "Stimme"].every((s) => speakers.has(s)), [...speakers].join(", "));
 check("no sign quest", !speakers.has("Schild"));
 check(
-  "Chuleta's last word sends him after the golden star, right after the call for help",
-  /^Chuleta: .*goldenen Stern/.test(spoken.at(-1)) && /^Tadeo: .*Vulkan/.test(spoken.at(-2)),
+  "the narrator's last word sends him after the golden star, right after Tadeo says he will look after her",
+  /^Erzähler: .*goldene Stern/.test(spoken.at(-1)) && /^Tadeo: .*wer da ruft/.test(spoken.at(-2)),
   spoken.slice(-2).join(" | "),
+);
+const at = (re) => spoken.findIndex((l) => re.test(l));
+const landingEnd = at(/^Tadeo: Und da hinten raucht ein Berg/);
+const chuletaOut = at(/^Chuleta: Und mich hast du wohl vergessen/);
+const arrivalStart = at(/^Chuleta: Gack! Der Hai/);
+check(
+  "Tadeo reacts before Chuleta climbs out",
+  landingEnd >= 0 && landingEnd < chuletaOut && chuletaOut < arrivalStart,
+  `${landingEnd} < ${chuletaOut} < ${arrivalStart}`,
+);
+const landingStart = at(/^Erzähler: Ein Hai hat Tadeos Boot angegriffen/);
+check(
+  "on the beach the narrator tells of the shark, then the waves, before Tadeo speaks",
+  landingStart >= 0 && /^Erzähler: Zum Glück haben die Wellen/.test(spoken[landingStart + 1]) && /^Tadeo: Uff!/.test(spoken[landingStart + 2]),
+  spoken.slice(landingStart, landingStart + 3).join(" | "),
 );
 check("player is free after intro", await waitUntilFree());
 
@@ -263,6 +318,32 @@ async function recordLines() {
 const said = () => page.evaluate(() => window.said);
 const plain = (list) => list.map((l) => l.replace(/^[^:]+: /, ""));
 const onIsland = () => page.evaluate(() => window.engine.scene === window.game.island);
+/** A conversation of the game as "Name: text" lines, or several joined in order. */
+const scriptLines = (...keys) =>
+  page.evaluate(async (keys) => {
+    const { DIALOGUES } = await import("/src/data/dialogues.ts");
+    return keys.flatMap((k) => DIALOGUES[k].map((l) => `${l.speaker}: ${l.text}`));
+  }, keys);
+/**
+ * Press Continue on the title screen: what a player does after closing the game. With `m`, a save at quest `m` is
+ * seeded first; without it, the game's own save is used, as after a reload in the middle of a talk.
+ */
+async function continueAt(m) {
+  if (m) await page.evaluate((m) => localStorage.setItem("schatzkarten_save", JSON.stringify({ version: 4, milestone: m, items: [], playerX: 0, playerY: 0, timestamp: 1 })), m);
+  await page.goto(BASE);
+  await wait(4000);
+  await page.keyboard.press("Space");
+  await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.game.busy, null, { timeout: 30000 });
+  await recordLines();
+}
+/** Press Space, as separate presses every 60 ms like a child mashing it, while a talk is open, until `n` lines have begun. */
+async function pressUntilLines(n, timeoutMs = 60000) {
+  return until(async () => {
+    if ((await said()).length >= n) return true;
+    if ((await state()).dialogue) await page.keyboard.press("Space");
+    return false;
+  }, timeoutMs, 60);
+}
 await page.goto(`${BASE}?quest=3`);
 await wait(4000);
 await recordLines();
@@ -283,8 +364,9 @@ check("elder: prompt to talk", s.prompt?.includes("Sprechen") ?? false, s.prompt
 await page.keyboard.press("Space");
 await wait(600);
 check("elder: the talk opens a dialogue, no challenge starts", (await state()).dialogue && (await onIsland()));
-await readUntil(mapCardOpen);
+await readUntil(mapCardOpen, 90000);
 const mapCardSeen = await mapCardOpen();
+const heardAtCard = await said();
 // The card is held up inside the elder's talk, where the island leaves Space alone. A press right now is in its first 0.4 s.
 await page.keyboard.press("Space");
 const pressAge = await page.evaluate(() => performance.now() - window.mapCardOpenedAt);
@@ -297,18 +379,16 @@ await shot("04-map-card-quest3");
 await wait(1000);
 await page.keyboard.press("Space");
 check("Space closes the map card at quest 3", await until(async () => !(await mapCardOpen()), 2000));
-await readUntil(async () => (await state()).milestone === 4, 30000);
+await readUntil(async () => (await state()).milestone === 4, 90000);
 await waitUntilFree();
 s = await state();
 let heard = await said();
 let lines = plain(heard);
 check("elder tells the legend at quest 3 and no challenge starts", heard[0]?.startsWith("Dorfältester: ") && (await onIsland()));
-check("the elder tells of the Feuerherz and the stolen heart", ["Unser Vulkan hat ein Herz: das Feuerherz.", "Aber ein Pirat hat es gestohlen. Jetzt wacht der Vulkan auf!"].every((l) => lines.includes(l)));
+check("the legend is told whole", heardAtCard.join("\n") === (await scriptLines("elder_legend")).join("\n"), `${heardAtCard.length} lines`);
+check("the map card opens right after Tadeo asks for the Flaschenpost", heardAtCard.at(-1) === "Tadeo: Moment! Ich habe eine Karte! Sie war in einer Flaschenpost.", heardAtCard.at(-1));
 check("the map card appears", mapCardSeen);
-check("Tadeo asks for a moment before the card", lines.indexOf("Moment! Ich habe eine Karte!") === lines.indexOf("Und niemand weiß, wo das Herz ist.") + 1);
-check("Paco says Hm, hm.", heard.includes("Käpt'n Paco: Hm, hm."));
-check("the elder sends him to the ghost at the lake", lines.at(-1) === "Wie du hinkommst, weiß nur der Geist am See.", lines.at(-1));
-check("the legend is nine lines", heard.length === 9, `${heard.length} lines`);
+check("elder_after_map follows the card", heard.slice(heardAtCard.length).join("\n") === (await scriptLines("elder_after_map")).join("\n"), `${heard.length - heardAtCard.length} lines`);
 check("quest 4 (See) is active after the elder", s.milestone === 4, `milestone ${s.milestone}`);
 await shot("04b-quest4");
 
@@ -363,8 +443,9 @@ async function choose(k) {
 
 // First tablet: mashing Space gets nowhere, a wrong answer is kind, the right one lights the tablet
 await goToTablet(0);
+await page.evaluate(() => (window.said = []));
 await page.keyboard.press("Space");
-check("tablet 1: Steintafel reads the riddle", await until(async () => (await state()).dialogue && (await page.textContent(".dialogue .name")) === "Steintafel", 3000));
+check("tablet 1: Tadeo and Chuleta talk first, at the first tablet", await until(async () => (await state()).dialogue && (await page.textContent(".dialogue .name")) === "Tadeo", 3000));
 let sawKindLine = false;
 let kindSpeaker = "";
 let presses = 0;
@@ -410,10 +491,23 @@ check("the right answer lights the tablet", await until(async () => (await lake(
 await wait(500);
 await shot("07-tablet-lit");
 await waitUntilFree();
+let lakeHeard = await said();
+const count = (list, line) => list.filter((l) => l === line).length;
+const [firstTablet, litFirst, litSecond] = await Promise.all([scriptLines("lake_first_tablet"), scriptLines("lake_lit_first"), scriptLines("lake_lit_second")]);
+check("a wrong answer doesn't replay the first talk", firstTablet.every((l) => count(lakeHeard, l) === 1) && count(lakeHeard, (await scriptLines("lake_wrong"))[0]) === 1 && litFirst.every((l) => count(lakeHeard, l) === 1), lakeHeard.join(" | "));
+check("the first talk comes before the riddle, the first lit line after the wrong answer", lakeHeard.indexOf(firstTablet[0]) === 0 && lakeHeard.indexOf(litFirst[0]) > lakeHeard.indexOf((await scriptLines("lake_wrong"))[0]));
+
+// A lit tablet is silent: walking back to it and pressing Space adds no line
+await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [tablets[0][0], tablets[0][1] + 2.2]);
+await wait(500);
+await page.keyboard.press("Space");
+await wait(800);
+check("a lit tablet stays silent", !(await state()).dialogue && (await said()).length === lakeHeard.length, `${(await said()).length - lakeHeard.length} new lines`);
 
 // The other two, in the order 3, 2: any order works
 for (const i of [2, 1]) {
   await goToTablet(i);
+  await page.evaluate(() => (window.said = []));
   await openRiddle();
   if (i === 2) await shot("08-ghost-riddle");
   await choose(RIGHT[i]);
@@ -423,38 +517,133 @@ for (const i of [2, 1]) {
     await wait(1500);
     await shot("09-two-lit");
     await waitUntilFree();
+    lakeHeard = await said();
+    check("the second tablet says the second line, and not the first tablet's talk", litSecond.every((l) => lakeHeard.includes(l)) && firstTablet.every((l) => !lakeHeard.includes(l)) && litFirst.every((l) => !lakeHeard.includes(l)), lakeHeard.join(" | "));
   }
 }
 
 // The third riddle wakes the ghost
 await page.evaluate(() => (window.said = []));
 check("any order works", (await lake()).lit.every(Boolean) && (await lake()).solved === 3, JSON.stringify(await lake()));
-check("the ghost rises after the third", await until(async () => (await lake()).ghost, 8000));
+// Reason: the ghost flag is read at the first line of each part, so the camera and the ghost are seen where the lake talk begins and ends
+await page.evaluate(() => {
+  const box = Object.getPrototypeOf(window.game.ui.dialogue);
+  const begin = box.showLine;
+  window.ghostAt = {};
+  box.showLine = function () {
+    begin.call(this);
+    window.ghostAt[`${this.script[this.index].speaker}: ${this.script[this.index].text}`] = window.game.lake.e2e.ghost;
+  };
+});
+// Reason: the lake goes still first (a line of the Erzähler), so the ghost rises once that line is read
+check("the ghost rises after the third", await readUntil(async () => (await lake()).ghost, 30000));
 await wait(1500);
 await shot("10-hueter-rising");
 await wait(2500);
 await shot("11-hueter-risen");
-await readUntil(async () => (await state()).milestone === 5, 60000);
+await readUntil(async () => (await state()).milestone === 5, 120000);
 await waitUntilFree();
 s = await state();
 heard = await said();
 lines = plain(heard);
-check("the Hüter speaks first", heard[0] === "Hüter: Ich bin der Hüter. Ich habe auf das Herz aufgepasst.", heard[0]);
-check("the rhyme is said and Tadeo repeats it", lines.includes("Das Schwert aus dem Fels zerschneidet den Dorn,") && lines.some((l) => l.startsWith("Also: Das Schwert")));
-check("the whole rhyme is four lines, then Tadeo's two", lines.indexOf("Also: Das Schwert für die Dornen. Die Beeren für die Monster.") - lines.indexOf("Das Schwert aus dem Fels zerschneidet den Dorn,") === 4);
-check("the ghost has the last word before Chuleta", lines.at(-1) === "Und der Pirat... Er ist näher, als du denkst.", lines.at(-1));
-check("the conversation with the ghost is 11 lines, under the limit of 12", heard.length === 11, `${heard.length} lines`);
+const [still, hueterTalk, rhymeTalk, afterRhyme, gone] = await Promise.all(["lake_still", "lake_hueter", "lake_rhyme", "lake_after_rhyme", "lake_gone"].map((k) => scriptLines(k)));
+check("the lake is told in order", heard.join("\n") === [...still, ...hueterTalk, ...rhymeTalk, ...afterRhyme, ...gone].join("\n"), `${heard.length} lines`);
+const ghostAt = await page.evaluate(() => window.ghostAt);
+check("the ghost is not there while the lake is still, is there when he speaks, and is gone for the last talk", ghostAt[still.at(-1)] === false && ghostAt[hueterTalk[0]] === true && ghostAt[gone[0]] === false, JSON.stringify([ghostAt[still.at(-1)], ghostAt[hueterTalk[0]], ghostAt[gone[0]]]));
+check("the rhyme says Wesen", lines.includes("Also: Das Schwert für die Dornen. Die Beeren für die Wesen."));
+check("the whole rhyme is four lines, then Tadeo's two", lines.indexOf("Also: Das Schwert für die Dornen. Die Beeren für die Wesen.") - lines.indexOf("Das Schwert aus dem Fels zerschneidet den Dorn,") === 4);
+check("Tadeo has the last word", lines.at(-1) === "Also zuerst das Schwert. Auf zur Höhle!", lines.at(-1));
 check("the ghost is gone after he has spoken", await until(async () => !(await lake()).ghost, 6000));
 check("quest 5 (Höhle) is active", s.milestone === 5, `milestone ${s.milestone}`);
+check("Chuleta asks nothing old", await until(async () => (await saidAloud()).includes("Näher, als du denkst? Gack! Jetzt schaue ich mich dauernd um!"), 6000));
 await shot("12-quest5");
 
-// A reload keeps nothing of the riddles: all three come back dark, and can be answered again
+// A reload keeps nothing of the riddles: one tablet lit, then a reload, and all three come back dark
 await page.goto(`${BASE}?quest=4`);
 await wait(4000);
-check("after a reload the tablets are dark again", (await lake()).lit.every((l) => !l) && (await lake()).solved === 0);
+await recordLines();
 await goToTablet(1);
 await openRiddle();
+await choose(RIGHT[1]);
+check("one tablet is lit before the reload", await until(async () => (await lake()).solved === 1, 3000));
+await waitUntilFree();
+await page.goto(`${BASE}?quest=4`);
+await wait(4000);
+await recordLines();
+check("after a reload the tablets are dark again", (await lake()).lit.every((l) => !l) && (await lake()).solved === 0);
+await goToTablet(1);
+await page.keyboard.press("Space");
+await readUntil(riddleOpen, 20000);
+await wait(550);
 check("a riddle can be asked again after a reload", (await riddleOpen()) && (await highlighted()) === 0);
+check("after a reload the next tablet plays the first-tablet talk", (await said()).slice(0, firstTablet.length).join("\n") === firstTablet.join("\n"), (await said()).join(" | "));
+await choose(RIGHT[1]);
+await until(async () => (await lake()).solved === 1, 3000);
+await waitUntilFree();
+check("and then the first lit line, not the second", (await said()).includes(litFirst[0]) && !(await said()).includes(litSecond[0]), (await said()).join(" | "));
+
+/** Solve the three tablets in the order 1, 2, 3 (a real player's presses); the last one wakes the Hüter. */
+async function solveAllTablets() {
+  for (const i of [0, 1, 2]) {
+    await goToTablet(i);
+    await openRiddle();
+    if (i === 2) await page.evaluate(() => (window.said = []));
+    await choose(RIGHT[i]);
+    if (i < 2) {
+      check(`tablet ${i + 1}: lit`, await until(async () => (await lake()).lit[i], 3000));
+      await waitUntilFree();
+    }
+  }
+}
+
+// A reload in the elder's talk and in the Hüter's talk: the quest stays, and the talk is told again from its start
+const elderTalk = await scriptLines("elder_legend");
+await continueAt(3);
+await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), elder);
+await wait(600);
+await page.keyboard.press("Space");
+check("a reload in the elder's talk: the talk is at line 10", await pressUntilLines(10, 30000));
+await continueAt();
+check("a reload in the elder's talk keeps the quest", (await state()).milestone === 3 && (await said()).length === 0);
+await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), elder);
+await wait(600);
+await page.keyboard.press("Space");
+await readUntil(mapCardOpen, 90000);
+check("after the reload the elder starts again on his first line and tells the legend whole", (await said()).join("\n") === elderTalk.join("\n"), `${(await said()).length} lines`);
+await wait(1000);
+await page.keyboard.press("Space");
+await readUntil(async () => (await state()).milestone === 4, 90000);
+await waitUntilFree();
+check("only then the quest advances", (await state()).milestone === 4);
+
+const lakeOrder = await scriptLines("lake_still", "lake_hueter", "lake_rhyme", "lake_after_rhyme", "lake_gone");
+await continueAt(4);
+await solveAllTablets();
+await pressUntilLines(1 + 10, 30000);
+check("a reload in the Hüter's talk: the talk is at line 10", (await said()).length >= 11 && (await lake()).ghost);
+await continueAt();
+check("a reload in the Hüter's talk keeps the quest, and the tablets are forgotten", (await state()).milestone === 4 && (await lake()).solved === 0 && (await said()).length === 0);
+await solveAllTablets();
+await readUntil(async () => (await state()).milestone === 5, 120000);
+await waitUntilFree();
+check("after the reload the Hüter tells the lake again from its start, and only then the quest advances", (await said()).slice(-lakeOrder.length).join("\n") === lakeOrder.join("\n") && (await state()).milestone === 5, `${(await said()).length} lines`);
+
+// Mashing Space through the lake: separate presses every 60 ms from the third tablet's answer on
+await continueAt(4);
+await solveAllTablets();
+let lakeMash = true;
+const lakeMasher = (async () => {
+  while (lakeMash) {
+    await page.keyboard.press("Space");
+    await wait(60);
+  }
+})();
+const lakeDone = await until(async () => (await state()).milestone === 5 && (await state()).free, 120000, 100);
+lakeMash = false;
+await lakeMasher;
+await wait(500);
+check("mashing Space through the lake: the ghost is gone, the quest advanced and Tadeo is in control", lakeDone && !(await lake()).ghost && (await state()).milestone === 5 && (await state()).free, JSON.stringify(await state()));
+check("mashing Space through the lake skips no line", (await said()).join("\n") === lakeOrder.join("\n"), `${(await said()).length} of ${lakeOrder.length} lines`);
 
 // ── 6. Village chat ─────────────────────────────────────────
 await page.goto(`${BASE}?quest=8`);
@@ -496,7 +685,7 @@ for (const k of ["villager3", "maulwurf", "hueter"]) {
 
 // Each new speaker in the real dialogue box: an image portrait, or the emoji for the voice nobody sees yet
 const faces = [
-  ["Käpt'n Paco", "img", "Danke, Junge! Ich bin Käpt'n Paco."],
+  ["Käpt'n Paco", "img", "Puh! Danke, Junge! Mein Fuß steckte ganz fest."],
   ["Stimme", "🗣️", "Hilfe! Hilfe!"],
   ["Maulwurf", "img", "Ich habe Hunger! Bring mir einen Leuchtpilz, dann grabe ich dir den Weg frei."],
   ["Hüter", "img", "Ich bin der Hüter. Ich habe auf das Herz aufgepasst."],
@@ -541,28 +730,44 @@ await page.evaluate(() => {
 await wait(1200);
 await shot("10-paco-and-elder");
 
-// Paco's "Hm, hm." comes from someone in the picture, from whichever side Tadeo walks up to the elder
-for (const [name, at] of Object.entries({ "from-the-well": [65.2, 39.7], "from-the-gate": [62.5, 36.2] })) {
-  await page.goto(`${BASE}?quest=3`);
-  await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.game.busy, null, { timeout: 30000 });
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), at);
-  await wait(500);
-  await page.keyboard.press("Space");
-  const lineOnScreen = () => page.evaluate(() => (document.querySelector(".dialogue.open") ? window.game.ui.dialogue.full : ""));
-  for (let i = 0; i < 200 && !(await lineOnScreen()).includes("Hm, hm"); i++) {
+// Paco is in the picture for every one of his lines in the elder's talks, from whichever side Tadeo walks up to the elder:
+// the legend and what follows the map at quest 3, and the talk at the gate at quest 7
+const pacoSides = { "from-the-well": [65.2, 39.7], "from-the-gate": [62.5, 36.2] };
+for (const [quest, keys, tag] of [[3, ["elder_legend", "elder_after_map"], "elder"], [7, ["village_enter"], "gate"]]) {
+  const pacoLines = (await scriptLines(...keys)).filter((l) => l.startsWith("Käpt'n Paco: "));
+  for (const [name, at] of Object.entries(pacoSides)) {
+    await page.goto(`${BASE}?quest=${quest}`);
+    await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.game.busy, null, { timeout: 30000 });
+    await recordLines();
+    await page.evaluate(([x, z]) => window.game.placePlayer(x, z), at);
+    await wait(500);
     await page.keyboard.press("Space");
-    await wait(200);
+    const measured = new Set();
+    for (let i = 0; i < 400 && measured.size < pacoLines.length; i++) {
+      if (await mapCardOpen()) {
+        await wait(900);
+        await page.keyboard.press("Space");
+      } else if ((await state()).dialogue && (await page.textContent(".dialogue .name")) === "Käpt'n Paco" && !measured.has((await said()).length)) {
+        measured.add((await said()).length);
+        await wait(1200);
+        await shot(`${tag === "elder" ? "elder_paco" : "gate_paco"}_${name}${measured.size > 1 ? `_${measured.size}` : ""}`);
+        const inShot = await page.evaluate(() => {
+          const { island, npcs } = window.game;
+          const screen = (npc) => npc.avatar.head.getWorldPosition(npc.position.clone()).project(island.camera);
+          const [paco, elder] = [screen(npcs.get("villager3")), screen(npcs.get("elder"))];
+          return { x: +paco.x.toFixed(2), y: +paco.y.toFixed(2), elderApart: +Math.abs(paco.x - elder.x).toFixed(2) };
+        });
+        // Reason: the dialogue box covers the screen below y = -0.48
+        check(`Paco is in the picture for every Hm, hm (${tag} ${name}, line ${measured.size})`, Math.abs(inShot.x) < 0.8 && inShot.y > -0.45 && inShot.y < 1 && inShot.elderApart > 0.18, JSON.stringify(inShot));
+      } else if ((await state()).dialogue) {
+        await page.keyboard.press("Space");
+        await wait(200);
+      } else {
+        await wait(100);
+      }
+    }
+    check(`Paco spoke all his lines (${tag} ${name})`, measured.size === pacoLines.length, `${measured.size} of ${pacoLines.length}`);
   }
-  await wait(1200);
-  await shot(`10b-paco-hm-${name}`);
-  const inShot = await page.evaluate(() => {
-    const { island, npcs } = window.game;
-    const screen = (npc) => npc.avatar.head.getWorldPosition(npc.position.clone()).project(island.camera);
-    const [paco, elder] = [screen(npcs.get("villager3")), screen(npcs.get("elder"))];
-    return { x: +paco.x.toFixed(2), y: +paco.y.toFixed(2), elderApart: +Math.abs(paco.x - elder.x).toFixed(2) };
-  });
-  // Reason: the dialogue box covers the screen below y = -0.48
-  check(`Paco is in the picture when he says Hm, hm (${name})`, Math.abs(inShot.x) < 0.95 && inShot.y > -0.45 && inShot.y < 1 && inShot.elderApart > 0.18, JSON.stringify(inShot));
 }
 
 // The mole in the real cave, by torchlight, next to Tadeo
@@ -705,7 +910,7 @@ let mashing = true;
 const masher = (async () => {
   while (mashing) {
     await page.keyboard.press("Space");
-    await wait(90);
+    await wait(60);
   }
 })();
 let seaSeen = 0;
@@ -719,7 +924,7 @@ await masher;
 await wait(800);
 s = await state();
 const seaMs = seaSeen - 1e15;
-check("mashing Space ends with the game free", mashDone);
+check("mashing Space through the opening ends with the game free", mashDone);
 check("mashing Space cannot skip the sea cinematic", seaMs > 5000 && seaMs < 12000, `${seaMs} ms`);
 check("after mashing: quest 2, nothing open", s.milestone === 2 && s.free && !(await mapCardOpen()), JSON.stringify(s));
 check("after mashing: Tadeo and Chuleta are at the landing pier", Math.hypot(s.x + 66, s.z - 47) < 3 && (await chuletaVisible()), JSON.stringify(s));
@@ -731,6 +936,11 @@ check("after mashing: the camera is back with Tadeo", await page.evaluate(() => 
   return g.cinematic === null && g.island.camera.position.distanceTo(g.island.player.position) < 25;
 }));
 await shot("20-after-mashing");
+check("after mashing: no dialogue is open and the layer is down", !s.dialogue && (await layerIndex()) === "", `z-index "${await layerIndex()}"`);
+await page.keyboard.down("ArrowRight");
+await wait(500);
+await page.keyboard.up("ArrowRight");
+check("after mashing: Tadeo walks on an arrow press", Math.abs((await state()).x - s.x) > 0.5, `${s.x.toFixed(1)} -> ${(await state()).x.toFixed(1)}`);
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 await browser.close();

@@ -11,7 +11,7 @@ import { Engine, PostSettings } from "../../core/Engine";
 import { CameraRig } from "../../core/CameraRig";
 import { Player, WalkableWorld } from "../../characters/Player";
 import { audio } from "../../audio/Audio";
-import { DIALOGUES, DialogueScript } from "../../data/dialogues";
+import { DialogueScript } from "../../data/dialogues";
 import { GameUI } from "../../ui/GameUI";
 import { xrayUniforms } from "../../world/xray";
 import { Challenge, ChallengeContext, ChallengeFactory } from "../types";
@@ -335,7 +335,7 @@ class CaveChallenge implements Challenge {
     this.player.facing = Math.atan2(c.x - p.x, c.z - p.z);
     this.view.aim({ pos: new THREE.Vector3(c.x + 2, 7.6, c.z + 8.4), look: new THREE.Vector3(c.x, 2, c.z + 0.6) });
     await wait(1300);
-    await this.talk(DIALOGUES.cave_sword.slice(0, 1));
+    await this.talk("cave_sword_before");
 
     // Pull the sword free
     this.holdingTorch = false;
@@ -349,7 +349,7 @@ class CaveChallenge implements Challenge {
     this.view.aim({ pos: new THREE.Vector3(p.x + 2.2, p.y + 2.6, p.z + 4), look: new THREE.Vector3(p.x, p.y + 1.85, p.z) });
     await wait(900);
     await this.ui.itemGet("sword");
-    await this.talk(DIALOGUES.cave_sword.slice(1), true);
+    await this.talk("cave_sword_after", true);
     this.player.avatar.pose = "cheer";
     await wait(1200);
     this.resolveFinished();

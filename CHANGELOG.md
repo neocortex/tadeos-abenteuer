@@ -35,6 +35,29 @@
 - The music starts as the page loads instead of waiting for a press. A browser that holds sound back until the first
   key or click starts it on that press
 
+### Thorn hedge
+
+- The forest arch is a magic door: the Zauberwald can only be entered through it. The hedge is about half as long and
+  plugs the arch, so it no longer looks like a wall you can simply walk round
+- "Los geht's!" only appears on the lake side, so the sword scene can no longer start behind the thorns with the camera
+  inside the arch
+- Walking behind the hedge makes Chuleta say there is only meadow there and the way in is through the arch
+
+### Longer narration
+
+- Every one of the twelve quests now tells a small story: a talk before it, a moment when something happens, and a
+  talk after. Lines stay short (at most 14 words), a moment runs 3 to 8 lines and a big scene 10 to 30. The story text
+  lives in `src/data/story/`, merged by `data/dialogues.ts`
+- The elder and the Hüter tell the legend and the rhyme in pieces, and a reload in a long talk plays it again from
+  its start
+- At the summit the camera shows the whole island and, far out in the sea, the small island and the shark's fin
+- "Wesen" instead of "Monster" everywhere
+- Flocke has a new voice because the old one was withdrawn from the library
+- Tadeo is on holiday at the sea instead of living there
+- On the landing beach the narrator says that a shark attacked the boat and the waves carried Tadeo ashore
+- Chuleta's name is recorded the Spanish way, stressed on its second syllable
+- `scripts/e2e/storyLines.mjs` checks that every line of the design is in the game
+
 ### Story rethink
 
 The adventure is one story now: the volcano's heart, the Feuerherz, was stolen, and every place and object on the

@@ -96,7 +96,7 @@ export interface HedgeProp extends StoryProp {
 }
 
 /** Metres from the middle of the hedge that the light must run to have crossed every thorn: half its length and the light's soft edge. */
-const SHINE_RUN = 12;
+const SHINE_RUN = 8;
 
 /**
  * Bathe a prop material in blue light that runs out from x = 0 along the prop. The colours behind it turn blue and it
@@ -134,9 +134,13 @@ function patchShine(shader: THREE.WebGLProgramParametersWithUniforms, uniforms: 
 // The thorn hedge
 // ---------------------------------------------------------------------------
 
-const HEDGE_REACH = 9.2;
+/**
+ * Half the hedge's length. It plugs the arch, whose posts stand 2.7 m from the middle, and no more: on the open meadow
+ * a long hedge looks like a wall with an end to walk round, a short one like a blocked door.
+ */
+const HEDGE_REACH = 4.25;
 /** Height of the hedge along its length: tall across the arch, wild and falling away at the ends. */
-const hedgeTop = (x: number): number => 1.1 + 3.5 * Math.exp(-((x / 5.4) ** 4));
+const hedgeTop = (x: number): number => 1.1 + 3.5 * Math.exp(-((x / 3.4) ** 4));
 const THORN_BASE = new THREE.Color("#5b2230");
 const THORN_TIP = new THREE.Color("#f6e2c0");
 
@@ -188,7 +192,7 @@ export function thornHedge(): HedgeProp {
   }
 
   // A coat of leaves over the core, thickest where the light falls on them
-  for (let i = 0; i < 760; i++) {
+  for (let i = 0; i < 350; i++) {
     const x = (rand() * 2 - 1) * HEDGE_REACH;
     const a = rand() * Math.PI;
     const top = hedgeTop(x);
@@ -201,8 +205,8 @@ export function thornHedge(): HedgeProp {
   // Bramble vines: up from the roots, looping over the face of the hedge and back in
   const bark = gradient("#3f2a44", "#8a5f7a", -0.5, 4.6, 0.25);
   const vines: THREE.CatmullRomCurve3[] = [];
-  for (let i = 0; i < 74; i++) {
-    const x0 = -HEDGE_REACH + (i / 73) * HEDGE_REACH * 2 + (rand() - 0.5) * 1.2;
+  for (let i = 0; i < 34; i++) {
+    const x0 = -HEDGE_REACH + (i / 33) * HEDGE_REACH * 2 + (rand() - 0.5) * 1.2;
     const side = i % 2 ? 1 : -1;
     const top = hedgeTop(x0);
     const reach = 0.55 + rand() * 0.55;
@@ -220,7 +224,7 @@ export function thornHedge(): HedgeProp {
     solid.push(part(new THREE.TubeGeometry(curve, 16, 0.075 + rand() * 0.06, 5, false), bark));
   }
   // Thick stems arching right across the crown: the follow camera looks down on the hedge from above
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 9; i++) {
     const x0 = (rand() * 2 - 1) * (HEDGE_REACH - 1);
     const lean = (rand() - 0.5) * 3.4;
     const top = hedgeTop(x0);
@@ -236,7 +240,7 @@ export function thornHedge(): HedgeProp {
     solid.push(part(new THREE.TubeGeometry(curve, 22, 0.1 + rand() * 0.05, 6, false), bark));
   }
   // Whips reaching out of the top and curling over: they give the hedge its wild outline
-  for (let i = 0; i < 18; i++) {
+  for (let i = 0; i < 8; i++) {
     const x0 = (rand() * 2 - 1) * (HEDGE_REACH - 0.5);
     const side = i % 2 ? 1 : -1;
     const top = hedgeTop(x0);
@@ -286,16 +290,16 @@ export function thornHedge(): HedgeProp {
     }
   }
   // Great thorns jutting out at a child's height: the part that says "not this way"
-  for (let i = 0; i < 28; i++) {
-    const x = (rand() - 0.5) * 13;
+  for (let i = 0; i < 16; i++) {
+    const x = (rand() - 0.5) * 7.2;
     const side = i % 2 ? 1 : -1;
     const y = 0.5 + rand() * 0.8 * hedgeTop(x);
     const base = new THREE.Vector3(x, y, side * (0.95 + rand() * 0.4));
     solid.push(thorn(base, new THREE.Vector3((rand() - 0.5) * 0.7, (rand() - 0.2) * 0.55, side), 0.75 + rand() * 0.55, 0.11 + rand() * 0.06));
   }
   // Rosebuds, pink petals round a glowing heart in the arch's magic colours
-  for (let i = 0; i < 26; i++) {
-    const x = (rand() - 0.5) * 15;
+  for (let i = 0; i < 14; i++) {
+    const x = (rand() - 0.5) * 8;
     const side = i % 2 ? 1 : -1;
     const y = 0.7 + rand() * (hedgeTop(x) - 0.5);
     const c: V3 = [x, y, side * (1.1 + rand() * 0.55)];
@@ -308,8 +312,8 @@ export function thornHedge(): HedgeProp {
     glow.push(ball(s * 0.55, i % 3 === 0 ? new THREE.Color(1.5, 0.6, 1.7) : new THREE.Color(1.8, 0.6, 1.1), [c[0], c[1], c[2] + side * s * 0.25], 1));
   }
   // Reason: more rosebuds on the crown, the part of the hedge the follow camera sees best
-  for (let i = 0; i < 14; i++) {
-    const x = (rand() - 0.5) * 14;
+  for (let i = 0; i < 8; i++) {
+    const x = (rand() - 0.5) * 7.6;
     const c: V3 = [x, hedgeTop(x) + 0.1, (rand() - 0.5) * 1.5];
     const s = 0.18 + rand() * 0.1;
     for (let k = 0; k < 5; k++) {

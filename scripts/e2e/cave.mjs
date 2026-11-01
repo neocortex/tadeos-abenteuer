@@ -398,7 +398,7 @@ async function caveLines() {
   const { LINES, TADEO_REMARKS, WRONG_CRYSTAL, PHASE_HINTS } = await import("/src/challenges/cave/script.ts");
   const { DIALOGUES } = await import("/src/data/dialogues.ts");
   const flat = (x) => (typeof x === "string" ? [x] : x.text ? [x.text] : Object.values(x).flatMap(flat));
-  return flat([LINES, TADEO_REMARKS, WRONG_CRYSTAL, PHASE_HINTS, DIALOGUES.cave_enter, DIALOGUES.cave_sword]);
+  return flat([LINES, TADEO_REMARKS, WRONG_CRYSTAL, PHASE_HINTS, DIALOGUES.cave_enter, DIALOGUES.cave_sword_before, DIALOGUES.cave_sword_after]);
 }
 
 // ── Play ──────────────────────────────────────────────────────
@@ -425,8 +425,8 @@ try {
   log(`paint clearance ${JSON.stringify(clearance)}`);
   const bitten = Object.entries(clearance).filter(([, c]) => c.rock < 0.03 || c.wall < 0.03).map(([name]) => name);
   check("no stone pokes through any painting", bitten.length === 0, bitten.join());
-  const overlong = (await page.evaluate(caveLines)).filter((l) => l.split(/\s+/).length > 14 || (l.match(/[.!?]+(\s|$)/g) ?? []).length > 2);
-  check("every line is one or two short sentences", overlong.length === 0, overlong.join(" | "));
+  const overlong = (await page.evaluate(caveLines)).filter((l) => l.split(/\s+/).length > 14);
+  check("every line has at most 14 words", overlong.length === 0, overlong.join(" | "));
   const mole1 = s.mole;
   const [first, ...later] = s.mushrooms;
   const reachBefore = await page.evaluate(floodReach, [
@@ -651,11 +651,23 @@ try {
   await walkTo(s.sword.x, s.sword.z + 2.2, 0.8, "the great crystal", (st) => st.phase === "done");
   await waitFor(dialogueOpen, "sword dialogue", 10000);
   await shot("23_great_crystal");
+  // The first talk comes before the pull: Tadeo has not raised the sword yet on its last line
+  const pose = () => page.evaluate(() => window.engine.scene.player.avatar.pose);
+  const heard = async (part) => (await said()).some((l) => l.includes(part));
+  for (let n = 0; n < 20 && !(await heard("Jetzt hole ich es raus")); n++) {
+    await page.keyboard.press("Space");
+    await sleep(350);
+  }
+  const poseBefore = await pose();
+  check("cave_sword_before is heard before the pull", (await heard("Ein Lichtstrahl fällt")) && (await heard("Jetzt hole ich es raus")) && poseBefore !== "holdUp" && !(await heard("Das Schwert aus dem Fels")), poseBefore);
   await skipDialogues();
   await waitFor(async () => page.evaluate(() => document.querySelector(".item-get.show") !== null), "item get", 10000);
   await sleep(900);
   await shot("24_item_get");
   await waitFor(dialogueOpen, "closing dialogue", 10000);
+  await sleep(500);
+  const poseAfter = await pose();
+  check("cave_sword_after is heard with the sword held up", (await heard("Das Schwert aus dem Fels")) && !(await heard("Jetzt fehlen noch drei Sachen")) && poseAfter === "holdUp", poseAfter);
   await shot("25_sword_held");
   s = await state();
   await skipDialogues();

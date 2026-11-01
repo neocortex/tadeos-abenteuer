@@ -296,9 +296,10 @@ export class SeaChallenge implements Challenge {
     cam.move(new THREE.Vector3(b.x - 5, 4.5, b.z + 9), new THREE.Vector3(b.x + 2, 0.5, b.z - 14), 2);
     const arrive = fight.arrive();
     await tl.wait(1.4);
-    // Reason: Tadeo takes the berries out as he says his line, so "Hier, Hai!" has something to show
+    // Reason: Tadeo takes the berries out with his second line, "Hier, Hai!", so it has something to show
+    let tadeoLines = 0;
     ui.dialogue.onLine = (speaker) => {
-      if (speaker === "Tadeo") this.raiseBerries();
+      if (speaker === "Tadeo" && ++tadeoLines === 2) this.raiseBerries();
     };
     await ui.say(DIALOGUES.sea_shark);
     ui.dialogue.onLine = null;
@@ -313,7 +314,7 @@ export class SeaChallenge implements Challenge {
     audio.playSfx("sfx_victory_fanfare", 0.7);
     audio.playMusic("music_overworld");
     await fight.farewell();
-    await ui.say(DIALOGUES.shark_defeat.slice(0, 1));
+    await ui.say(DIALOGUES.shark_defeat);
     await this.arrive();
     this.phase = "done";
     this.resolve();
@@ -397,7 +398,7 @@ export class SeaChallenge implements Challenge {
     motion.speed = 0;
     // Turn towards the camera
     hero.root.rotation.y = Math.atan2(camAt.x - goal.x, camAt.z - goal.z);
-    await ui.say(DIALOGUES.shark_defeat.slice(1));
+    await ui.say(DIALOGUES.sea_landed);
     hero.pose = "cheer";
     audio.playMusic("music_victory");
     audio.playSfx("sfx_victory_fanfare");
