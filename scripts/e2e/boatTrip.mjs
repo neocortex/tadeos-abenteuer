@@ -113,9 +113,12 @@ export function boatTrip({ page, check, shot, log, waitFor, dialogueOpen, holdKe
         if (st.line.includes("Vulkan spuckt Feuer")) {
           check("no end card while the eruption line plays", !(await page.isVisible(".endcard")));
           await sleep(400);
-          await page.keyboard.press("Space");
-          await sleep(260);
-          await page.keyboard.press("Space");
+          // Reason: the eruption's talk has as many lines as the story gives it; read on to the narrator over black
+          for (let i = 0; i < 40; i++) {
+            if (await page.evaluate(() => window.game.ui.dialogue.full.includes("segelt zurück"))) break;
+            await page.keyboard.press("Space");
+            await sleep(260);
+          }
           return cardDone;
         }
         await page.keyboard.press("Space");
