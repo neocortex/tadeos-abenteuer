@@ -51,7 +51,7 @@ export async function arrive(s: TreasureStage): Promise<void> {
   t.avatar.pose = "normal";
   t.actor.faceTo(X_AT.x, X_AT.y);
   await s.sleep(0.4);
-  await s.say(lines("treasure_arrive", 0, 1), s.tadeoShot(-1.3, 4.6));
+  await s.say(lines("treasure_arrive"), s.tadeoShot(-1.3, 4.6));
   // Reason: the card's poll runs after the scene's update, so it has to close before the first `nextKey` waiter exists
   await showMapCard(s.ui.layer, s.engine.input);
 }
@@ -82,7 +82,7 @@ export async function walkToX(s: TreasureStage): Promise<void> {
   t.setTool("shovel");
   s.sparkleAt(t.tip(new THREE.Vector3()), 25, "#ffffff", 2);
   audio.playSfx("sfx_menu_confirm", 0.7);
-  await s.say(lines("treasure_arrive", 1, 2), DIG_SHOT);
+  await s.say(lines("treasure_dig_start"), DIG_SHOT);
 }
 
 /** Space, Space, Space… until the shovel hits something hard. */

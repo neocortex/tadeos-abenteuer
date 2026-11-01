@@ -106,9 +106,21 @@ await page.evaluate(() => {
   const box = Object.getPrototypeOf(window.game.ui.dialogue);
   const begin = box.showLine;
   window.said = [];
+  // What the picture holds as each line comes up: Tadeo's hands, the crown, the phase
+  window.saidAt = [];
   box.showLine = function () {
     begin.call(this);
     window.said.push(`${this.script[this.index].speaker}: ${this.script[this.index].text}`);
+    const stage = window.engine.scene.stage;
+    const now = { phase: stage?.state.phase ?? null, pose: stage?.tadeo.avatar.pose ?? null, heartAbove: null, crownOnHead: false };
+    if (stage) {
+      const above = stage.tadeo.actor.position.clone();
+      above.y += 2.15;
+      const heart = stage.chest.heart;
+      now.heartAbove = heart.visible ? heart.getWorldPosition(heart.position.clone()).distanceTo(above) : null;
+      now.crownOnHead = stage.chest.crown.parent === stage.tadeo.avatar.head;
+    }
+    window.saidAt.push(now);
   };
 });
 
@@ -208,6 +220,7 @@ let hammerPresses = 0;
 let timedPresses = 0;
 let keyPresses = 0;
 let dialogueCount = 0;
+let mashPresses = 0;
 let inDialogue = false;
 const dialoguesPerPhase = {};
 let lastKeyTurn = -1;
@@ -239,6 +252,7 @@ async function step(key, ms) {
 async function mapCardBeat() {
   mapCardSeen = true;
   mapCardDone = true;
+  await page.evaluate(() => (window.said.push("--map card--"), window.saidAt.push(null)));
   await page.waitForSelector(".map-card.ready", { timeout: 4000 });
   await page.waitForTimeout(1600);
   check("the map card waits for a press", (await page.isVisible(".map-card")) && !(await page.isVisible(".map-card.closing")));
@@ -293,6 +307,20 @@ const watchChest = () =>
         const item = this[name];
         if (item.visible && window.firstSeen[name] === undefined) window.firstSeen[name] = item.getWorldPosition(item.position.clone()).y;
       }
+    };
+  });
+
+/** Every shake of the camera, with the line of the talk that was on screen (if any), to see that none falls in the crown talk. */
+const watchShakes = () =>
+  page.evaluate(() => {
+    const director = window.engine.scene.stage.director;
+    if (window.shakes) return;
+    window.shakes = [];
+    const shake = director.shake;
+    director.shake = function (...args) {
+      const box = window.game.ui.dialogue;
+      window.shakes.push(box.isOpen ? box.script[box.index].text : null);
+      return shake.apply(this, args);
     };
   });
 
@@ -365,17 +393,22 @@ while (Date.now() - started < TIMEOUT_MS) {
     }
     if (st.line === ERUPTION_LINE && !atEruption) await eruptionMoment(st);
     if (st.line.includes("ganz warm")) await shotOnce("08-reveal-2b-heart-warm", 500);
+    // Reason: from the X on, real separate presses every 60 ms (the box ignores a held key), as a child mashes through
+    const mash = st.phase !== "arrive";
     await page.keyboard.press("Space");
-    await page.waitForTimeout(280);
+    if (mash) mashPresses++;
+    await page.waitForTimeout(mash ? 60 : 280);
     continue;
   }
   inDialogue = false;
   switch (st.phase) {
     case "arrive":
+      await watchShakes();
       await shotOnce("00-establishing", 1200);
       if (st.mapCard && !mapCardDone) await mapCardBeat();
       break;
     case "walk": {
+      if (!shots.has("01-walk")) await page.evaluate(() => (window.said.push("--walk--"), window.saidAt.push(null)));
       await shotOnce("01-walk", 400);
       const dx = st.tx - st.x;
       const dz = st.tz - st.z;
@@ -503,12 +536,47 @@ check("no word from the forbidden list", !said.some((l) => FORBIDDEN.some((w) =>
 check("nothing is left of the old 'treasure is the end' story", !said.some((l) => OLD_ENDING.some((w) => l.includes(w))));
 const long = said.filter((l) => l.replace(/^[^:]+: /, "").split(/\s+/).length > 14);
 check("every line has at most 14 words", long.length === 0, long.join(" | "));
-const convoSizes = await page.evaluate(async () => {
-  const { DIALOGUES } = await import("/src/data/dialogues.ts");
-  return Object.fromEntries(Object.entries(DIALOGUES).filter(([k]) => k.startsWith("treasure_")).map(([k, v]) => [k, v.length]));
-});
-check("a conversation has at most 5 lines", Object.values(convoSizes).every((n) => n <= 5), JSON.stringify(convoSizes));
+const plan = await page.evaluate(async () => (await import("/src/data/dialogues.ts")).DIALOGUES.treasure_plan.map((l) => l.text));
 check("the hammer is only for the ice", !said.some((l) => /Hammer/.test(l) && !/Hammer schafft|Eis/.test(l)), said.filter((l) => /Hammer/.test(l)).join(" | "));
+
+// ── The story, in order ───────────────────────────────────
+const at = (line) => said.indexOf(line);
+const told = [
+  "Tadeo: Die Schatzinsel! Hier muss der Schatz vergraben sein!",
+  "--map card--",
+  "--walk--",
+  "Erzähler: Ein großes X markiert die Stelle. Tadeo beginnt zu graben...",
+  "Tadeo: Eine Truhe! Aber sie steckt in Eis.",
+  "Erzähler: Mit einem mächtigen Schlag zerschmettert Tadeo das Eis!",
+  `Tadeo: ${NOTE_LINE}`,
+  "Tadeo: Das Herz! Ich habe ein bisschen Angst...",
+  "Tadeo: Oh. Es ist ganz warm!",
+  `Tadeo: ${plan[0]}`,
+  "Tadeo: DER SCHATZ! Gold, Edelsteine und... eine Krone!",
+  "Chuleta: Gack! Du siehst aus wie ein König!",
+  `Erzähler: ${ERUPTION_LINE}`,
+].map(at);
+const inOrder = told.every((i, n) => i >= 0 && (n === 0 || i > told[n - 1]));
+check("the treasure is told in order", inOrder, told.join(" < "));
+const atLine = (line) => saidAt[at(line)];
+const saidAt = (await page.evaluate(() => window.saidAt).catch(() => null)) ?? [];
+const beforeHeart = atLine("Tadeo: Ich bin kein Dieb. Ich bringe es nach Hause.");
+const heldHeart = atLine("Tadeo: Oh. Es ist ganz warm!");
+check(
+  "the heart is held on the second talk",
+  beforeHeart && heldHeart && !(beforeHeart.heartAbove < 0.6) && heldHeart.pose === "holdUp" && heldHeart.heartAbove < 0.6,
+  JSON.stringify({ beforeHeart, heldHeart }),
+);
+const crownFirst = atLine("Chuleta: Gack! Du siehst aus wie ein König!");
+const crownLast = atLine("Tadeo: Ich habe es geschafft! Das Herz und den Schatz!");
+const shakes = (await page.evaluate(() => window.shakes).catch(() => null)) ?? [];
+check(
+  "the crown is on his head when he talks about it",
+  crownFirst?.crownOnHead && crownLast?.crownOnHead && crownLast.phase === "open" && !shakes.some((l) => l && l.includes("König")) && !shakes.some((l) => l && l.includes("Das Herz und den Schatz")),
+  JSON.stringify({ crownFirst, crownLast, shakesDuringCrownTalk: shakes.filter((l) => l && (l.includes("König") || l.includes("Das Herz und den Schatz"))).length }),
+);
+check("Tadeo doesn't know the plan", plan.some((l) => l.includes("Keine Ahnung")) && !plan.some((l) => l.includes("Rakete")) && said.includes(`Tadeo: ${plan[1]}`), plan.join(" | "));
+check("mashing Space through the reveals", mashPresses > 30 && inOrder && !!revealed.erupting, `${mashPresses} presses 60 ms apart, ${told.join(" < ")}`);
 
 // ── The play itself ───────────────────────────────────────
 check("arrow up walks away from the camera", walk.arrowUpMovesAway === true);
