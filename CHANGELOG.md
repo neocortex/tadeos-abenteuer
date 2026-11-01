@@ -17,6 +17,18 @@
   inside the arch
 - Walking behind the hedge makes Chuleta say there is only meadow there and the way in is through the arch
 
+### Longer narration
+
+- Every one of the twelve quests now tells a small story: a talk before it, a moment when something happens, and a
+  talk after. Lines stay short (at most 14 words), a moment runs 3 to 8 lines and a big scene 10 to 30. The story text
+  lives in `src/data/story/`, merged by `data/dialogues.ts`
+- The elder and the Hüter tell the legend and the rhyme in pieces, and a reload in a long talk plays it again from
+  its start
+- At the summit the camera shows the whole island and, far out in the sea, the small island and the shark's fin
+- "Wesen" instead of "Monster" everywhere
+- Flocke has a new voice because the old one was withdrawn from the library
+- `scripts/e2e/storyLines.mjs` checks that every line of the design is in the game
+
 ### Story rethink
 
 The adventure is one story now: the volcano's heart, the Feuerherz, was stolen, and every place and object on the
