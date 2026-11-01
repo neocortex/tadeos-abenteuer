@@ -289,9 +289,12 @@ const scriptLines = (...keys) =>
     const { DIALOGUES } = await import("/src/data/dialogues.ts");
     return keys.flatMap((k) => DIALOGUES[k].map((l) => `${l.speaker}: ${l.text}`));
   }, keys);
-/** Seed a save at quest `m` and press Continue on the title screen: what a player does after closing the game. */
+/**
+ * Press Continue on the title screen: what a player does after closing the game. With `m`, a save at quest `m` is
+ * seeded first; without it, the game's own save is used, as after a reload in the middle of a talk.
+ */
 async function continueAt(m) {
-  await page.evaluate((m) => localStorage.setItem("schatzkarten_save", JSON.stringify({ version: 4, milestone: m, items: [], playerX: 0, playerY: 0, timestamp: 1 })), m);
+  if (m) await page.evaluate((m) => localStorage.setItem("schatzkarten_save", JSON.stringify({ version: 4, milestone: m, items: [], playerX: 0, playerY: 0, timestamp: 1 })), m);
   await page.goto(BASE);
   await wait(4000);
   await page.keyboard.press("Space");
@@ -565,7 +568,7 @@ await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), el
 await wait(600);
 await page.keyboard.press("Space");
 check("a reload in the elder's talk: the talk is at line 10", await pressUntilLines(10, 30000));
-await continueAt(3);
+await continueAt();
 check("a reload in the elder's talk keeps the quest", (await state()).milestone === 3 && (await said()).length === 0);
 await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), elder);
 await wait(600);
@@ -583,7 +586,7 @@ await continueAt(4);
 await solveAllTablets();
 await pressUntilLines(1 + 10, 30000);
 check("a reload in the Hüter's talk: the talk is at line 10", (await said()).length >= 11 && (await lake()).ghost);
-await continueAt(4);
+await continueAt();
 check("a reload in the Hüter's talk keeps the quest, and the tablets are forgotten", (await state()).milestone === 4 && (await lake()).solved === 0 && (await said()).length === 0);
 await solveAllTablets();
 await readUntil(async () => (await state()).milestone === 5, 120000);
