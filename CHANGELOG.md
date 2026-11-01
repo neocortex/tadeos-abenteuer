@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Coins
+
+- The ten quiet coins now lie in secret corners of the outer regions: behind the windmill and the stone head, past the
+  jungle pool, on the far banks of the swamp pond, behind the beach huts. Before, none could reach those places. There
+  are still 30 coins
+
 ### Title screen
 
 - The game is now called "Die Abenteuer von Tadeo", with the subtitle "Die Schatzinsel", on the title screen and in

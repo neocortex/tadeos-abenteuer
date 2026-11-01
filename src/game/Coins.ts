@@ -22,6 +22,18 @@ const KEEP_CLEAR: P2[] = [
   LANDMARKS.northDockEnd, LANDMARKS.bridge, ...LANDMARKS.tablets,
 ];
 
+/** The quiet coins: places in the outer regions worth the walk, off the paths and behind the things you see from them. */
+const SECRET_CORNERS: P2[] = [
+  // Flower hills: behind the windmill, on the hill north of it, out on the far field
+  [131, 2], [124, -17], [140, 20],
+  // Jungle: behind the stone head, past the pool
+  [-8, 117], [20, 109],
+  // Swamp: the far banks of the pond, and the meadow north-west of it
+  [-76, 94], [-58, 110], [-74, 78],
+  // Lagoon: behind the huts, at the end of the east beach
+  [70, 98], [124, 92],
+];
+
 export class Coins {
   readonly group = new THREE.Group();
   private spots: THREE.Vector3[] = [];
@@ -149,16 +161,16 @@ export class Coins {
     this.sparks.instanceMatrix.needsUpdate = true;
   }
 
-  /** Deterministic placement: 20 coins along the paths, 10 in quieter spots. */
+  /** Deterministic placement: 20 coins along the paths, 10 in the secret corners. */
   private placeCoins(): void {
     const rand = mulberry32(77);
-    const ok = (x: number, z: number) =>
+    const clear = (x: number, z: number) =>
       this.hf.isWalkable(x, z) &&
       this.hf.heightAt(x, z) > 0.15 &&
       !this.colliders.hits(x, z, 0.8) &&
       !KEEP_CLEAR.some((g) => Math.hypot(g[0] - x, g[1] - z) < 6) &&
-      Math.hypot(LANDMARKS.spawn[0] - x, LANDMARKS.spawn[1] - z) > 5 &&
-      this.spots.every((s) => Math.hypot(s.x - x, s.z - z) > 9);
+      Math.hypot(LANDMARKS.spawn[0] - x, LANDMARKS.spawn[1] - z) > 5;
+    const ok = (x: number, z: number) => clear(x, z) && this.spots.every((s) => Math.hypot(s.x - x, s.z - z) > 9);
     const add = (x: number, z: number) => this.spots.push(new THREE.Vector3(x, this.hf.heightAt(x, z), z));
 
     const along: P2[] = [];
@@ -181,6 +193,8 @@ export class Coins {
       const oz = z + (rand() - 0.5) * 2;
       if (ok(ox, oz)) add(ox, oz);
     }
+    for (const [x, z] of SECRET_CORNERS) if (clear(x, z)) add(x, z);
+    // Reason: a corner that a later change blocks must not leave Tadeo one coin short of the sunglasses
     for (let tries = 0; this.spots.length < COIN_COUNT && tries < 5000; tries++) {
       const x = -95 + rand() * 190;
       const z = -60 + rand() * 130;
