@@ -9,7 +9,8 @@
  *  5. Quest 4 (debug start): three riddles at the lake (mashing Space, a wrong answer, any order), the Hüter rises,
  *     speaks the rhyme and Tadeo repeats it → quest 5 starts
  *  6. Village (debug start): chat with a villager
- *  6b. The new cast: portraits, faces in the dialogue box, Paco beside the elder, the mole in the cave, the Hüter on the lake
+ *  6b. The new cast: portraits, faces in the dialogue box, Paco beside the elder, the mole in the cave, the Hüter on the lake,
+ *      and no tree hides him when he rises (hueterView.mjs)
  *  7. Quest 12 (debug start): the goal is the volcano gate, and away from it the island is free
  *  8. A save from an older version offers no Continue, and starting over keeps coins and hats;
  *     a valid save offers both, and a new game from it clears them
@@ -21,6 +22,7 @@
 
 import { chromium } from "playwright";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { hueterViewChecks } from "./hueterView.mjs";
 
 const BASE = process.env.GAME_URL ?? "http://localhost:5199/";
 const OUT = new URL("./out/island/", import.meta.url).pathname;
@@ -646,6 +648,7 @@ if (!hueterStart.error) {
   await page.evaluate(() => window.hueterGone);
   check("the Hüter fades away", await page.evaluate(() => !window.hueter.root.visible));
 }
+await hueterViewChecks({ page, BASE, check, shot, wait });
 
 // ── 7. Quest 12's gate is the volcano: Tadeo starts far from it, so no prompt shows and the game must still run
 await page.goto(`${BASE}?quest=12`);

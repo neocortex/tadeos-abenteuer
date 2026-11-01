@@ -59,8 +59,13 @@ const KEEP_OUT: { at: P2; r: number }[] = [
   { at: SPOTS.windmill, r: 7 },
 ];
 
-/** Where no tree, bush or rock stands, so the thorn hedge across the forest gate can be seen from the follow camera in the south. */
-const CLEARING: { at: P2; r: number } = { at: [-11, 31.5], r: 7.6 };
+/** Where no tree, bush or rock stands, because a camera has to see past that spot. */
+const CLEARINGS: { at: P2; r: number }[] = [
+  // So the thorn hedge across the forest gate can be seen from the follow camera in the south.
+  { at: [-11, 31.5], r: 7.6 },
+  // So the Hüter can be seen when he rises: the lake shot stands here when Tadeo reads the first tablet from the south.
+  { at: [-12.5, -15.5], r: 5 },
+];
 
 export class Vegetation {
   readonly group = new THREE.Group();
@@ -254,7 +259,7 @@ export class Vegetation {
       new THREE.Vector3(s, s * (0.9 + rand() * 0.2), s),
     );
     // Reason: a tree in the clearing is planted and felled once the scatter is done; skipping it would change the random sequence and move every tree south of it
-    if (sp.collider > 0 && Math.hypot(x - CLEARING.at[0], z - CLEARING.at[1]) < CLEARING.r) {
+    if (sp.collider > 0 && CLEARINGS.some((c) => Math.hypot(x - c.at[0], z - c.at[1]) < c.r)) {
       this.felled.push(this.colliders.add(x, z, sp.collider * s));
       return;
     }

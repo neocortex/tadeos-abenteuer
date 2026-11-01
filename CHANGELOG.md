@@ -80,6 +80,8 @@ Sachen gefunden und das Herz zurückgebracht. Und der Pirat war Paco!"
 
 - Classic 2D game keeps its own save, mute and narrator settings, so a 3D save on the same localhost
   port no longer drops Tadeo into the sea at the start
+- A tree no longer hides the Hüter when he rises: the grove south of the first tablet, where the camera stood in the
+  leaves, is now a clearing
 
 ## 2.0.0
 
