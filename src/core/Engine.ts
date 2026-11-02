@@ -91,6 +91,8 @@ export class Engine {
   private lastDraw = 0;
   /** Runs every frame before the active scene updates (game flow, UI). */
   onFrame: ((dt: number, time: number) => void) | null = null;
+  /** While true the world stands still (the menu is open), and the picture is still drawn so it follows a resized window. */
+  paused = false;
 
   constructor(container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({
@@ -215,12 +217,12 @@ export class Engine {
     this.input.beginFrame();
     // Reason: clamp dt so a background tab or a hitch doesn't teleport the player
     const dt = Math.min(this.timer.getDelta(), 1 / 20);
-    this.elapsed += dt;
-    this.onFrame?.(dt, this.elapsed);
-    if (this.current) {
-      this.current.update(dt, this.elapsed);
-      this.composer.render(dt);
+    if (!this.paused) {
+      this.elapsed += dt;
+      this.onFrame?.(dt, this.elapsed);
+      this.current?.update(dt, this.elapsed);
     }
+    if (this.current) this.composer.render(this.paused ? 0 : dt);
   }
 
   private onResize(): void {

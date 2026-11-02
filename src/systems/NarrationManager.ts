@@ -124,6 +124,11 @@ export class NarrationManager {
     return this.enabled;
   }
 
+  /** Toggle narration, and say so when it comes back on. */
+  toggleAndAnnounce(): void {
+    if (this.toggleEnabled()) this.speakNarrator("Erzählerstimme aktiviert.");
+  }
+
   get isEnabled(): boolean {
     return this.enabled;
   }
@@ -138,12 +143,7 @@ export class NarrationManager {
 
   private readonly handleKeyDown = (event: KeyboardEvent): void => {
     this.markUserInteraction();
-    if (event.code === "KeyV" && !event.repeat) {
-      const enabled = this.toggleEnabled();
-      if (enabled) {
-        this.speakNarrator("Erzählerstimme aktiviert.");
-      }
-    }
+    if (event.code === "KeyV" && !event.repeat) this.toggleAndAnnounce();
   };
 
   private readonly handlePointerDown = (): void => {

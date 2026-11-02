@@ -1,0 +1,192 @@
+/* The menu: a faint ship's wheel in the corner and the parchment panel it opens. */
+
+/* Reason: above the fade (z-index 100), so that the menu never ends up open behind a black screen */
+.menu-root {
+  position: fixed;
+  inset: 0;
+  z-index: 102;
+  pointer-events: none;
+  font-family: "Fredoka", system-ui, sans-serif;
+  color: var(--ink);
+}
+.menu-root button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.menu-wheel {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 40px;
+  height: 40px;
+  padding: 7px;
+  border: 0;
+  background: none;
+  opacity: 0.38;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  pointer-events: auto;
+  transition: opacity 0.2s, transform 0.4s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.menu-root .menu-wheel {
+  color: #fff;
+}
+.menu-wheel:hover,
+.menu-root.open .menu-wheel {
+  opacity: 0.95;
+  transform: rotate(45deg);
+}
+
+.menu-scrim {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 100% 100%, rgba(20, 10, 2, 0.42), rgba(20, 10, 2, 0.14) 70%);
+  pointer-events: auto;
+}
+.menu-root.open .menu-scrim {
+  display: block;
+}
+
+.menu-panel {
+  display: none;
+  position: absolute;
+  right: 12px;
+  bottom: 56px;
+  width: min(440px, calc(100vw - 24px), calc((100vh - 136px) * 1.2));
+  padding: 8px;
+  background: linear-gradient(180deg, var(--parchment), var(--parchment-dark));
+  border: 4px solid var(--wood);
+  border-radius: 18px;
+  box-shadow: 0 5px 0 var(--wood-dark), 0 14px 34px rgba(0, 0, 0, 0.35);
+  transform-origin: 100% 100%;
+  pointer-events: auto;
+}
+.menu-root.open .menu-panel {
+  display: block;
+  animation: menu-in 0.24s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes menu-in {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+.menu-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.menu-chip {
+  flex: 1 1 auto;
+  padding: 5px 8px;
+  border: 3px solid transparent;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.menu-chip span {
+  color: #4f7a28;
+}
+.menu-chip.off {
+  background: rgba(94, 58, 31, 0.14);
+}
+.menu-chip.off span {
+  color: var(--red);
+}
+.menu-chip.quiet {
+  opacity: 0.5;
+}
+.menu-chip.active {
+  border-color: var(--wood);
+  background: #fff;
+  box-shadow: 0 3px 0 var(--wood-dark);
+}
+
+.menu-map {
+  position: relative;
+  aspect-ratio: 265 / 220;
+  overflow: hidden;
+  border: 3px solid var(--wood);
+  border-radius: 12px;
+  background: radial-gradient(circle at 50% 45%, #a6d6cf, #6db2bd);
+}
+.menu-map[hidden] {
+  display: none;
+}
+.menu-map canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.menu-where {
+  position: absolute;
+  left: 10px;
+  top: 5px;
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--wood-dark);
+}
+
+.menu-pin {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  line-height: 1;
+  transform: translate(-50%, -50%);
+}
+.menu-pin-mark {
+  font-size: 20px;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+  transition: transform 0.2s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.menu-pin-name {
+  margin-top: 1px;
+  padding: 1px 5px 2px;
+  border-radius: 7px;
+  background: rgba(255, 246, 224, 0.82);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.menu-pin.active {
+  z-index: 3;
+}
+.menu-pin.active .menu-pin-mark {
+  transform: scale(1.4) translateY(-2px);
+}
+.menu-pin.active .menu-pin-name {
+  background: var(--red);
+  color: #fff;
+}
+
+/* Tadeo stands on his spot like a game piece; he never gets in the way of a click */
+.menu-you {
+  position: absolute;
+  z-index: 2;
+  width: 26px;
+  height: 26px;
+  overflow: hidden;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #fff3cf, #f5c86a);
+  box-shadow: 0 2px 3px rgba(0, 0, 0, 0.45);
+  transform: translate(-50%, -90%);
+  pointer-events: none;
+}
+.menu-you img {
+  width: 118%;
+  height: 118%;
+  margin: -9%;
+  object-fit: cover;
+}

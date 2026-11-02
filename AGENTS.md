@@ -17,7 +17,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   prompts are `SOUNDS` in `scripts/audio/generate.mjs`, and deleting an MP3 renders a new take of it
 - `npx tsc --noEmit -p .` — type-check (must be clean)
 - E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (title, world, island, volcano, cave, forest,
-  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, jumpIn, voices,
+  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, menu, jumpIn, voices,
   storyLines, music, fps). Proof goes to `scripts/e2e/out/<name>/`.
 
 ## Architecture
@@ -46,6 +46,10 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   `audio/samples.ts` matches each recording's loudness and blends its loop; `audio/Ambience.ts` holds the island's
   backgrounds and animal calls, and `game/IslandSounds.ts` mixes them by where Tadeo stands. A new sound effect goes
   into `SOUNDS` in `scripts/audio/generate.mjs` and into `EFFECTS` in `audio/Audio.ts`, then `npm run audio`.
+- `ui/Menu.ts` is the menu behind the faint ship's wheel: sound switches everywhere, and a map to travel by
+  (`ui/IslandMap.ts`) while Tadeo walks the island freely. While it is open `Engine.paused` stops the world and
+  `Input.setBlocked` hides every key from the game. A new place goes into `data/places.ts`; `scripts/e2e/menu.mjs`
+  checks it is good ground, connected on foot to the beach.
 - `classic-2d/` is the original Phaser 2D game, kept as a frozen snapshot for nostalgia. It has its own
   `package.json` and is not part of the type-check, build or E2E runs. Don't change it.
 
@@ -61,7 +65,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   and commit the files. `scripts/voice/lines.mjs` finds lines next to their speaker; a line in a plain constant
   needs an `OWNERS` entry there. The game logs `[voice] no recording` and uses browser speech for a line it misses.
 - **Lines with a changing value** (a time, a length) cannot be recorded: give them a fixed `spoken` version.
-- **Controls are arrows + Space only** (M = mute, V = voice toggle are global).
+- **Controls are arrows + Space only** (M = mute, V = voice toggle and Esc = menu are global).
 - **Sound before the first press:** a browser may hold audio back until a key or click. The audio clock stands still
   meanwhile, so sounds scheduled on it all play at once on that press. E2E checks of this must read the page without
   a gesture, because Playwright's `evaluate` and wait helpers count as one: see `inPage` in `scripts/e2e/title.mjs`.

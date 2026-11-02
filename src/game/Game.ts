@@ -27,6 +27,7 @@ import { talkShot } from "./talkShot";
 import { playOpening } from "./opening";
 import { playEnding } from "./ending";
 import { showMapCard } from "../ui/MapCard";
+import { Menu } from "../ui/Menu";
 import { QuestManager } from "../systems/QuestManager";
 import { InventoryManager } from "../systems/InventoryManager";
 import { SaveManager } from "../systems/SaveManager";
@@ -67,6 +68,8 @@ const GATES: Record<number, { at: P2; challenge: ChallengeName; back?: P2 }> = {
 const TALK_RANGE = 2.8;
 /** Seconds without progress before Chuleta offers a hint. */
 const HINT_AFTER = 45;
+/** Milliseconds of black each way when Tadeo travels from the menu's map. */
+const TRAVEL_FADE = 350;
 
 export class Game {
   private ui = new GameUI();
@@ -132,6 +135,15 @@ export class Game {
       await this.engine.setScene(this.island, 0);
       return;
     }
+    // Reason: after NarrationManager.init, because the menu's key listener has to run after the one for V
+    new Menu({
+      engine: this.engine,
+      portrait: this.ui.portraits.tadeo,
+      heightAt: (x, z) => this.island.island.hf.heightAt(x, z),
+      where: () => this.island.player.position,
+      canTravel: () => this.engine.scene === this.island && this.free,
+      travel: (at) => void this.run(() => this.travelTo(at)),
+    });
     const challenge = params.get("challenge") as ChallengeName | null;
     const milestone = Number(params.get("quest") ?? 0);
     const side = SIDE_GAMES.find((s) => s.challenge === challenge);
@@ -181,7 +193,7 @@ export class Game {
       this.island.rig.jumpToShot(this.cinematic(this.cinematicTime));
     }
 
-    const free = !this.busy && !this.ui.dialogue.isOpen && !this.engine.isSwitching;
+    const free = this.free;
     player.controlsEnabled = free;
     const objectives = free ? this.objectives() : [];
     const main = this.mainObjective(objectives);
@@ -233,6 +245,11 @@ export class Game {
       audio.playMusic(inVillage ? "music_village" : "music_overworld");
     }
     this.islandSounds.update(dt, player.position);
+  }
+
+  /** Whether Tadeo walks freely: no cutscene, conversation or scene change has the controls. */
+  private get free(): boolean {
+    return !this.busy && !this.ui.dialogue.isOpen && !this.engine.isSwitching;
   }
 
   private async run(action: () => Promise<void>): Promise<void> {
@@ -499,6 +516,13 @@ export class Game {
     const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => hf.isWalkable(x, z) && !this.story.behindHedge(x, z));
     const [x, z] = spot ?? LANDMARKS.spawn;
     this.placePlayer(x, z);
+  }
+
+  /** Through black to a place picked on the menu's map. */
+  private async travelTo([x, z]: P2): Promise<void> {
+    await this.engine.fade(1, TRAVEL_FADE);
+    this.placePlayer(x, z);
+    await this.engine.fade(0, TRAVEL_FADE);
   }
 
   /** Teleport Tadeo and bring the camera and Chuleta along. */

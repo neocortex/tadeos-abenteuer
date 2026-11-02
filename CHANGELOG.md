@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Menu
+
+- A faint ship's wheel in the corner opens a small menu, with a click or Esc. The world stands still while it is open
+- Sound, music and voice each have a switch. Music can now go quiet on its own, while effects and island sounds play on
+- While Tadeo walks freely, the menu shows a map of the island painted from the real terrain, with Tadeo on it and 12
+  places to travel to
+
 ### Music and island sounds
 
 - New recorded soundtrack in place of the old chiptunes: warm orchestral folk with fiddle, French horns, harp and soft

@@ -65,6 +65,10 @@ outer regions. 10 coins unlock a straw hat,
 - **Space** (or Enter): talk, read, jump, confirm, advance dialogue
 - **M**: sound on/off
 - **V**: voice narration on/off
+- **Esc**, or a click on the small ship's wheel in the bottom-right corner: the menu
+
+The menu pauses the game. It switches sound, music and voice on and off, and while Tadeo walks the island
+freely it shows a map of 12 places he can travel to. Arrows and Space work it as well as the mouse.
 
 The music starts as soon as the page loads if the browser allows sound. A browser that holds sound back
 until the first key or click (Chrome on a first visit, for example) starts it on that press.
@@ -158,6 +162,7 @@ node scripts/e2e/finale.mjs   # quest 12 from the sea to the festival and the en
 node scripts/e2e/jumpIn.mjs   # a game started with ?quest or ?challenge plays on, up to the end card
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback
 node scripts/e2e/music.mjs    # every sound and loop seam, music by place and quest, island sounds by region, voices over music
+node scripts/e2e/menu.mjs     # the ship's wheel and menu: pause, switches, keys, every place on the map and the trip there
 node scripts/e2e/fps.mjs      # 60 fps cap on fast screens, no dropped frames at 60 Hz
 ```
 

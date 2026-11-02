@@ -39,10 +39,14 @@ class AudioSystem {
   private talking = false;
   private pressed = false;
   muted = false;
+  /** The music's own switch in the menu; the effects and island sounds play on without it. */
+  musicOn = true;
 
   constructor() {
     try {
-      this.muted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}").muted ?? false;
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
+      this.muted = saved.muted ?? false;
+      this.musicOn = saved.musicOn ?? true;
     } catch {
       // Reason: storage may be unavailable (private mode); default to sound on
     }
@@ -153,22 +157,31 @@ class AudioSystem {
     this.applyLevels();
   }
 
-  private applyLevels(): void {
+  // Reason: step back quickly before the first word, and come back slowly once the talking is over
+  private applyLevels(smoothing = this.talking ? 0.12 : 0.6): void {
     if (!this.ctx) return;
     const step = this.talking ? TALKING_DIP : 1;
-    // Reason: step back quickly before the first word, and come back slowly once the talking is over
-    const smoothing = this.talking ? 0.12 : 0.6;
-    this.musicBus.gain.setTargetAtTime(MUSIC_LEVEL * step, this.ctx.currentTime, smoothing);
+    this.musicBus.gain.setTargetAtTime(this.musicOn ? MUSIC_LEVEL * step : 0, this.ctx.currentTime, smoothing);
     this.ambienceBus.gain.setTargetAtTime(this.ambienceOn ? step : 0, this.ctx.currentTime, smoothing);
   }
 
   toggleMute(): void {
     this.muted = !this.muted;
     if (this.ctx) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.9, this.ctx.currentTime, 0.05);
+    this.savePreferences();
+  }
+
+  toggleMusic(): void {
+    this.musicOn = !this.musicOn;
+    this.applyLevels(0.1);
+    this.savePreferences();
+  }
+
+  private savePreferences(): void {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ muted: this.muted }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ muted: this.muted, musicOn: this.musicOn }));
     } catch {
-      // Reason: storage may be unavailable; muting still works for this session
+      // Reason: storage may be unavailable; the switches still work for this session
     }
   }
 
@@ -193,7 +206,7 @@ class AudioSystem {
     reverb.connect(wet).connect(this.master);
 
     this.musicBus = ctx.createGain();
-    this.musicBus.gain.value = MUSIC_LEVEL;
+    this.musicBus.gain.value = this.musicOn ? MUSIC_LEVEL : 0;
     this.musicBus.connect(this.master);
 
     this.sfxBus = ctx.createGain();
