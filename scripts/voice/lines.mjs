@@ -32,7 +32,7 @@ const OWNERS = {
   "challenges/fishing/species.ts": { fact: "Fischer Jonas" },
   "challenges/hens/script.ts": { CHULETA: "Chuleta", homeLine: "Kleine Mia" },
   "game/lake.ts": { lines: "Steintafel", answers: "Steintafel" },
-  "game/chuletaLines.ts": { CHULETA_HINTS: "Chuleta", CHULETA_CHEERS: "Chuleta", CHULETA_BEHIND_HEDGE: "Chuleta" },
+  "game/chuletaLines.ts": { CHULETA_CHEERS: "Chuleta", CHULETA_BEHIND_HEDGE: "Chuleta" },
   "game/Wardrobe.ts": { cheer: "Chuleta" },
   "game/sideGames.ts": { cheer: "Chuleta" },
   "game/Sightings.ts": { GUARD_LINES: "Oger", FRIEND_LINES: "Oger" },
@@ -84,9 +84,12 @@ function enclosingNames(node) {
 function expandedLines() {
   const read = (path) => readFileSync(join(SRC, path), "utf8");
   const quests = [...read("data/quests.ts").matchAll(/^\s*name: "([^"]+)"/gm)].map((m) => m[1]);
+  // Reason: the opening's hint is only shown; Chuleta says the others
+  const hints = [...read("data/quests.ts").matchAll(/^\s*hint: "([^"]+)"/gm)].map((m) => m[1]).slice(1);
   const hens = [...read("challenges/hens/flock.ts").matchAll(/\{ name: "(\w+)"/g)].map((m) => m[1]).filter((n) => n !== "Piepsi");
   return [
     ...quests.map((name) => ({ speaker: "Tadeo", text: `Hier komme ich später wieder hin. Zuerst: ${name}!` })),
+    ...hints.map((text) => ({ speaker: "Chuleta", text })),
     ...hens.map((name) => ({ speaker: "Kleine Mia", text: `Juhu! ${name} ist wieder zu Hause!` })),
     { speaker: "Erzähler", text: "Erzählerstimme aktiviert." },
   ];

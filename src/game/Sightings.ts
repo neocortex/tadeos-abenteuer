@@ -16,7 +16,7 @@ import { LANDMARKS, P2 } from "../world/layout";
 import { Bubble } from "../ui/Hud";
 import { NarrationManager } from "../systems/NarrationManager";
 import { audio } from "../audio/Audio";
-import { OGRE_QUEST, SEA_QUEST } from "../data/quests";
+import { QUEST } from "../data/quests";
 import { wrapAngle } from "../world/ambient/spawn";
 
 /** Middle of the bridge deck, where the ogre blocks the way. */
@@ -75,8 +75,8 @@ export class Sightings {
   /** Stand the ogre where he belongs at this quest. Safe to call every frame. */
   place(milestone: number): void {
     // Reason: being beaten counts only until the quest moves on, or the story starts over
-    if (milestone !== OGRE_QUEST) this.beaten = false;
-    const spot = milestone >= SEA_QUEST ? "dock" : milestone > OGRE_QUEST || this.beaten ? "friend" : "bridge";
+    if (milestone !== QUEST.ogre) this.beaten = false;
+    const spot = milestone >= QUEST.sea ? "dock" : milestone > QUEST.ogre || this.beaten ? "friend" : "bridge";
     if (spot !== this.spot) this.placeOgre(spot);
   }
 
@@ -116,7 +116,7 @@ export class Sightings {
     this.place(milestone);
     this.updateOgre(dt, player, this.spot !== "bridge");
     this.bubble.place(this.bubble.speaking ? project(this.ogre.headPos(this.head).setY(this.head.y + 1.2)) : null);
-    this.updateShark(dt, milestone <= SEA_QUEST);
+    this.updateShark(dt, milestone <= QUEST.sea);
   }
 
   private updateOgre(dt: number, player: THREE.Vector3, friendly: boolean): void {

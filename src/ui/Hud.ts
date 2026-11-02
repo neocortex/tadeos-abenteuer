@@ -50,7 +50,7 @@ export class Hud {
     const q = QuestManager.getInstance();
     const quest = q.currentQuest;
     this.quest.innerHTML = `
-      <div class="label">Aufgabe ${quest.id} von ${QUESTS.length}</div>
+      <div class="label">Aufgabe ${q.currentMilestone} von ${QUESTS.length}</div>
       <div class="title">${quest.name}</div>
       <div class="hint">${quest.hint}</div>`;
     const inv = InventoryManager.getInstance();

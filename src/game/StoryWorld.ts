@@ -23,19 +23,7 @@ import { HedgeOpening } from "./hedgeOpening";
 import { Npc, Npcs, NpcId } from "./Npcs";
 import { OgreSpot, Sightings } from "./Sightings";
 import { audio } from "../audio/Audio";
-import { QUESTS, OGRE_QUEST, SEA_QUEST } from "../data/quests";
-
-/** Paco comes home to the village at this quest. */
-const VILLAGE_QUEST = 3;
-/** The riddles of the lake; once this quest is won all three tablets have been lit. */
-const LAKE_QUEST = 4;
-/** The sword opens the hedge right before this quest's challenge. */
-const FOREST_QUEST = 6;
-/** The hedge has gone once the forest quest is won, the boulder once the mountain trail opens. */
-const FOREST_OPEN_QUEST = 7;
-/** The village quest ends with the elder sending Tadeo to the ogre; the ogre lifts the boulder at the end of his own. */
-const VILLAGE_TRIALS_QUEST = 7;
-const TRAIL_OPEN_QUEST = 9;
+import { QUEST, QUESTS } from "../data/quests";
 
 const PACO: NpcId = "villager3";
 /** On the head of the north pier, with his back to the boat. */
@@ -136,15 +124,17 @@ export class StoryWorld {
   /** Make the island match this quest. Safe to call any number of times. */
   apply(m: number): void {
     const { landmarks } = this.island;
-    landmarks.setBoatVisible("wreck", m < SEA_QUEST);
-    landmarks.setBoatVisible("north", m >= SEA_QUEST);
-    this.hedge.set(m < FOREST_OPEN_QUEST);
-    this.boulder.set(m < TRAIL_OPEN_QUEST);
-    if (m < VILLAGE_QUEST) this.npcs.setSpot(PACO, null);
-    else if (m < SEA_QUEST) this.npcs.setSpot(PACO, this.pacoHome.at, this.pacoHome.facing);
+    landmarks.setBoatVisible("wreck", m < QUEST.sea);
+    landmarks.setBoatVisible("north", m >= QUEST.sea);
+    // Reason: the hedge has gone once the forest quest is won, the boulder once the mountain quest has begun
+    this.hedge.set(m <= QUEST.forest);
+    this.boulder.set(m < QUEST.mountain);
+    // Reason: Paco comes home to the village at the elder's quest
+    if (m < QUEST.elder) this.npcs.setSpot(PACO, null);
+    else if (m < QUEST.sea) this.npcs.setSpot(PACO, this.pacoHome.at, this.pacoHome.facing);
     else this.npcs.setSpot(PACO, PACO_DOCK, PACO_DOCK_FACING);
     // Reason: a reload forgets the tablets, so a game that has passed the lake lights them again
-    if (m > LAKE_QUEST) LANDMARKS.tablets.forEach((_, i) => landmarks.tablets.wake(i));
+    if (m > QUEST.lake) LANDMARKS.tablets.forEach((_, i) => landmarks.tablets.wake(i));
     this.sightings.place(m);
   }
 
@@ -161,13 +151,13 @@ export class StoryWorld {
   /** A challenge has just been won and the island is not on screen yet: what the island shows already follows from it. */
   won(m: number): void {
     // Reason: the ogre is no longer the guard the story still says he is, so he must not roar at Tadeo when the island fades in
-    if (m === OGRE_QUEST) this.sightings.befriend();
+    if (m === QUEST.ogre) this.sightings.befriend();
   }
 
   /** What happens on the island right before a quest's challenge. */
   async beforeQuest(m: number): Promise<void> {
     switch (m) {
-      case FOREST_QUEST:
+      case QUEST.forest:
         // Reason: a reload in the forest brings the hedge back, so the sword opens it again
         if (this.hedge.up) {
           this.hedgeOpening.faceTheHedge();
@@ -178,7 +168,7 @@ export class StoryWorld {
           this.hedgeOpening.release();
         }
         return;
-      case SEA_QUEST: {
+      case QUEST.sea: {
         const talking = this.talk("sea_dock", this.npcs.get(PACO));
         // Reason: a talk frames the two speakers from the side, and here that puts the camera behind the sail
         this.rig.setShot(DOCK_TALK_SHOT, 0.9);
@@ -193,10 +183,10 @@ export class StoryWorld {
   /** What happens on the island right after a quest's challenge. */
   async afterQuest(m: number): Promise<void> {
     switch (m) {
-      case VILLAGE_TRIALS_QUEST:
+      case QUEST.village:
         await this.talk("village_after", this.npcs.get("elder"));
         return;
-      case OGRE_QUEST:
+      case QUEST.ogre:
         // Reason: a reload after the fight brings the boulder back, and the ogre lifts it again after the next fight
         if (this.boulder.up) await this.boulderLift.play();
         return;

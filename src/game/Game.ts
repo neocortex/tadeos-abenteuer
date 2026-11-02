@@ -15,7 +15,7 @@ import { GameProbe } from "./GameProbe";
 import { Npcs, Npc } from "./Npcs";
 import { Title } from "./Title";
 import { Chuleta } from "../characters/Chuleta";
-import { CHULETA_HINTS, CHULETA_CHEERS } from "./chuletaLines";
+import { CHULETA_CHEERS } from "./chuletaLines";
 import { Coins } from "./Coins";
 import { Wardrobe } from "./Wardrobe";
 import { SIDE_GAMES, SideGame } from "./sideGames";
@@ -33,7 +33,7 @@ import { QuestManager } from "../systems/QuestManager";
 import { InventoryManager } from "../systems/InventoryManager";
 import { SaveManager } from "../systems/SaveManager";
 import { NarrationManager } from "../systems/NarrationManager";
-import { QUESTS } from "../data/quests";
+import { QUEST, QUESTS, gateOf } from "../data/quests";
 import { DialogueScript } from "../data/dialogues";
 import { LANDMARKS, VILLAGE, P2 } from "../world/layout";
 import { loadChallenge } from "../challenges/registry";
@@ -47,24 +47,6 @@ interface Objective {
   verb: string;
   run(): Promise<void>;
 }
-
-/**
- * Where each challenge starts on the island, by milestone. `back` = where Tadeo stands afterwards.
- * Cave and mountain use the walkable spots in front of the built entrances (the layout points sit on
- * the cliff face and in the river).
- */
-const GATES: Record<number, { at: P2; challenge: ChallengeName; back?: P2 }> = {
-  2: { at: LANDMARKS.volcanoGate, challenge: "volcano" },
-  5: { at: [-60, -18.5], challenge: "cave" },
-  // Reason: on the lake's side of the arch, so the sword scene can never start behind the thorns
-  6: { at: [-12, 23.5], challenge: "forest", back: [-12, 28.5] },
-  7: { at: VILLAGE.elder, challenge: "village" },
-  8: { at: [53.5, 0.5], challenge: "ogre", back: [53.5, 0.5] },
-  9: { at: [55.5, -13.5], challenge: "mountain" },
-  10: { at: LANDMARKS.northDockEnd, challenge: "sea" },
-  11: { at: LANDMARKS.northDockEnd, challenge: "treasure" },
-  12: { at: LANDMARKS.volcanoGate, challenge: "finale" },
-};
 
 const TALK_RANGE = 2.8;
 /** Seconds without progress before Chuleta offers a hint. */
@@ -157,7 +139,7 @@ export class Game {
       return;
     }
     if (challenge) {
-      const m = Number(Object.keys(GATES).find((k) => GATES[Number(k)].challenge === challenge) ?? 1);
+      const m = QUESTS.findIndex((q) => gateOf(q)?.challenge === challenge) + 1 || 1;
       this.setupMilestone(m);
       await this.playChallenge(m);
       this.busy = false;
@@ -238,8 +220,9 @@ export class Game {
     const beak = this.project(hp.x, hp.y + 0.75, hp.z);
     this.chuletaBubble.place(beak.behind ? null : this.pixels(beak));
     this.hintTimer = free ? this.hintTimer + dt : 0;
-    if (this.hintTimer > HINT_AFTER && CHULETA_HINTS[this.quest.currentMilestone]) {
-      this.chuletaSay(CHULETA_HINTS[this.quest.currentMilestone]);
+    const hinted = this.quest.currentQuest;
+    if (this.hintTimer > HINT_AFTER && hinted.goal.kind !== "opening") {
+      this.chuletaSay(hinted.hint);
       this.hintTimer = -HINT_AFTER;
     }
 
@@ -296,17 +279,22 @@ export class Game {
 
   private objectives(): Objective[] {
     const m = this.quest.currentMilestone;
-    if (m === 3) return [{ at: VILLAGE.elder, radius: TALK_RANGE, verb: "Sprechen", run: () => this.meetElder() }];
-    if (m === 4) {
-      return LANDMARKS.tablets
-        .map((at, i) => ({ at, i }))
-        .filter(({ i }) => !this.lake.solved.has(i))
-        .map(({ at, i }) => ({ at, radius: 3.2, verb: "Lesen", run: () => this.readTablet(i) }));
+    const { goal } = this.quest.currentQuest;
+    switch (goal.kind) {
+      case "opening":
+        return [];
+      case "talk":
+        return [{ at: goal.at, radius: TALK_RANGE, verb: "Sprechen", run: () => this.meetElder() }];
+      case "tablets":
+        return LANDMARKS.tablets
+          .map((at, i) => ({ at, i }))
+          .filter(({ i }) => !this.lake.solved.has(i))
+          .map(({ at, i }) => ({ at, radius: 3.2, verb: "Lesen", run: () => this.readTablet(i) }));
+      case "talkThenChallenge":
+        return [{ at: goal.gate.at, radius: TALK_RANGE, verb: "Sprechen", run: () => this.villageElder() }];
+      default:
+        return [{ at: goal.gate.at, radius: 3.5, verb: "Los geht's!", run: () => this.playChallenge(m) }];
     }
-    const gate = GATES[m];
-    if (!gate) return [];
-    if (m === 7) return [{ at: gate.at, radius: TALK_RANGE, verb: "Sprechen", run: () => this.villageElder() }];
-    return [{ at: gate.at, radius: 3.5, verb: "Los geht's!", run: () => this.playChallenge(m) }];
   }
 
   /** The goal the beacon marks: the nearest open objective. */
@@ -333,7 +321,7 @@ export class Game {
 
   private async villageElder(): Promise<void> {
     await this.talk("village_enter", this.npcs.get("elder"), this.npcs.get("villager3"));
-    await this.playChallenge(7);
+    await this.playChallenge(QUEST.village);
   }
 
   /** Short remark when Tadeo wanders to a place whose quest comes later. */
@@ -341,12 +329,13 @@ export class Game {
     if (this.remarkCooldown > 0) return;
     const m = this.quest.currentMilestone;
     const later: P2[] = [];
-    for (const [k, g] of Object.entries(GATES)) {
-      // Reason: quests 11 and 12 reuse the gates of 10 and 2, and quests 3 and 7 share the elder, so neither counts as a later place
-      const ownSpot = open.some((o) => o.at[0] === g.at[0] && o.at[1] === g.at[1]);
-      if (Number(k) > m && Number(k) < 11 && !ownSpot) later.push(g.at);
-    }
-    if (m < 4) later.push(...LANDMARKS.tablets);
+    QUESTS.forEach((q, i) => {
+      const gate = gateOf(q);
+      // Reason: the treasure and the finale reuse the gates of the sea and the volcano, and the elder and the village quests share the elder, so neither counts as a later place
+      const ownSpot = gate && open.some((o) => o.at[0] === gate.at[0] && o.at[1] === gate.at[1]);
+      if (gate && i + 1 > m && i + 1 < QUEST.treasure && !ownSpot) later.push(gate.at);
+    });
+    if (m < QUEST.lake) later.push(...LANDMARKS.tablets);
     const place = later.find((at) => this.distance(at) < 4.5 && !this.remarked.has(at));
     if (place) {
       const text = `Hier komme ich später wieder hin. Zuerst: ${this.quest.currentQuest.name}!`;
@@ -419,22 +408,22 @@ export class Game {
 
   /** Fade into a challenge scene, wait for the win, then reward and return to the island. */
   private async playChallenge(milestone: number): Promise<void> {
-    if (milestone === 12) return this.finale();
-    const gate = GATES[milestone];
+    const quest = QUESTS[milestone - 1];
+    if (quest.goal.kind === "finale") return this.finale();
+    const gate = gateOf(quest)!;
     // Reason: a debug start has no island on screen yet, and the treasure comes straight from the sea
     if (this.engine.scene === this.island) await this.story.beforeQuest(milestone);
     await this.enterChallenge(gate.challenge);
     this.story.won(milestone);
 
-    const reward = QUESTS[milestone - 1].reward as ItemKey | null;
+    const reward = quest.reward as ItemKey | null;
     if (reward) InventoryManager.getInstance().addItem(reward);
-    if (milestone === 10 || milestone === 11) {
-      // Reason: the boat trip ends on the treasure island, and the eruption sends Tadeo straight back: no walk in between
+    if (quest.straightOn) {
       this.quest.completeMilestone();
-      this.saveAt(milestone === 10 ? LANDMARKS.northDockEnd : LANDMARKS.volcanoGate);
-      if (milestone === 11) {
+      this.saveAt(quest.straightOn.saveAt);
+      if (quest.straightOn.overBlack) {
         await this.engine.fade(1, 700);
-        await this.ui.sayOverBlack("finale_sail_back");
+        await this.ui.sayOverBlack(quest.straightOn.overBlack);
       }
       return this.playChallenge(milestone + 1);
     }
