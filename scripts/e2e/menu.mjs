@@ -6,10 +6,11 @@
  *  3. While it is open the world stands still and the game sees no keys, and closing leaks no press into the game
  *  4. Ton, Musik and Stimme switch with clicks and arrows + Space, show what M and V do, and survive a reload
  *  5. Musik silences only the music
- *  6. Every switch and place can be reached with the arrow keys
+ *  6. Every switch, story point and place can be reached with the arrow keys
  *  7. Every place is walkable ground, connected on foot to the beach, at the start of the story and at its end
  *  8. Travelling brings Tadeo, Chuleta and the camera there, and Tadeo can walk on
- *  9. The map only shows while Tadeo walks freely: not on the title, in a talk or in a challenge
+ *  9. The map only shows while Tadeo walks freely: not on the title, in a talk or in a challenge. The story points
+ *     show everywhere; `menuJump.mjs` tests what picking one does.
  *
  * Run (dev server on :5199 must be running):  node scripts/e2e/menu.mjs [baseUrl]
  * Proof: scripts/e2e/out/menu/{*.png, summary.json}
@@ -133,6 +134,7 @@ await wait(200);
 await shot("03-open-during-talk");
 check("the menu opens during a talk", await isOpen());
 check("the map stays away during a talk", !(await page.locator(".menu-map").isVisible()));
+check("the story points show during a talk", await page.locator(".menu-story").isVisible());
 const line = () => page.evaluate(() => {
   const d = window.game.ui.dialogue;
   return { index: d.index, shown: d.shown, length: d.full.length };
@@ -207,16 +209,18 @@ check("switched on, it comes back at its level", Math.abs((await levels()).music
 
 // ── 6. Everything can be reached with the arrows ────────────
 {
+  // Reason: a story point and a place can share a word, so the kind of thing is part of its name here
+  const nameOf = (e) => `${e.className.split(" ")[0]}: ${e.innerText.trim().split("\n").pop()}`;
   // Reason: read while open, because the text of a hidden element has no line breaks and its switches are not up to date
   await page.keyboard.press("Escape");
-  const names = await page.evaluate(() => [...document.querySelectorAll(".menu-chip, .menu-pin")].map((e) => e.innerText.trim().split("\n").pop()));
+  const names = await page.evaluate(`[...document.querySelectorAll(".menu-chip, .menu-jump, .menu-pin")].map(${nameOf})`);
   await page.keyboard.press("Escape");
   const seen = new Set();
   const queue = [[]];
   const walk = async (keys) => {
     await page.keyboard.press("Escape");
     for (const k of keys) await page.keyboard.press(k);
-    const name = (await active()).trim().split("\n").pop();
+    const name = await page.evaluate(`(${nameOf})(document.querySelector(".menu-panel .active"))`);
     await page.keyboard.press("Escape");
     return name;
   };
@@ -228,7 +232,7 @@ check("switched on, it comes back at its level", Math.abs((await levels()).music
     for (const k of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) queue.push([...keys, k]);
   }
   const missing = names.filter((n) => !seen.has(n));
-  check(`the arrows reach all ${names.length} switches and places`, missing.length === 0, missing.join(", "));
+  check(`the arrows reach all ${names.length} switches, story points and places`, missing.length === 0, missing.join(", "));
 }
 
 // ── 7. Every place is good ground, early and late in the story ──
@@ -349,6 +353,7 @@ await shot("06-title-closed");
 await page.locator(".menu-wheel").click();
 check("the menu opens on the title screen", await isOpen());
 check("no map on the title screen", !(await page.locator(".menu-map").isVisible()));
+check("the story points show on the title screen", await page.locator(".menu-story").isVisible());
 await wait(400);
 await shot("07-title-open");
 const flight = await page.evaluate(() => window.engine.time);
@@ -363,6 +368,7 @@ await wait(800);
 await page.keyboard.press("Escape");
 check("the menu opens in a challenge", await isOpen());
 check("no map in a challenge", !(await page.locator(".menu-map").isVisible()));
+check("the story points show in a challenge", await page.locator(".menu-story").isVisible());
 const inChallenge = await page.evaluate(() => window.engine.time);
 await wait(400);
 check("a challenge stands still too", (await page.evaluate(() => window.engine.time)) === inChallenge);

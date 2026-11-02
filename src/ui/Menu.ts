@@ -1,7 +1,8 @@
 /**
- * The menu behind a faint ship's wheel in the corner: switches for sound, music and voice and, while Tadeo walks the
- * island freely, a little map to travel by. A click or Esc opens it. While it is open the world stands still and the
- * game sees no keys; the arrows move the light and Space picks, as in every other menu.
+ * The menu behind a faint ship's wheel in the corner: switches for sound, music and voice, a list to start the story
+ * from any quest and, while Tadeo walks the island freely, a little map to travel by. A click or Esc opens it. While it
+ * is open the world stands still and the game sees no keys; the arrows move the light and Space picks, as in every other
+ * menu.
  */
 
 import "./menu.css";
@@ -9,6 +10,7 @@ import { Engine } from "../core/Engine";
 import { keyName } from "../core/Input";
 import { audio } from "../audio/Audio";
 import { NarrationManager } from "../systems/NarrationManager";
+import { Jump, JUMPS } from "../data/jumps";
 import { Place, PLACES } from "../data/places";
 import { P2 } from "../world/layout";
 import { mapPercent, paintIslandMap } from "./IslandMap";
@@ -51,6 +53,8 @@ const DIRECTIONS: Record<string, readonly [number, number]> = {
 };
 /** How much further away a thing straight ahead may be than one off to the side, and still get the light. */
 const STRAIGHT_AHEAD = 2.5;
+/** Milliseconds of fading to black before the game starts afresh at a picked quest. */
+const JUMP_FADE_MS = 300;
 
 function button(className: string, html = ""): HTMLButtonElement {
   const el = document.createElement("button");
@@ -73,6 +77,7 @@ export class Menu {
   private you = document.createElement("div");
   private switches: Switch[] = [];
   private chips: Item[] = [];
+  private jumps: Item[] = [];
   private pins: Item[] = [];
   /** What the arrows can reach while the menu is open. */
   private items: Item[] = [];
@@ -81,6 +86,8 @@ export class Menu {
   private painted = false;
 
   constructor(private options: MenuOptions) {
+    // Reason: a jump happens once, so reloading the page afterwards goes to the title and "Weiterspielen"
+    if (new URLSearchParams(location.search).has("jump")) history.replaceState(null, "", location.pathname);
     this.root.className = "menu-root";
 
     const scrim = document.createElement("div");
@@ -98,6 +105,11 @@ export class Menu {
     const go = this.addItem(this.chips, row, button("menu-chip menu-go", "Weiter"), () => this.close());
     this.lit = go;
 
+    const story = document.createElement("div");
+    story.className = "menu-story";
+    story.innerHTML = `<div class="menu-story-title">Spielen ab</div>`;
+    for (const jump of JUMPS) this.addJump(story, jump);
+
     this.map.className = "menu-map";
     this.map.innerHTML = `<div class="menu-where">Wohin?</div>`;
     this.map.prepend(this.canvas);
@@ -105,7 +117,10 @@ export class Menu {
     this.you.className = "menu-you";
     this.you.innerHTML = `<img src="${options.portrait}" alt="">`;
     this.map.appendChild(this.you);
-    panel.append(row, this.map);
+    const body = document.createElement("div");
+    body.className = "menu-body";
+    body.append(story, this.map);
+    panel.append(row, body);
 
     const wheel = button("menu-wheel", WHEEL);
     wheel.title = "Menü (Esc)";
@@ -135,6 +150,19 @@ export class Menu {
       flip();
       audio.playSfx("sfx_menu_select", 0.5);
       this.showSwitches();
+    });
+  }
+
+  private addJump(parent: HTMLElement, jump: Jump): void {
+    const el = button("menu-jump", `<span>${jump.emoji}</span><span>${jump.name}</span>`);
+    this.addItem(this.jumps, parent, el, () => {
+      audio.playSfx("sfx_menu_confirm", 0.7);
+      this.root.classList.remove("open");
+      // Reason: a fresh page leaves nothing behind of the scene being left, and it is the start that `?challenge` and
+      // `?quest` are tested with up to the end card. The world stays paused while the picture fades.
+      void this.options.engine.fade(1, JUMP_FADE_MS).then(() => {
+        location.search = `?${jump.query}&jump`;
+      });
     });
   }
 
@@ -173,7 +201,7 @@ export class Menu {
     engine.input.setBlocked(true);
     const free = canTravel();
     this.map.hidden = !free;
-    this.items = free ? [...this.chips, ...this.pins] : this.chips;
+    this.items = free ? [...this.chips, ...this.jumps, ...this.pins] : [...this.chips, ...this.jumps];
     if (free) {
       if (!this.painted) paintIslandMap(this.canvas, heightAt);
       this.painted = true;

@@ -13,6 +13,8 @@
 - Sound, music and voice each have a switch. Music can now go quiet on its own, while effects and island sounds play on
 - While Tadeo walks freely, the menu shows a map of the island painted from the real terrain, with Tadeo on it and 12
   places to travel to
+- The list "Spielen ab" in the menu starts the story at any of 11 points, from the title, a talk or a challenge too,
+  and the story plays on from there to the end
 
 ### Music and island sounds
 

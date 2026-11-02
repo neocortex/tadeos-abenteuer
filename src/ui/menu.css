@@ -54,7 +54,7 @@
   position: absolute;
   right: 12px;
   bottom: 56px;
-  width: min(440px, calc(100vw - 24px), calc((100vh - 136px) * 1.2));
+  width: fit-content;
   padding: 8px;
   background: linear-gradient(180deg, var(--parchment), var(--parchment-dark));
   border: 4px solid var(--wood);
@@ -107,8 +107,47 @@
   box-shadow: 0 3px 0 var(--wood-dark);
 }
 
+.menu-body {
+  display: flex;
+  gap: 8px;
+}
+
+/* The list runs the height of the map beside it, and fills the panel when the map stays away */
+.menu-story {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2px;
+}
+.menu-story-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--wood-dark);
+}
+.menu-root .menu-jump {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px 2px 5px;
+  border: 2px solid transparent;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.45);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.menu-root .menu-jump.active {
+  border-color: var(--wood);
+  background: #fff;
+  box-shadow: 0 2px 0 var(--wood-dark);
+}
+
 .menu-map {
   position: relative;
+  flex: none;
+  width: min(416px, calc(100vw - 210px), calc((100vh - 136px) * 1.2));
   aspect-ratio: 265 / 220;
   overflow: hidden;
   border: 3px solid var(--wood);

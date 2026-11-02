@@ -67,8 +67,9 @@ outer regions. 10 coins unlock a straw hat,
 - **V**: voice narration on/off
 - **Esc**, or a click on the small ship's wheel in the bottom-right corner: the menu
 
-The menu pauses the game. It switches sound, music and voice on and off, and while Tadeo walks the island
-freely it shows a map of 12 places he can travel to. Arrows and Space work it as well as the mouse.
+The menu pauses the game. It switches sound, music and voice on and off, and its list "Spielen ab" starts the
+story at any quest and plays on from there to the end. While Tadeo walks the island freely it also shows a map of
+12 places he can travel to. Arrows and Space work it as well as the mouse.
 
 The music starts as soon as the page loads if the browser allows sound. A browser that holds sound back
 until the first key or click (Chrome on a first visit, for example) starts it on that press.
@@ -141,7 +142,8 @@ also goes into `EFFECTS` in `src/audio/Audio.ts`, so that it loads with the game
 | `?closeup` | Close-up camera on Tadeo (character work) |
 | `?tm=aces\|agx\|neutral` | Tone-mapping operator |
 
-Progress made after `?quest` or `?challenge` is saved like any other, and replaces the save in that browser.
+Progress made after `?quest` or `?challenge` is saved like any other, and replaces the save in that browser. The
+menu's "Spielen ab" list uses the same starts, so the same goes for it: the jump itself saves nothing.
 
 `window.game`, `window.engine`, `window.audio` and `window.narration` are exposed in the browser console.
 
@@ -163,6 +165,7 @@ node scripts/e2e/jumpIn.mjs   # a game started with ?quest or ?challenge plays o
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback
 node scripts/e2e/music.mjs    # every sound and loop seam, music by place and quest, island sounds by region, voices over music
 node scripts/e2e/menu.mjs     # the ship's wheel and menu: pause, switches, keys, every place on the map and the trip there
+node scripts/e2e/menuJump.mjs # the menu's story points: each starts its quest and plays on, up to the end card
 node scripts/e2e/fps.mjs      # 60 fps cap on fast screens, no dropped frames at 60 Hz
 ```
 
