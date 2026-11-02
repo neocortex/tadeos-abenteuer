@@ -3,6 +3,10 @@
  * Where each quest starts on the island is set by `GATES` in game/Game.ts.
  */
 
+/** Milestone of the ogre quest and the sea crossing. */
+export const OGRE_QUEST = 8;
+export const SEA_QUEST = 10;
+
 export interface QuestDef {
   id: number;
   name: string;

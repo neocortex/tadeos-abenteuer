@@ -303,8 +303,10 @@ export class Vegetation {
       mat.emissiveIntensity = 1.6;
     }
     if (model.swayAmp <= 0) return mat;
+    // Reason: a local, so the closure doesn't keep this Vegetation and all its placement matrices alive
+    const uTime = this.world.uTime;
     mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = this.world.uTime;
+      shader.uniforms.uTime = uTime;
       shader.uniforms.uSway = { value: new THREE.Vector2(model.swayStart, model.swayAmp) };
       shader.vertexShader = shader.vertexShader
         .replace("#include <common>", "#include <common>\nuniform float uTime;\nuniform vec2 uSway;")

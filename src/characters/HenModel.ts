@@ -14,6 +14,11 @@ interface Disposable {
   dispose(): void;
 }
 
+/** Where the model registers those resources; a challenge's `Owned`, or nothing for a model that lives on. */
+interface OwnedBin {
+  add(item: Disposable): unknown;
+}
+
 export type HenKind = "hen" | "chick" | "golden";
 
 export interface HenLook {
@@ -70,7 +75,7 @@ export class HenModel {
    * @param look Colours and kind.
    * @param owned Materials created here are pushed so the scene can dispose them.
    */
-  constructor(look: HenLook, owned: Disposable[] = []) {
+  constructor(look: HenLook, owned: OwnedBin = new Set()) {
     this.look = look;
     this.root.add(this.body);
     const m = this.materials(owned);
@@ -81,7 +86,7 @@ export class HenModel {
     this.bodyY = this.body.position.y;
   }
 
-  private materials(owned: Disposable[]): Record<"body" | "wing" | "tail" | "chest", THREE.Material> {
+  private materials(owned: OwnedBin): Record<"body" | "wing" | "tail" | "chest", THREE.Material> {
     const l = this.look;
     if (l.kind !== "golden") {
       return { body: mat(l.body, 0.7), wing: mat(l.wing, 0.7), tail: mat(l.tail, 0.65), chest: mat(l.chest ?? l.body, 0.75) };
@@ -89,7 +94,7 @@ export class HenModel {
     // Reason: the golden hen gets her own shiny, softly glowing materials so bloom makes her shimmer
     const gold = (color: string, glow: string, rough: number) => {
       const g = new THREE.MeshStandardMaterial({ color, roughness: rough, metalness: 0.35, emissive: glow, emissiveIntensity: 0.42 });
-      owned.push(g);
+      owned.add(g);
       return g;
     };
     return {

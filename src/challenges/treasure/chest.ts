@@ -244,7 +244,6 @@ export class TreasureChest {
   private jiggle = 0;
   private beamGrow = 0;
   private beamOn = false;
-  private time = 0;
 
   constructor(owned: Owned) {
     const { group: chest, lid } = createChest();
@@ -377,10 +376,6 @@ export class TreasureChest {
     });
   }
 
-  get hasIce(): boolean {
-    return this.ice.visible;
-  }
-
   /** A hammer blow: new cracks, a squash of the block and a bright rim flash. */
   hit(perfect: boolean): void {
     this.cracks.crack(perfect ? 3 : 1 + (Math.random() < 0.5 ? 1 : 0));
@@ -430,7 +425,6 @@ export class TreasureChest {
   }
 
   update(dt: number, time: number): void {
-    this.time = time;
     // Ice block squash spring
     this.squashVel += (-this.squash * 160 - this.squashVel * 10) * dt;
     this.squash += this.squashVel * dt;

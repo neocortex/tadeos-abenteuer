@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { createVillager } from "../../characters/cast";
 import { Humanoid, blobShadow } from "../../characters/Humanoid";
 import { MIA_SPOT } from "./layout";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 export class Mia {
   readonly avatar: Humanoid = createVillager(2);
@@ -39,7 +40,7 @@ export class Mia {
     if (watch) {
       const target = Math.atan2(tadeo.x - this.position.x, tadeo.z - this.position.z);
       let d = target - this.avatar.root.rotation.y;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
+      d = wrapAngle(d);
       this.avatar.root.rotation.y += d * Math.min(dt * 4, 1);
     } else {
       this.avatar.root.rotation.y = this.facing;

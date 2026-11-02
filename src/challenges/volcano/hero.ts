@@ -10,6 +10,7 @@ import { Humanoid, blobShadow } from "../../characters/Humanoid";
 import { createTadeo } from "../../characters/cast";
 import { Input } from "../../core/Input";
 import { Colliders } from "../../world/Colliders";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 export interface HeroWorld {
   ground(x: number, z: number): number;
@@ -104,7 +105,7 @@ export class Hero {
       this.tumble = Math.max(0, this.tumble - dt * 18);
     } else if (horizontal > 0.3 && walking) {
       const target = Math.atan2(this.velocity.x, this.velocity.z);
-      const delta = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
+      const delta = wrapAngle(target - this.facing);
       this.facing += delta * Math.min(dt * 12, 1);
     }
 

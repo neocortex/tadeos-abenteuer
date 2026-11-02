@@ -74,7 +74,9 @@ export class Input {
    * `await` (scripted sequences waiting for a frame) still sees the press that resumed it.
    */
   beginFrame(): void {
+    const read = this.pressed;
     this.pressed = this.incoming;
-    this.incoming = new Set();
+    this.incoming = read;
+    this.incoming.clear();
   }
 }

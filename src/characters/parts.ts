@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { wrapAngle } from "../world/ambient/spawn";
 
 const materialCache = new Map<string, THREE.MeshStandardMaterial>();
 
@@ -120,7 +121,7 @@ function fringeGeometry(r: number): THREE.BufferGeometry {
       const front = Math.cos(az);
       // How far down the hair reaches (polar angle from the crown): an open arch above the brows, above the ears, nape at the back
       let edge = front >= 0 ? THREE.MathUtils.lerp(1.42, 0.92, front ** 2) : THREE.MathUtils.lerp(1.42, 2.05, (-front) ** 1.2);
-      const a = Math.atan2(Math.sin(az), Math.cos(az));
+      const a = wrapAngle(az);
       let lockBulge = 0;
       if (Math.abs(a) < SPREAD / 2) {
         // Reason: a shallow wave; steep lock sides draw their dark outline as slashes that look like angry brows

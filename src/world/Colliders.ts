@@ -13,8 +13,11 @@ export interface Circle {
 
 const CELL = 4;
 
+/** Reason: a number instead of a string, because characters look a cell up every frame. */
+const cellKey = (cx: number, cz: number): number => (cx + 4096) * 8192 + (cz + 4096);
+
 export class Colliders {
-  private cells = new Map<string, Circle[]>();
+  private cells = new Map<number, Circle[]>();
 
   /** Add a circle; the returned handle can `remove` it again. */
   add(x: number, z: number, r: number): Circle {
@@ -25,7 +28,7 @@ export class Colliders {
     const z1 = Math.floor((z + r) / CELL);
     for (let cx = x0; cx <= x1; cx++) {
       for (let cz = z0; cz <= z1; cz++) {
-        const key = `${cx},${cz}`;
+        const key = cellKey(cx, cz);
         let list = this.cells.get(key);
         if (!list) this.cells.set(key, (list = []));
         list.push(c);
@@ -44,14 +47,17 @@ export class Colliders {
 
   /** Whether a circle of `radius` at (x, z) overlaps any collider. */
   hits(x: number, z: number, radius: number): boolean {
-    const list = this.cells.get(`${Math.floor(x / CELL)},${Math.floor(z / CELL)}`);
+    const list = this.cells.get(cellKey(Math.floor(x / CELL), Math.floor(z / CELL)));
     if (!list) return false;
-    return list.some((c) => (c.x - x) ** 2 + (c.z - z) ** 2 < (c.r + radius) ** 2);
+    for (const c of list) {
+      if ((c.x - x) ** 2 + (c.z - z) ** 2 < (c.r + radius) ** 2) return true;
+    }
+    return false;
   }
 
   /** Push `pos` out of all overlapping colliders (sliding along them). */
   resolve(pos: THREE.Vector3, radius: number): void {
-    const list = this.cells.get(`${Math.floor(pos.x / CELL)},${Math.floor(pos.z / CELL)}`);
+    const list = this.cells.get(cellKey(Math.floor(pos.x / CELL), Math.floor(pos.z / CELL)));
     if (!list) return;
     for (const c of list) {
       const dx = pos.x - c.x;

@@ -8,7 +8,7 @@
 import * as THREE from "three";
 import { Bursts } from "../shared/bursts";
 import { glowTexture, puffTexture } from "../../world/ambient/textures";
-import { Disposable } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { Ground } from "./ground";
 
 const MAX_FEATHERS = 240;
@@ -49,9 +49,9 @@ export class Feathers {
   private q = new THREE.Quaternion();
   private s = new THREE.Vector3();
 
-  constructor(owned: Disposable[]) {
+  constructor(owned: Owned) {
     const material = new THREE.MeshStandardMaterial({ color: "#ffffff", roughness: 0.75, side: THREE.DoubleSide, emissive: "#ffffff", emissiveIntensity: 0.12 });
-    owned.push(material);
+    owned.add(material);
     this.mesh = new THREE.InstancedMesh(featherGeometry(), material, MAX_FEATHERS);
     this.mesh.count = 0;
     this.mesh.castShadow = true;
@@ -126,7 +126,7 @@ export class Fx {
   private sparks = new Bursts(glowTexture(), true);
   private drops = new Bursts(glowTexture(), false);
 
-  constructor(owned: Disposable[]) {
+  constructor(owned: Owned) {
     this.feathers = new Feathers(owned);
     this.group.add(this.feathers.mesh, this.dust.mesh, this.sparks.mesh, this.drops.mesh);
   }

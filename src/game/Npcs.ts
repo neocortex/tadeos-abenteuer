@@ -10,6 +10,7 @@ import { createElder, createWiseWoman, createWiseMan, createVillager } from "../
 import { Colliders, Circle } from "../world/Colliders";
 import { VILLAGE, P2 } from "../world/layout";
 import { DialogueScript } from "../data/dialogues";
+import { wrapAngle } from "../world/ambient/spawn";
 
 export type NpcId = "elder" | "wiseWoman" | "wiseMan" | "villager0" | "villager1" | "villager2" | "villager3";
 
@@ -145,7 +146,7 @@ export class Npcs {
       // Reason: people turn towards Tadeo when he is close, then drift back to their usual view
       const target = d < 5 ? Math.atan2(player.x - n.position.x, player.z - n.position.z) : n.homeFacing;
       let delta = target - n.avatar.root.rotation.y;
-      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      delta = wrapAngle(delta);
       n.avatar.root.rotation.y += delta * Math.min(dt * 4, 1);
       n.avatar.update(dt, { speed: 0, grounded: true, vy: 0 });
     }

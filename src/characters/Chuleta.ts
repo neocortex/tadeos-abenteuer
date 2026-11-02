@@ -11,6 +11,7 @@ import { HenModel, HenLook, HenPose } from "./HenModel";
 import { Player } from "./Player";
 import { mat, toonMesh } from "./parts";
 import { henVoice } from "../audio/henVoice";
+import { wrapAngle } from "../world/ambient/spawn";
 
 export const CHULETA_LOOK: HenLook = {
   kind: "hen",
@@ -308,7 +309,7 @@ export class Chuleta {
   }
 
   private turnTo(target: number, dt: number, rate: number): void {
-    const d = Math.atan2(Math.sin(target - this.yaw), Math.cos(target - this.yaw));
+    const d = wrapAngle(target - this.yaw);
     this.yaw += d * Math.min(dt * rate, 1);
   }
 }

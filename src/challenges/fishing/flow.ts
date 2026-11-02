@@ -15,8 +15,8 @@ import { BITE_WINDOW, FishingGame, HOOK_Y } from "./game";
 import { BOTTLE, GOAL, INTRO, SAY, ending } from "./script";
 import { FISH_SCALE, Fish, ZONE, fishFigure } from "./swimmers";
 import { arcPoint } from "./tackle";
+import { rnd } from "../../world/ambient/spawn";
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T>(list: T[], i: number): T => list[i % list.length];
 const smooth = (k: number) => k * k * (3 - 2 * k);
 /** From the message bottle's centre up to its neck, where the hook holds it. */

@@ -99,13 +99,4 @@ export class Site {
   clearGrass(x: number, z: number, r: number): void {
     this.hf.clearGrass(x, z, r);
   }
-
-  /** Clear grass along a segment. */
-  clearGrassLine(a: THREE.Vector2, b: THREE.Vector2, r: number): void {
-    const n = Math.max(1, Math.ceil(a.distanceTo(b) / (r * 0.8)));
-    for (let i = 0; i <= n; i++) {
-      const p = a.clone().lerp(b, i / n);
-      this.hf.clearGrass(p.x, p.y, r);
-    }
-  }
 }

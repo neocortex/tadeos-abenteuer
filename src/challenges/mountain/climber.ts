@@ -12,6 +12,7 @@ import { createTadeo } from "../../characters/cast";
 import { Input } from "../../core/Input";
 import { Course, Ladder } from "./course";
 import { ladderRadius, LADDER_BACK } from "./platforms";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 const SPEED = 5.6;
 const JUMP = 8.3;
@@ -237,7 +238,7 @@ export class Climber {
       const t = c.tangent(this.s, this.tmp).multiplyScalar(this.dir);
       const target = Math.atan2(t.x, t.z);
       let d = target - a.root.rotation.y;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
+      d = wrapAngle(d);
       a.root.rotation.y += d * (dt > 0 ? Math.min(1, dt * 14) : 1);
     }
     a.update(dt, { speed: this.mode === "walk" ? Math.abs(this.vs) : 0, grounded: this.grounded || !!climbing, vy: this.vy });

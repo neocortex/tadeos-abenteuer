@@ -143,7 +143,6 @@ export class Bombs {
   private debris: Debris;
   private glowMat: THREE.SpriteMaterial;
   private tmp = new THREE.Vector3();
-  private frame = 0;
 
   constructor(
     private ground: (x: number, z: number) => number,
@@ -225,7 +224,6 @@ export class Bombs {
   /** Advance all bombs; returns the impacts that happened this frame. */
   update(dt: number, onWhistle?: (b: Bomb) => void): Impact[] {
     const impacts: Impact[] = [];
-    this.frame++;
     for (const b of this.bombs) {
       if (b.state === "flying") {
         b.t += dt;

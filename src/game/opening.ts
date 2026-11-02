@@ -28,6 +28,7 @@ import { LANDMARKS, P2 } from "../world/layout";
 import { NORTH_DOCK_BOAT, sailboat } from "../world/models/boats";
 import { glowTexture, puffTexture } from "../world/ambient/textures";
 import { CHULETA_INTRO } from "./chuletaLines";
+import { wait } from "../core/wait";
 
 export interface OpeningDeps {
   engine: Engine;
@@ -40,7 +41,6 @@ export interface OpeningDeps {
   chuleta: Chuleta;
 }
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const { clamp, lerp, smoothstep, smootherstep } = THREE.MathUtils;
 const v3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
 

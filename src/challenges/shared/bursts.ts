@@ -124,7 +124,6 @@ export class Bursts {
 
   update(dt: number): void {
     let n = 0;
-    const keep: Particle[] = [];
     for (const q of this.parts) {
       q.age += dt;
       if (q.age >= q.life) continue;
@@ -135,12 +134,18 @@ export class Bursts {
       const size = q.size0 + (q.size1 - q.size0) * t;
       // Reason: quick fade-in, long fade-out reads as a spark rather than a popping square
       const alpha = Math.min(t * 8, 1) * (1 - t) * (1 - t);
-      this.pos.set([q.p.x, q.p.y, q.p.z, size], n * 4);
-      this.col.set([q.color.r, q.color.g, q.color.b, alpha], n * 4);
-      keep.push(q);
-      n++;
+      const k = n * 4;
+      this.pos[k] = q.p.x;
+      this.pos[k + 1] = q.p.y;
+      this.pos[k + 2] = q.p.z;
+      this.pos[k + 3] = size;
+      this.col[k] = q.color.r;
+      this.col[k + 1] = q.color.g;
+      this.col[k + 2] = q.color.b;
+      this.col[k + 3] = alpha;
+      this.parts[n++] = q;
     }
-    this.parts = keep;
+    this.parts.length = n;
     this.geo.instanceCount = n;
     if (n) {
       this.posAttr.needsUpdate = true;

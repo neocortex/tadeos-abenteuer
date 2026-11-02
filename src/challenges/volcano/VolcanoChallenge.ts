@@ -33,6 +33,8 @@ import { BombDirector } from "./director";
 import { Hero } from "./hero";
 import type { EndingStage, VolcanoLight, VolcanoMode } from "./modes";
 import { LIFTS_NEEDED } from "./rescue";
+import { wait } from "../../core/wait";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 const TIPS: DialogueScript = [
   {
@@ -55,7 +57,6 @@ const LOOK_AHEAD = 4.5;
 
 type State = "intro" | "play" | "ouch" | "won";
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class VolcanoChallenge implements Challenge {
   readonly scene = new THREE.Scene();
@@ -379,7 +380,7 @@ export class VolcanoChallenge implements Challenge {
 
   private updateCamera(dt: number): void {
     const target = this.trailYaw(this.playerS);
-    const d = Math.atan2(Math.sin(target - this.yaw), Math.cos(target - this.yaw));
+    const d = wrapAngle(target - this.yaw);
     this.yaw += d * (1 - Math.exp(-dt * 0.9));
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);

@@ -96,7 +96,7 @@ export class ForestTrees {
 
   constructor(
     private field: ForestField,
-    private colliders: Colliders,
+    colliders: Colliders,
   ) {
     const trees = [0, 1, 2, 3, 4, 5].map((s) => flora.enchantedTree(s));
     // Reason: the island's bushes are lime green; repaint them in the forest's teal and violet palette

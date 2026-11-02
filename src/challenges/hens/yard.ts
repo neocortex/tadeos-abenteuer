@@ -17,7 +17,7 @@ import { barrel, bucket, fence } from "../../world/models/props";
 import { bush, roundTree } from "../../world/models/flora";
 import { cottage } from "../../world/models/buildings";
 import { Coop } from "./coop";
-import { Disposable, disposeScene } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { eggBasket, feedSack, hayPile, scarecrow, sunflower, trough, veggiePatch, wheelbarrow } from "./farm";
 import { Grass } from "./grass";
 import { Ground } from "./ground";
@@ -36,7 +36,7 @@ const BUCKET: [number, number] = [TROUGH[0] + 1.55, TROUGH[1] + 0.45];
 
 export class Yard {
   readonly scene = new THREE.Scene();
-  readonly owned: Disposable[] = [];
+  readonly owned = new Owned();
   readonly colliders = new Colliders();
   readonly ground: Ground;
   readonly grass: Grass;
@@ -57,12 +57,12 @@ export class Yard {
     this.clouds = new Clouds(16, 23);
     this.clouds.group.traverse((o) => {
       const m = (o as THREE.Mesh).material as THREE.Material | undefined;
-      if (m && !this.owned.includes(m)) this.owned.push(m);
+      if (m) this.owned.add(m);
     });
     s.add(this.clouds.group);
 
     this.propMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
-    this.owned.push(this.propMat);
+    this.owned.add(this.propMat);
 
     this.coop = new Coop(this.owned);
     s.add(this.coop.group);
@@ -174,7 +174,7 @@ export class Yard {
     g.add(mesh);
 
     const waterMat = new THREE.MeshStandardMaterial({ color: "#58a6dc", roughness: 0.06, metalness: 0.05, emissive: "#2b6c9c", emissiveIntensity: 0.25 });
-    this.owned.push(waterMat);
+    this.owned.add(waterMat);
     const water = new THREE.Mesh(new THREE.PlaneGeometry(t.water.w, t.water.d).rotateX(-Math.PI / 2), waterMat);
     water.position.set(TROUGH[0], t.water.y, TROUGH[1]);
     water.receiveShadow = true;
@@ -203,7 +203,7 @@ export class Yard {
     const g = new THREE.Group();
     const rand = mulberry32(5150);
     const floraMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: THREE.DoubleSide });
-    this.owned.push(floraMat);
+    this.owned.add(floraMat);
     const models = [roundTree(0), roundTree(1), roundTree(2), bush(3), bush(4, "#e0263a"), bush(5)];
     const spots: THREE.Matrix4[][] = models.map(() => []);
     const free = (x: number, z: number, pad: number) => {
@@ -261,7 +261,7 @@ export class Yard {
     g.add(houseMesh);
     if (village.glow.length) {
       const glowMat = new THREE.MeshBasicMaterial({ vertexColors: true });
-      this.owned.push(glowMat);
+      this.owned.add(glowMat);
       g.add(new THREE.Mesh(merge(village.glow), glowMat));
     }
     return g;
@@ -282,6 +282,6 @@ export class Yard {
   }
 
   dispose(): void {
-    disposeScene(this.scene, this.owned);
+    this.owned.disposeScene(this.scene);
   }
 }

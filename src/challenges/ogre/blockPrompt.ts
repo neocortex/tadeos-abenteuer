@@ -111,7 +111,8 @@ export class BlockPrompt {
       }
       this.now = open;
       this.el.classList.toggle("now", open);
-      this.label.textContent = blocked ? "Abgewehrt!" : open ? "JETZT!" : idle;
+      const label = blocked ? "Abgewehrt!" : open ? "JETZT!" : idle;
+      if (this.label.textContent !== label) this.label.textContent = label;
       this.shrink.style.transform = `translate(-50%, -50%) scale(${(1 + (1 - k) * 2.4).toFixed(3)})`;
       this.place(at());
     });

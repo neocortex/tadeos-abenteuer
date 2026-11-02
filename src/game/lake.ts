@@ -15,6 +15,7 @@ import { createHueter } from "../characters/Hueter";
 import { DIALOGUES, DialogueScript } from "../data/dialogues";
 import { LANDMARKS, WATER_LEVEL } from "../world/layout";
 import { audio } from "../audio/Audio";
+import { wait } from "../core/wait";
 
 /** Riddle i belongs to tablet i. The right answer is never first, because the card starts on the first answer. */
 export const RIDDLES: { lines: string[]; answers: string[]; right: number }[] = [
@@ -29,7 +30,6 @@ const RISE_TOWARDS_TADEO = 3.5;
 const CALM_MS = 2000;
 const HOLD_MS = 700;
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** Distance on the ground from the point (px, pz) to the segment a to b. */
 function distanceToSegment(a: THREE.Vector3, b: THREE.Vector3, px: number, pz: number): number {

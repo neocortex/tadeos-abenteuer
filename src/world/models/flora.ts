@@ -204,7 +204,7 @@ export function rock(seed: number, mossy = true): FloraModel {
   g.scale(1 + rand() * 0.4, 0.6 + rand() * 0.3, 1 + rand() * 0.3);
   displace(g, 0.22, 1.1, seed * 3.3);
   facet(g);
-  const geo = part(g, (p, n) => {
+  const geo = part(g, (_, n) => {
     const c = new THREE.Color("#8d8680").lerp(new THREE.Color("#a49d93"), rand());
     if (n.y < -0.2) c.multiplyScalar(0.6);
     if (mossy && n.y > 0.72) c.lerp(new THREE.Color("#5c8f37"), 0.75);

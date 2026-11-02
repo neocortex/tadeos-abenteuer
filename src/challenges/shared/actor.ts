@@ -7,6 +7,7 @@
 
 import * as THREE from "three";
 import { Humanoid, blobShadow } from "../../characters/Humanoid";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 const GRAVITY = 22;
 
@@ -49,10 +50,6 @@ export class Actor {
     parent.add(this.avatar.root, this.shadow);
     this.update(0);
     return this;
-  }
-
-  get airborne(): boolean {
-    return this.lift > 0 || this.vy > 0;
   }
 
   /** Walk to (x, z) with the walk cycle; resolves on arrival. */
@@ -121,7 +118,7 @@ export class Actor {
     }
 
     if (this.targetFacing !== null) {
-      const delta = Math.atan2(Math.sin(this.targetFacing - this.facing), Math.cos(this.targetFacing - this.facing));
+      const delta = wrapAngle(this.targetFacing - this.facing);
       this.facing += delta * Math.min(dt * 10, 1);
     }
 

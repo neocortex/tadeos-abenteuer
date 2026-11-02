@@ -41,6 +41,7 @@ export class Coins {
   private body: THREE.InstancedMesh;
   private star: THREE.InstancedMesh;
   private sparks: THREE.InstancedMesh;
+  private sparksDrawn = true;
   private sparkState: { pos: THREE.Vector3; vel: THREE.Vector3; life: number }[] = [];
   private nextSpark = 0;
   private dummy = new THREE.Object3D();
@@ -146,6 +147,10 @@ export class Coins {
   }
 
   private updateSparks(dt: number): void {
+    // Reason: sparks are dead nearly all the time; one more pass after the last dies writes their zero scale
+    const alive = this.sparkState.some((s) => s.life > 0);
+    if (!alive && !this.sparksDrawn) return;
+    this.sparksDrawn = alive;
     this.sparkState.forEach((s, i) => {
       s.life -= dt;
       if (s.life > 0) {

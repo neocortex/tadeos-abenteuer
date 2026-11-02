@@ -24,6 +24,8 @@ export class GameUI {
   /** Icon (data URL) per quest item. */
   readonly icons: Record<ItemKey, string>;
   private statusEl: HTMLElement;
+  /** Reason: reading innerHTML serialises the DOM, and scenes set the status every frame. */
+  private statusHtml = "";
   private itemEl: HTMLElement;
 
   constructor() {
@@ -81,7 +83,7 @@ export class GameUI {
       return;
     }
     this.statusEl.style.display = "flex";
-    if (this.statusEl.innerHTML !== html) this.statusEl.innerHTML = html;
+    if (this.statusHtml !== html) this.statusEl.innerHTML = this.statusHtml = html;
   }
 
   /** Full-screen "item found" celebration with rays and a fanfare. Resolves when it has faded. */

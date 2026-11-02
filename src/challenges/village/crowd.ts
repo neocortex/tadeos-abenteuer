@@ -10,6 +10,7 @@ import { Humanoid } from "../../characters/Humanoid";
 import { createElder, createWiseWoman, createWiseMan, createVillager } from "../../characters/cast";
 import { Actor } from "../shared/actor";
 import { BENCHES } from "./decor";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 export type SageId = "wiseWoman" | "wiseMan" | "elder";
 
@@ -96,7 +97,7 @@ export class Crowd {
     // Turn the head (not the body) towards the action, within a natural range
     const p = w.actor.position;
     const yaw = Math.atan2(this.watchAt.x - p.x, this.watchAt.z - p.z) - w.actor.facing;
-    const rel = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    const rel = wrapAngle(yaw);
     av.head.rotation.y = THREE.MathUtils.clamp(rel, -1.0, 1.0) * 0.8;
     if (w.sitting && this.cheerLeft > 0) {
       // Seated cheer: arms up and waving, bouncing on the log

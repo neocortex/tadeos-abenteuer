@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { part, merge } from "../../core/geo";
 import { mulberry32 } from "../../core/noise";
 import { box, rbox, beam, pole, triangles, tint, ball } from "../../world/models/shapes";
-import { Disposable } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { COOP } from "./layout";
 
 const W = COOP.w;
@@ -42,7 +42,7 @@ export class Coop {
   private doorV = 0;
   private doorA = -0.85;
 
-  constructor(owned: Disposable[]) {
+  constructor(owned: Owned) {
     const rand = mulberry32(42);
     const solid: THREE.BufferGeometry[] = [];
     this.stilts(solid);
@@ -51,7 +51,7 @@ export class Coop {
     this.interior(solid, rand);
     this.ramp(solid);
     const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82 });
-    owned.push(material);
+    owned.add(material);
     const mesh = new THREE.Mesh(merge(solid), material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -243,11 +243,11 @@ export class Coop {
     this.group.add(this.door);
   }
 
-  private buildVane(owned: Disposable[]): void {
+  private buildVane(owned: Owned): void {
     const gold = new THREE.MeshStandardMaterial({ color: "#f4c54a", roughness: 0.3, metalness: 0.5, emissive: "#c88a10", emissiveIntensity: 0.25 });
-    owned.push(gold);
+    owned.add(gold);
     const iron = new THREE.MeshStandardMaterial({ color: "#3c3d44", roughness: 0.5 });
-    owned.push(iron);
+    owned.add(iron);
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.95, 6), iron);
     post.position.y = 0.47;
     const arrow = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 0.9), iron);
@@ -278,7 +278,7 @@ export class Coop {
   }
 
   /** Painted board above the window: "Mias Hühner" with two little hearts. */
-  private sign(owned: Disposable[]): THREE.Group {
+  private sign(owned: Owned): THREE.Group {
     const g = new THREE.Group();
     const cx = (edgeX(WINDOW_BOARDS[0]) + edgeX(WINDOW_BOARDS[1] + 1)) / 2;
     const boardMat = new THREE.MeshStandardMaterial({ color: "#fff3dc", roughness: 0.8 });
@@ -296,7 +296,9 @@ export class Coop {
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.anisotropy = 4;
     const textMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-    owned.push(boardMat, tex, textMat);
+    owned.add(boardMat);
+    owned.add(tex);
+    owned.add(textMat);
     const text = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 0.32), textMat);
     text.position.z = 0.03;
     g.add(board, text);

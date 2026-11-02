@@ -20,6 +20,7 @@ export class FishingHud {
   private card: HTMLElement;
   private alert: HTMLElement;
   private hint: HTMLElement;
+  private hintHtml = "";
 
   constructor(layer: HTMLElement, private icons: Record<IconKey, string>) {
     this.root = document.createElement("div");
@@ -65,7 +66,7 @@ export class FishingHud {
 
   /** Controls hint at the bottom (HTML), or null to hide. */
   showHint(html: string | null): void {
-    if (html !== null && this.hint.innerHTML !== html) this.hint.innerHTML = html;
+    if (html !== null && this.hintHtml !== html) this.hint.innerHTML = this.hintHtml = html;
     this.hint.classList.toggle("show", html !== null);
   }
 

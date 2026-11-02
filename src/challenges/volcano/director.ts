@@ -10,8 +10,8 @@ import * as THREE from "three";
 import { Course, RIVER_HALF } from "./course";
 import { Bombs } from "./bombs";
 import { Peak } from "./peak";
+import { rnd } from "../../world/ambient/spawn";
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 /** No bomb lands closer than this to a hop rock. */
 const ROCK_CLEARANCE = 3;

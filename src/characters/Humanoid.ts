@@ -235,7 +235,11 @@ export class Humanoid {
 }
 
 /** Soft round contact shadow drawn under characters (grounds them on any surface). */
-export function blobShadow(radius = 0.55): THREE.Mesh {
+let blobTexture: THREE.CanvasTexture | null = null;
+
+/** Reason: one soft blob for everyone, because a hen yard alone needs dozens of them. */
+function sharedBlobTexture(): THREE.CanvasTexture {
+  if (blobTexture) return blobTexture;
   const canvas = document.createElement("canvas");
   canvas.width = canvas.height = 64;
   const ctx = canvas.getContext("2d")!;
@@ -245,9 +249,14 @@ export function blobShadow(radius = 0.55): THREE.Mesh {
   grad.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 64, 64);
+  blobTexture = new THREE.CanvasTexture(canvas);
+  return blobTexture;
+}
+
+export function blobShadow(radius = 0.55): THREE.Mesh {
   const m = new THREE.Mesh(
     new THREE.PlaneGeometry(radius * 2, radius * 2).rotateX(-Math.PI / 2),
-    new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ map: sharedBlobTexture(), transparent: true, depthWrite: false }),
   );
   m.renderOrder = 2;
   return m;

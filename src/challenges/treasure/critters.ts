@@ -10,6 +10,7 @@ import { crabModel, gullModel } from "../../world/ambient/critterModels";
 import { CRAB_ANIM, GULL_ANIM } from "../../world/ambient/critterAnims";
 import { Ground, X_AT } from "./terrain";
 import { BLOCKERS } from "./scenery";
+import { rnd } from "../../world/ambient/spawn";
 
 const CRAB_SPOTS: [number, number][] = [[-3.5, 4.6], [1.2, 6.0], [6.2, 5.0], [-7.4, 2.6], [8.8, -1.2], [-9.2, -1.0]];
 const GULLS = 7;
@@ -25,7 +26,6 @@ interface Crab {
   scale: number;
 }
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class Critters {
   readonly group = new THREE.Group();

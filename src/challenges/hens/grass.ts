@@ -7,7 +7,7 @@
 import * as THREE from "three";
 import { part, merge } from "../../core/geo";
 import { mulberry32 } from "../../core/noise";
-import { Disposable } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { Ground } from "./ground";
 import { YARD } from "./layout";
 
@@ -44,7 +44,7 @@ export class Grass {
    * @param ground Height and bare-earth lookup.
    * @param blocked True where a prop stands (no grass under it).
    */
-  constructor(ground: Ground, blocked: (x: number, z: number) => boolean, owned: Disposable[]) {
+  constructor(ground: Ground, blocked: (x: number, z: number) => boolean, owned: Owned) {
     const rand = mulberry32(77);
     const material = this.windMaterial(owned);
     const tufts = new THREE.InstancedMesh(tuftGeometry(), material, 19000);
@@ -102,7 +102,7 @@ export class Grass {
     this.uniforms.uTime.value = time;
   }
 
-  private windMaterial(owned: Disposable[]): THREE.MeshStandardMaterial {
+  private windMaterial(owned: Owned): THREE.MeshStandardMaterial {
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, side: THREE.DoubleSide });
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = this.uniforms.uTime;
@@ -117,7 +117,7 @@ export class Grass {
       );
     };
     m.customProgramCacheKey = () => "hens-grass";
-    owned.push(m);
+    owned.add(m);
     return m;
   }
 }

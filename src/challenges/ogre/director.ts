@@ -41,11 +41,6 @@ export class Director {
     this.rate = 4 / Math.max(seconds, 0.05);
   }
 
-  /** Retarget only the look-at point (keeps the move speed). */
-  aim(look: THREE.Vector3): void {
-    this.toLook.copy(look);
-  }
-
   shake(amount: number): void {
     this.shakeAmt = Math.min(this.shakeAmt + amount, 1.4);
   }
@@ -53,10 +48,6 @@ export class Director {
   /** Briefly widen (positive) or narrow (negative) the field of view. */
   punch(degrees: number): void {
     this.fovKick += degrees;
-  }
-
-  setFov(fov: number): void {
-    this.baseFov = fov;
   }
 
   update(dt: number): void {

@@ -6,7 +6,7 @@
 
 import { readFileSync } from "node:fs";
 
-const row = (wreck, dockBoat, boulder, hedge, paco, ogre) => ({ wreck, pierBoat: false, dockBoat, boulder, hedge, paco, ogre });
+const row = (wreck, dockBoat, boulder, hedge, paco, ogre) => ({ wreck, dockBoat, boulder, hedge, paco, ogre });
 const EARLY = row(true, false, true, true, "away", "bridge");
 const MIDDLE = row(true, false, true, true, "village", "bridge");
 const OPEN_FOREST = row(true, false, true, false, "village", "bridge");

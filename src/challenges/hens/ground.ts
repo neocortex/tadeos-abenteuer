@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 import { Noise2D, smoothstep } from "../../core/noise";
-import { Disposable } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { COOP, GATE, HAY, PUDDLES, TROUGH, YARD } from "./layout";
 
 const GRASS_DARK = new THREE.Color("#4f8f33");
@@ -71,9 +71,9 @@ export class Ground {
   private nextRipple = 0;
   private noise = new Noise2D(31);
 
-  constructor(owned: Disposable[]) {
+  constructor(owned: Owned) {
     const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
-    owned.push(mat);
+    owned.add(mat);
     const mesh = new THREE.Mesh(this.geometry(), mat);
     mesh.receiveShadow = true;
     this.group.add(mesh);

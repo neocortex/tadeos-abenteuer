@@ -87,7 +87,7 @@ export function cottage(style: CottageStyle): { model: Model; colliders: [number
   const plaster = style.plaster ?? PAL.plaster;
 
   // Stone foundation, sunk into the ground to hide uneven terrain
-  m.solid.push(rbox(W + 0.36, base + 0.6, D + 0.36, (p, n) => tint(PAL.stone, rand, 0.1).multiplyScalar(n.y > 0.5 ? 1.08 : 0.92), { pos: [0, (base - 0.6) / 2, 0] }, 0.1));
+  m.solid.push(rbox(W + 0.36, base + 0.6, D + 0.36, (_, n) => tint(PAL.stone, rand, 0.1).multiplyScalar(n.y > 0.5 ? 1.08 : 0.92), { pos: [0, (base - 0.6) / 2, 0] }, 0.1));
   // Plastered walls
   m.solid.push(rbox(W, H, D, (p) => new THREE.Color(plaster).multiplyScalar(0.93 + 0.07 * THREE.MathUtils.clamp((p.y - base) / H, 0, 1)), { pos: [0, base + H / 2, 0] }, 0.05));
 
@@ -189,7 +189,7 @@ export function cottage(style: CottageStyle): { model: Model; colliders: [number
         const g = new RoundedBoxGeometry(roofW + 0.12, 0.44, L / rows + 0.34, 2, 0.2);
         displace(g, 0.05, 2.4, style.seed + i * 3);
         const c = roofColor.clone().multiplyScalar(i % 2 ? 0.86 : 1.02);
-        m.solid.push(part(g, (p, n) => c.clone().multiplyScalar(n.y < -0.3 ? 0.7 : 1), { pos: [x, y + 0.26, z], rot: [rotX + sz * 0.16, 0, 0] }));
+        m.solid.push(part(g, (_, n) => c.clone().multiplyScalar(n.y < -0.3 ? 0.7 : 1), { pos: [x, y + 0.26, z], rot: [rotX + sz * 0.16, 0, 0] }));
       }
     }
     // Barge boards along the gable edges

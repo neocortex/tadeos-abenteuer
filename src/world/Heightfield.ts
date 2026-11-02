@@ -93,11 +93,6 @@ export class Heightfield {
     return this.slopes[iz * HF_N + ix];
   }
 
-  /** Mark a disc as non-walkable (used for props such as houses). */
-  blockDisc(x: number, z: number, radius: number): void {
-    this.forEachCellInDisc(x, z, radius, (i) => (this.walkable[i] = 0));
-  }
-
   /** Force a disc to be walkable (bridges, piers). */
   openDisc(x: number, z: number, radius: number): void {
     this.forEachCellInDisc(x, z, radius, (i) => (this.walkable[i] = 1));

@@ -334,11 +334,6 @@ export class Shark {
     return this.head.localToWorld(target.set(0, -0.5, 1.05));
   }
 
-  /** World position of the snout tip. */
-  snoutPos(target = new THREE.Vector3()): THREE.Vector3 {
-    return this.head.localToWorld(target.set(0, 0, 1.55));
-  }
-
   update(dt: number): void {
     this.t += dt;
     const t = this.t;

@@ -13,6 +13,7 @@ import { lanternPost, bunting } from "../../world/models/props";
 import { createHammer } from "../../world/models/items";
 import { glowTexture } from "../../world/ambient/textures";
 import { Course, SUMMIT_Y, DEPTH } from "./course";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 const BEAM_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -74,7 +75,7 @@ export class Summit {
     model.solid.push(cyl(2.4, 2.4, 0.16, "#c2b6a2", { pos: [0, SUMMIT_Y, 0] }, 20));
     for (let i = 0; i < 26; i++) {
       const a = (i / 26) * Math.PI * 2;
-      const gap = Math.abs(Math.atan2(Math.sin(a - th), Math.cos(a - th)));
+      const gap = Math.abs(wrapAngle(a - th));
       if (gap < 0.5) continue;
       const h = 0.45 + rand() * 0.2;
       const at = { pos: [Math.cos(a) * 6.95, SUMMIT_Y + h / 2, Math.sin(a) * 6.95] as [number, number, number], rot: [0, -a + rand() * 0.1, 0] as [number, number, number] };

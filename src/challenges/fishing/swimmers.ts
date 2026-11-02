@@ -8,7 +8,7 @@
 
 import * as THREE from "three";
 import { merge, part } from "../../core/geo";
-import { turnToward, wrapAngle } from "../../world/ambient/spawn";
+import { turnToward, wrapAngle, rnd } from "../../world/ambient/spawn";
 import { FishKind, Species, SPECIES, fishModel } from "./species";
 
 export type SwimState = "wander" | "approach" | "nibble" | "bite" | "hooked" | "flee" | "away";
@@ -19,7 +19,6 @@ export const ZONE = { x0: -6.2, x1: 6.2, z0: -12.5, z1: -2.4, y0: -1.55, y1: -0.
 /** Lagoon fish are drawn a little larger than their models, so a seven-year-old can spot them easily. */
 export const FISH_SCALE = 1.3;
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export interface FishLook {
   body: THREE.Material;
@@ -82,12 +81,6 @@ export class Fish {
 
   get kind(): FishKind {
     return this.spec.kind;
-  }
-
-  /** Point where the fish's mouth is. */
-  mouth(out: THREE.Vector3): THREE.Vector3 {
-    const r = this.length * 0.5;
-    return out.set(this.pos.x + Math.sin(this.yaw) * r, this.pos.y, this.pos.z + Math.cos(this.yaw) * r);
   }
 
   /** Swim over to the hook hanging at `hook`. */

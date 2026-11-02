@@ -133,10 +133,6 @@ export class NarrationManager {
     return this.enabled;
   }
 
-  get supported(): boolean {
-    return this.isSupported();
-  }
-
   private readonly handleVoicesChanged = (): void => {
     this.assignRoleVoices();
   };
@@ -190,7 +186,7 @@ export class NarrationManager {
     if (normalized === "dorfältester" || normalized === "dorfaltester" || normalized === "weiser mann" || normalized === "weise frau") {
       return "elder";
     }
-    if (normalized === "oger" || normalized === "geist") return "enemy";
+    if (normalized === "oger") return "enemy";
     return "neutral";
   }
 

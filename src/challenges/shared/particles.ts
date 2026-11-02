@@ -95,10 +95,6 @@ export class Particles {
     }
   }
 
-  get count(): number {
-    return this.alive;
-  }
-
   /** Spawn `count` particles; `init` sets position, velocity, colour, life and size. */
   emit(count: number, init: (p: Particle, k: number) => void): void {
     for (let k = 0; k < count; k++) {
@@ -117,12 +113,6 @@ export class Particles {
       init(p, k);
       p.max = p.life;
     }
-  }
-
-  /** Remove every particle. */
-  clear(): void {
-    this.alive = 0;
-    this.mesh.count = 0;
   }
 
   update(dt: number, camera: THREE.Camera, time: number): void {

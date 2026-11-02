@@ -252,7 +252,7 @@ export class Fx {
   private rings: Ring[] = [];
   private ringGeo = new THREE.RingGeometry(0.82, 1, 48, 1).rotateX(-Math.PI / 2);
 
-  constructor(private bin: Bin) {
+  constructor(bin: Bin) {
     this.glow = new Particles(1400, true, bin);
     this.puff = new Particles(900, false, bin);
     this.group.add(this.glow.mesh, this.puff.mesh);

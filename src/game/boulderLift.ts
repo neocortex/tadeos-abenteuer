@@ -14,6 +14,7 @@ import { puffTexture } from "../world/ambient/textures";
 import { BOULDER_EXIT, BOULDER_LIFTER, BOULDER_SPLASH, StoryProp } from "../world/models/storyProps";
 import { Sightings } from "./Sightings";
 import { audio } from "../audio/Audio";
+import { wrapAngle } from "../world/ambient/spawn";
 
 /** What the scene is doing, for the E2E to look at. */
 export type LiftPhase = "idle" | "walk" | "talk" | "heave" | "airborne" | "landed" | "cheer" | "rest";
@@ -216,7 +217,7 @@ export class BoulderLift {
 
   /** `yaw` turned a step towards `target` the short way round. */
   private turned(yaw: number, target: number, dt: number, rate: number): number {
-    const delta = Math.atan2(Math.sin(target - yaw), Math.cos(target - yaw));
+    const delta = wrapAngle(target - yaw);
     return yaw + delta * Math.min(dt * rate, 1);
   }
 

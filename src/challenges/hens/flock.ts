@@ -14,7 +14,7 @@ import { blobShadow } from "../../characters/Humanoid";
 import { Colliders } from "../../world/Colliders";
 import { rnd, turnToward, yawTo } from "../../world/ambient/spawn";
 import { Coop } from "./coop";
-import { Disposable } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { HenKind, HenLook, HenModel } from "../../characters/HenModel";
 import { CHICK_START, HAY, HEN_STARTS, P2, RAMP_FOOT, YARD } from "./layout";
 
@@ -96,7 +96,7 @@ export class Hen {
   readonly seed = Math.random() * 100;
   readonly home: P2;
 
-  constructor(spec: HenSpec, owned: Disposable[]) {
+  constructor(spec: HenSpec, owned: Owned) {
     this.model = new HenModel(spec.look, owned);
     this.name = spec.name;
     this.kind = spec.look.kind;
@@ -141,7 +141,7 @@ export class Flock {
   private seated = 0;
   private tmp = new THREE.Vector3();
 
-  constructor(private colliders: Colliders, private coop: Coop, private events: FlockEvents, owned: Disposable[]) {
+  constructor(private colliders: Colliders, private coop: Coop, private events: FlockEvents, owned: Owned) {
     for (const spec of HENS) {
       const h = new Hen(spec, owned);
       this.hens.push(h);

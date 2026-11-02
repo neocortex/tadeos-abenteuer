@@ -24,8 +24,8 @@ import { SpeechBubble, toNdc, toScreen } from "../shared/speech";
 import { Torch } from "./torch";
 import { glowTexture } from "../../world/ambient/textures";
 import { LINES, PHASE_HINTS, TADEO_REMARKS, WRONG_CRYSTAL } from "./script";
+import { wait } from "../../core/wait";
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const REACH = 1.9;
 const MOLE_REACH = 2.4;
 /** How close Tadeo comes before the mole speaks up by himself. */

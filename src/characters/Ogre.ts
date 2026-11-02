@@ -106,7 +106,6 @@ export class Ogre {
   private frown!: THREE.Mesh;
   private smile!: THREE.Mesh;
   private open!: THREE.Group;
-  private tmp = new THREE.Vector3();
 
   constructor() {
     this.root.add(this.body);

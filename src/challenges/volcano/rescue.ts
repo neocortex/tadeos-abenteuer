@@ -18,6 +18,7 @@ import type { Altar } from "./altar";
 import { Course } from "./course";
 import { meshesFromModel } from "./kit/models";
 import type { VolcanoChallenge } from "./VolcanoChallenge";
+import { wait } from "../../core/wait";
 
 /** Presses of Space it takes to get the rock off Paco's foot. */
 export const LIFTS_NEEDED = 6;
@@ -29,7 +30,6 @@ const PACO_BACK = 3;
 const ROLL_SECONDS = 1.15;
 const ROLL_DISTANCE = 3.8;
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class PacoRescue {
   readonly group = new THREE.Group();

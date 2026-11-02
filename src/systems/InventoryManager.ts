@@ -1,9 +1,9 @@
 /**
  * Simple slot-based inventory system.
- * Tracks collected items and provides lookup for combat/quest use.
+ * Tracks collected items and provides lookup for quest use.
  */
 
-import { ITEMS, ItemDef } from "../data/items";
+import { ITEMS } from "../data/items";
 
 export class InventoryManager {
   private static instance: InventoryManager;
@@ -30,26 +30,9 @@ export class InventoryManager {
     return this.items.has(key);
   }
 
-  /** Remove an item (consumed). */
-  removeItem(key: string): void {
-    this.items.delete(key);
-  }
-
-  /** Get all collected item definitions. */
-  getItems(): ItemDef[] {
-    return Array.from(this.items)
-      .map((k) => ITEMS[k])
-      .filter(Boolean);
-  }
-
   /** Get all collected item keys. */
   getItemKeys(): string[] {
     return Array.from(this.items);
-  }
-
-  /** Get combat-usable items. */
-  getCombatItems(): ItemDef[] {
-    return this.getItems().filter((item) => item.usableInCombat);
   }
 
   /** Set items from a saved list (for save/load). */

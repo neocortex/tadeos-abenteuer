@@ -7,6 +7,7 @@
 
 import * as THREE from "three";
 import { glowTexture, puffTexture } from "../../../world/ambient/textures";
+import { rnd } from "../../../world/ambient/spawn";
 
 export type BurstKind = "glow" | "puff";
 
@@ -153,7 +154,6 @@ class Pool {
   }
 }
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class Bursts {
   readonly group = new THREE.Group();

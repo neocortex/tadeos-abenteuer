@@ -24,8 +24,8 @@ import { Bubble, HensHud, PopKind, loadBest, saveBest } from "./hud";
 import { MIA_SPOT, RAMP_FOOT, START, YARD } from "./layout";
 import { GOLDEN, INTRO, CHULETA, ending, homeLine } from "./script";
 import { Yard } from "./yard";
+import { wait } from "../../core/wait";
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const CATCH_R = 1.0;
 const DIVE_CATCH_R = 1.45;
 const DIVE_BOOST = 4.2;

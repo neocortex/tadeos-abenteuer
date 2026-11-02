@@ -13,7 +13,7 @@ import { wingAtlas, WING_SPECIES, glowTexture } from "../../world/ambient/textur
 import { BILLBOARD_GLSL, particleMaterial, particleMesh, quadGeometry } from "../../world/ambient/particles";
 import { GLOW_FRAG } from "../../world/ambient/Smoke";
 import { rnd, turnToward, wrapAngle, yawTo } from "../../world/ambient/spawn";
-import { Disposable } from "./dispose";
+import { Owned } from "../shared/dispose";
 import { YARD } from "./layout";
 
 const BUTTERFLIES = 9;
@@ -61,7 +61,7 @@ export class FarmLife {
    * @param flowers World positions of the sunflower heads (landing spots).
    * @param catAt Top centre of the cat's barrel.
    */
-  constructor(private flowers: THREE.Vector3[], catAt: THREE.Vector3, owned: Disposable[]) {
+  constructor(private flowers: THREE.Vector3[], catAt: THREE.Vector3, owned: Owned) {
     this.wings = new CritterMesh({
       name: "hens-butterflies",
       geometry: butterflyModel(),
@@ -75,8 +75,8 @@ export class FarmLife {
     this.cat = new CritterMesh({ name: "hens-cat", geometry: catModel(), count: 1, animate: CAT_ANIM, castShadow: true, selfLit: 0.12 });
     for (const c of [this.wings, this.cat]) {
       const m = c.mesh;
-      owned.push(m.material as THREE.Material);
-      if (m.customDepthMaterial) owned.push(m.customDepthMaterial);
+      owned.add(m.material as THREE.Material);
+      if (m.customDepthMaterial) owned.add(m.customDepthMaterial);
     }
     this.group.add(this.wings.mesh, this.cat.mesh);
     this.catAt = catAt.clone();
@@ -90,7 +90,7 @@ export class FarmLife {
     const zTex = this.letterTexture(owned);
     for (let i = 0; i < 3; i++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: zTex, transparent: true, depthWrite: false }));
-      owned.push(s.material);
+      owned.add(s.material);
       this.zzz.push(s);
       this.group.add(s);
     }
@@ -107,7 +107,7 @@ export class FarmLife {
     this.group.add(this.motes);
   }
 
-  private letterTexture(owned: Disposable[]): THREE.Texture {
+  private letterTexture(owned: Owned): THREE.Texture {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 64;
     const g = canvas.getContext("2d")!;
@@ -121,7 +121,7 @@ export class FarmLife {
     g.fillText("z", 32, 34);
     const tex = new THREE.CanvasTexture(canvas);
     tex.colorSpace = THREE.SRGBColorSpace;
-    owned.push(tex);
+    owned.add(tex);
     return tex;
   }
 

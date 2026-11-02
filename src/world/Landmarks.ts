@@ -108,12 +108,6 @@ export class Landmarks implements LandmarkContext {
     return this.tablets.isLit(i);
   }
 
-  /** World position and heading (radians about Y, bow = +x) of a named boat ("north" or "lagoon"). */
-  boatPose(name: string): { position: THREE.Vector3; yaw: number } | null {
-    const b = this.boats.find((o) => o.name === name);
-    return b ? { position: b.base.clone(), yaw: b.yaw } : null;
-  }
-
   /** Show or hide a named boat. A hidden boat leaves no colliders behind. A name no boat has is ignored. */
   setBoatVisible(name: string, visible: boolean): void {
     const b = this.boats.find((o) => o.name === name);

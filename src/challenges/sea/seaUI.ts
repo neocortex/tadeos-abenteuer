@@ -64,6 +64,7 @@ export class SeaUI {
   private ring: HTMLElement;
   private shrink: HTMLElement;
   private label: HTMLElement;
+  private voyageShown = "";
   private v = new THREE.Vector3();
   private starfishShown = 0;
 
@@ -84,6 +85,7 @@ export class SeaUI {
 
   /** Voyage tracker + starfish counter in the status bar. */
   showVoyage(): void {
+    this.voyageShown = "";
     this.ui.status(
       `<div class="sea-hud"><div class="sea-track">⚓<div class="sea-line"><div class="sea-fill"></div><span class="sea-boat">⛵</span></div>🏝️</div>` +
         `<div class="sea-starfish">${STARFISH_ICON} <b>${this.starfishShown}</b></div></div>`,
@@ -92,10 +94,13 @@ export class SeaUI {
 
   setVoyage(progress: number, starfish: number): void {
     const pct = `${(Math.min(Math.max(progress, 0), 1) * 100).toFixed(1)}%`;
-    const fill = document.querySelector<HTMLElement>(".sea-fill");
-    const boat = document.querySelector<HTMLElement>(".sea-boat");
-    if (fill) fill.style.width = pct;
-    if (boat) boat.style.left = pct;
+    if (pct !== this.voyageShown) {
+      this.voyageShown = pct;
+      const fill = document.querySelector<HTMLElement>(".sea-fill");
+      const boat = document.querySelector<HTMLElement>(".sea-boat");
+      if (fill) fill.style.width = pct;
+      if (boat) boat.style.left = pct;
+    }
     if (starfish !== this.starfishShown) {
       const b = document.querySelector<HTMLElement>(".sea-starfish b");
       if (b) {
@@ -137,7 +142,8 @@ export class SeaUI {
     this.ring.classList.add("show");
     this.ring.classList.toggle("now", now);
     this.shrink.style.transform = `translate(-50%, -50%) scale(${(1 + (1 - k) * 2.2).toFixed(3)})`;
-    this.label.textContent = now ? "JETZT!" : "Leertaste!";
+    const label = now ? "JETZT!" : "Leertaste!";
+    if (this.label.textContent !== label) this.label.textContent = label;
   }
 
   destroy(): void {

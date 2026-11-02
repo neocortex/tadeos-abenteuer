@@ -57,6 +57,7 @@ void main() {
 export class Wake {
   readonly mesh: THREE.Mesh;
   private points: { x: number; z: number; dx: number; dz: number; age: number }[] = [];
+  private head = { x: 0, z: 0, dx: 0, dz: 0, age: 0 };
   private pos: Float32Array;
   private age: Float32Array;
   private timer = 0;
@@ -104,20 +105,26 @@ export class Wake {
       this.points.unshift({ x, z, dx: dirX, dz: dirZ, age: 0 });
       if (this.points.length > N) this.points.pop();
     }
-    this.points = this.points.filter((p) => p.age < 1);
+    // Reason: new points go to the front, so the oldest are always at the end
+    while (this.points.length && this.points[this.points.length - 1].age >= 1) this.points.pop();
     // The newest point always sits right at the stern
-    const head = { x, z, dx: dirX, dz: dirZ, age: 0 };
-    const pts = [head, ...this.points].slice(0, N);
+    const head = this.head;
+    head.x = x;
+    head.z = z;
+    head.dx = dirX;
+    head.dz = dirZ;
+    const count = Math.min(this.points.length + 1, N);
     for (let i = 0; i < N; i++) {
       // Reason: unused rows collapse onto the last point with its own width; widening them
       // would stretch zero-area triangles into a visible line across the sea
-      const p = pts[Math.min(i, pts.length - 1)];
-      const age = i < pts.length ? p.age : 1;
+      const row = Math.min(i, count - 1);
+      const p = row === 0 ? head : this.points[row - 1];
+      const age = i < count ? p.age : 1;
       const width = 0.7 + Math.sqrt(p.age) * 5.5;
       // Side vector perpendicular to the travel direction
       const sx = -p.dz;
       const sz = p.dx;
-      for (const s of [0, 1]) {
+      for (let s = 0; s < 2; s++) {
         const k = (i * 2 + s) * 3;
         const sign = s ? 1 : -1;
         this.pos[k] = p.x + sx * width * sign;

@@ -186,7 +186,7 @@ export class Game {
       const s = this.project(v.x, v.y, v.z);
       return s.behind ? null : this.pixels(s);
     });
-    this.story.update(dt, time);
+    this.story.update(dt);
     this.lake.update(dt, time);
     if (this.cinematic) {
       this.cinematicTime += dt;

@@ -17,18 +17,16 @@ export const ease = {
   outQuad: (t: number) => 1 - (1 - t) * (1 - t),
   inOut: (t: number) => t * t * (3 - 2 * t),
   outCubic: (t: number) => 1 - Math.pow(1 - t, 3),
-  inCubic: (t: number) => t * t * t,
   /** Overshoots past 1 then settles — cartoon "boing". */
   outBack: (t: number) => {
     const c = 1.9;
     return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
   },
-  outElastic: (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * ((2 * Math.PI) / 3)) + 1),
 };
 
-export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+export { lerp } from "../../core/noise";
 export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
-export const rand = (a: number, b: number): number => a + Math.random() * (b - a);
+export { rnd as rand } from "../../world/ambient/spawn";
 /** 0 → 1 → 0 over t in [0, 1]. */
 export const hump = (t: number): number => Math.sin(clamp01(t) * Math.PI);
 

@@ -13,6 +13,7 @@ import { glowTexture } from "../world/ambient/textures";
 import { createSword } from "../world/models/items";
 import { HedgeProp } from "../world/models/storyProps";
 import { audio } from "../audio/Audio";
+import { wrapAngle } from "../world/ambient/spawn";
 
 /** Beats of the scene, in seconds from its start. */
 const POPPED = 0.45;
@@ -120,7 +121,7 @@ export class HedgeOpening {
           done,
           frame: (t, dt) => {
             // Reason: he turns to the hedge as his arms go up; the follow camera would show his face with the hedge behind it
-            const turn = Math.atan2(Math.sin(heading - player.facing), Math.cos(heading - player.facing));
+            const turn = wrapAngle(heading - player.facing);
             player.facing += turn * Math.min(dt * 10, 1);
             // Reason: world matrices move with the pose, so refresh them before reading where the blade is
             avatar.root.updateMatrixWorld(true);

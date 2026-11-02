@@ -11,6 +11,7 @@ import { mat, toonMesh } from "../../characters/parts";
 import { blobShadow } from "../../characters/Humanoid";
 import { Bursts } from "../shared/bursts";
 import { NavGrid } from "./nav";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 const ORANGE = "#e8762b";
 const WHITE = "#fff4e6";
@@ -187,7 +188,7 @@ export class Fox {
   }
 
   private turnTo(target: number, k: number): void {
-    const delta = Math.atan2(Math.sin(target - this.facing), Math.cos(target - this.facing));
+    const delta = wrapAngle(target - this.facing);
     this.facing += delta * Math.min(1, k);
   }
 

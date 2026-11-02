@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Under the hood
+
+- The island builds about a quarter faster at startup, with exactly the same terrain
+- Less waste every frame: key presses, sparks, coin sparkles, collision lookups, the boat's wake and the status bar
+- Removed code nothing used, and replaced local copies of small helpers with one shared version
+
 ### Answer stones
 
 - The numbers on the elder's answer stones are sharp and easy to read instead of melting into their glow, and the chosen

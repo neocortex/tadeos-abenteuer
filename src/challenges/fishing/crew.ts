@@ -15,6 +15,7 @@ import { mat, toonMesh } from "../../characters/parts";
 import { DECK, DECK_END, CHULETA_POST } from "./dock";
 import { Tackle } from "./tackle";
 import { swell } from "./water";
+import { rnd, wrapAngle } from "../../world/ambient/spawn";
 
 export type Action = "hold" | "rest" | "windup" | "throw" | "pull" | "yank" | "show" | "cheer" | "wave";
 
@@ -40,7 +41,6 @@ const JONAS_AT = new THREE.Vector3(-0.85, DECK - 0.02, DECK_END + 0.3);
 /** Where Jonas's own float bobs. */
 const JONAS_FLOAT = new THREE.Vector3(-3.4, 0, -4.6);
 
-const rnd = (a: number, b: number) => a + Math.random() * (b - a);
 
 export class Crew {
   readonly group = new THREE.Group();
@@ -174,7 +174,7 @@ export class Crew {
   private lookTowards(h: Humanoid, at: THREE.Vector3, nod: number): void {
     const p = h.root.position;
     const yaw = Math.atan2(at.x - p.x, at.z - p.z) - h.root.rotation.y;
-    const rel = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    const rel = wrapAngle(yaw);
     h.head.rotation.y = THREE.MathUtils.clamp(rel, -1.0, 1.0);
     const down = Math.atan2(p.y + 1.3 - at.y, Math.hypot(at.x - p.x, at.z - p.z));
     h.head.rotation.x = THREE.MathUtils.clamp(down * 0.6, -0.3, 0.45) + nod;
@@ -202,7 +202,7 @@ export class Crew {
     // Face the action (the bobber) with the occasional curious head turn
     const want = Math.atan2(this.lookAt.x - CHULETA_POST.x, this.lookAt.z - CHULETA_POST.z);
     let d = want - m.root.rotation.y;
-    d = Math.atan2(Math.sin(d), Math.cos(d));
+    d = wrapAngle(d);
     m.root.rotation.y += d * Math.min(dt * 3, 1);
     this.chuletaLookTimer -= dt;
     if (this.chuletaLookTimer < 0) {

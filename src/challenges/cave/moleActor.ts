@@ -9,12 +9,13 @@ import { audio } from "../../audio/Audio";
 import { MOLE_CELLS, cellPos } from "./layout";
 import { goldenMushroom } from "./mechanisms";
 import { CaveWorld } from "./world";
+import { wait } from "../../core/wait";
+import { wrapAngle } from "../../world/ambient/spawn";
 
 /** Size and height of the mushrooms above Tadeo: over his head they can be seen from the steep camera. */
 const CARRY_SCALE = 0.72;
 const CARRY_HEIGHT = 1.8;
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const disposeModel = (model: THREE.Object3D) => model.traverse((o) => (o as THREE.Mesh).geometry?.dispose());
 
 export class MoleActor {
@@ -105,7 +106,7 @@ export class MoleActor {
     const target = this.atRock ? rock : player;
     const yaw = Math.atan2(target.x - root.position.x, target.z - root.position.z);
     let turn = yaw - root.rotation.y;
-    turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+    turn = wrapAngle(turn);
     root.rotation.y += turn * (1 - Math.exp(-dt * 8));
 
     const wish = w.wish.sprite;

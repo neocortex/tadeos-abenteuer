@@ -8,6 +8,7 @@ import { Humanoid, blobShadow } from "./Humanoid";
 import { createTadeo } from "./cast";
 import { Input } from "../core/Input";
 import { Colliders } from "../world/Colliders";
+import { wrapAngle } from "../world/ambient/spawn";
 
 /** What the player needs to know about the world it walks in. */
 export interface WalkableWorld {
@@ -79,7 +80,7 @@ export class Player {
     if (horizontal > 0.3) {
       const target = Math.atan2(this.velocity.x, this.velocity.z);
       let delta = target - this.facing;
-      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      delta = wrapAngle(delta);
       this.facing += delta * Math.min(dt * 12, 1);
     }
 

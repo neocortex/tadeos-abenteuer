@@ -249,11 +249,6 @@ export class Course {
     return p.y0 + (p.y1 - p.y0) * t - p.sag * 4 * t * (1 - t);
   }
 
-  pieceAt(s: number): Piece | null {
-    for (const p of this.pieces) if (s >= p.s0 && s <= p.s1) return p;
-    return null;
-  }
-
   /** Highest platform top under a foot span [s − hw, s + hw]; −Infinity over a gap. */
   support(s: number, hw: number): number {
     let best = -Infinity;

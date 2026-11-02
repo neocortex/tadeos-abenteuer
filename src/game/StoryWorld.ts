@@ -23,6 +23,7 @@ import { HedgeOpening } from "./hedgeOpening";
 import { Npc, Npcs, NpcId } from "./Npcs";
 import { OgreSpot, Sightings } from "./Sightings";
 import { audio } from "../audio/Audio";
+import { QUESTS, OGRE_QUEST, SEA_QUEST } from "../data/quests";
 
 /** Paco comes home to the village at this quest. */
 const VILLAGE_QUEST = 3;
@@ -34,10 +35,7 @@ const FOREST_QUEST = 6;
 const FOREST_OPEN_QUEST = 7;
 /** The village quest ends with the elder sending Tadeo to the ogre; the ogre lifts the boulder at the end of his own. */
 const VILLAGE_TRIALS_QUEST = 7;
-const OGRE_QUEST = 8;
 const TRAIL_OPEN_QUEST = 9;
-const SEA_QUEST = 10;
-const QUEST_COUNT = 12;
 
 const PACO: NpcId = "villager3";
 /** On the head of the north pier, with his back to the boat. */
@@ -55,7 +53,6 @@ const BEHIND_HEDGE_REPEAT = 30;
 
 export interface StoryWorldState {
   wreck: boolean;
-  pierBoat: boolean;
   dockBoat: boolean;
   boulder: boolean;
   hedge: boolean;
@@ -153,7 +150,7 @@ export class StoryWorld {
 
   /** The volcano feels a quest being won: the ground shakes and smoke goes up, nothing else stops. */
   rumble(finished: number): void {
-    const strength = THREE.MathUtils.clamp(finished / QUEST_COUNT, 0, 1);
+    const strength = THREE.MathUtils.clamp(finished / QUESTS.length, 0, 1);
     this.lastRumble = strength;
     this.rig.addShake(0.2 + 0.5 * strength);
     this.island.ambient.volcano.burst(strength);
@@ -208,7 +205,7 @@ export class StoryWorld {
     }
   }
 
-  update(dt: number, _time: number): void {
+  update(dt: number): void {
     this.boulder.prop.update(dt);
     this.hedge.prop.update(dt);
     this.hedgeOpening.update(dt);
@@ -235,7 +232,6 @@ export class StoryWorld {
     const atDock = Math.hypot(paco.position.x - PACO_DOCK[0], paco.position.z - PACO_DOCK[1]) < 1;
     return {
       wreck: landmarks.isBoatVisible("wreck"),
-      pierBoat: landmarks.isBoatVisible("spawn"),
       dockBoat: landmarks.isBoatVisible("north"),
       boulder: this.boulder.up,
       hedge: this.hedge.up,

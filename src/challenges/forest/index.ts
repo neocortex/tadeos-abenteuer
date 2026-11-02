@@ -22,8 +22,8 @@ import { Fox } from "./fox";
 import { BERRIES, FOX_START, MIN_X, MIN_Z, START, THORNS } from "./layout";
 import { BERRY_LINES, FOX_LINES, MEET_FOX, OUCH_LINES, WADE_LINE } from "./script";
 import { ForestWorld } from "./world";
+import { wait } from "../../core/wait";
 
-const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const PICK_RADIUS = 1.3;
 /** Seconds without finding a berry before the compass arrow helps out. */
 const HINT_AFTER = 25;

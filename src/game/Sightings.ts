@@ -16,10 +16,9 @@ import { LANDMARKS, P2 } from "../world/layout";
 import { Bubble } from "../ui/Hud";
 import { NarrationManager } from "../systems/NarrationManager";
 import { audio } from "../audio/Audio";
+import { OGRE_QUEST, SEA_QUEST } from "../data/quests";
+import { wrapAngle } from "../world/ambient/spawn";
 
-/** Milestone of the ogre quest and the sea crossing. */
-const OGRE_QUEST = 8;
-const SEA_QUEST = 10;
 /** Middle of the bridge deck, where the ogre blocks the way. */
 const GUARD: P2 = LANDMARKS.bridge;
 /** Open grass east of the mountain path, just past the bridge (in view when Tadeo comes back). */
@@ -145,7 +144,7 @@ export class Sightings {
     if (friendly && d < 9) {
       // Reason: the friendly ogre turns to look at Tadeo, like the villagers do
       const target = Math.atan2(player.x - pos.x, player.z - pos.z);
-      const delta = Math.atan2(Math.sin(target - o.root.rotation.y), Math.cos(target - o.root.rotation.y));
+      const delta = wrapAngle(target - o.root.rotation.y);
       o.root.rotation.y += delta * Math.min(dt * 3, 1);
     }
     o.update(dt);
@@ -177,7 +176,7 @@ export class Sightings {
     const o = this.ogre;
     const pos = o.root.position;
     const turn = (target: number, speed: number) => {
-      const delta = Math.atan2(Math.sin(target - o.root.rotation.y), Math.cos(target - o.root.rotation.y));
+      const delta = wrapAngle(target - o.root.rotation.y);
       o.root.rotation.y += delta * Math.min(dt * speed, 1);
       return Math.abs(delta);
     };

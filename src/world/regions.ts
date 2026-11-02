@@ -17,11 +17,23 @@ const ellipse = (x: number, z: number, cx: number, cz: number, rx: number, rz: n
   Math.hypot((x - cx) / rx, (z - cz) / rz);
 
 const islandDistance = (x: number, z: number): number => ellipse(x, z, ISLAND.cx, ISLAND.cz, ISLAND.rx, ISLAND.rz);
+const lobeMemo = { x: NaN, z: NaN, noise: null as Noise2D | null, d: new Float64Array(4) };
 /** Lobe distance with its own large-scale wobble, so the new coasts don't look like circles. */
 const lobeDistance = (x: number, z: number, r: RegionName, noise: Noise2D): number => {
-  const l = LOBES[r];
-  const seed = REGION_INDEX[r] * 37.3;
-  return ellipse(x, z, l.c[0], l.c[1], l.rx, l.rz) + noise.fbm(x * 0.022 + seed, z * 0.022 - seed, 3) * 0.2;
+  // Reason: each heightfield cell asks for the same four distances several times, and they cost 3 octaves of noise
+  if (x !== lobeMemo.x || z !== lobeMemo.z || noise !== lobeMemo.noise) {
+    lobeMemo.x = x;
+    lobeMemo.z = z;
+    lobeMemo.noise = noise;
+    lobeMemo.d.fill(NaN);
+  }
+  const i = REGION_INDEX[r];
+  if (Number.isNaN(lobeMemo.d[i])) {
+    const l = LOBES[r];
+    const seed = i * 37.3;
+    lobeMemo.d[i] = ellipse(x, z, l.c[0], l.c[1], l.rx, l.rz) + noise.fbm(x * 0.022 + seed, z * 0.022 - seed, 3) * 0.2;
+  }
+  return lobeMemo.d[i];
 };
 /**
  * 0 near a lobe's rim, 1 deep inside it.

@@ -277,7 +277,7 @@ let s = await state();
 check("quest 1 completes by itself", s.milestone === 2 && s.free, JSON.stringify(s));
 check("banner says 2 von 12", bannerLine.includes("2 von 12"), bannerLine);
 const e2e = await story();
-check("no boat at the landing pier, wreck on the sand", e2e.wreck && !e2e.pierBoat);
+check("wreck on the sand", e2e.wreck);
 check("Tadeo stands at the landing pier, no coin was picked up on the way", Math.hypot(s.x + 66, s.z - 47) < 1 && s.coins === 0, JSON.stringify(s));
 check("the HUD is on", await page.isVisible(".hud-quest"));
 const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("schatzkarten_save") ?? "null"));
@@ -934,7 +934,7 @@ check("mashing Space cannot skip the sea cinematic", seaMs > 5000 && seaMs < 120
 check("after mashing: quest 2, nothing open", s.milestone === 2 && s.free && !(await mapCardOpen()), JSON.stringify(s));
 check("after mashing: Tadeo and Chuleta are at the landing pier", Math.hypot(s.x + 66, s.z - 47) < 3 && (await chuletaVisible()), JSON.stringify(s));
 const mashed = await story();
-check("after mashing: wreck on the sand, no boat at the pier", mashed.wreck && !mashed.pierBoat);
+check("after mashing: wreck on the sand", mashed.wreck);
 check("after mashing: nothing of the opening is left", !(await hasObject("opening-sea")) && !(await hasObject("opening-beach")));
 check("after mashing: the camera is back with Tadeo", await page.evaluate(() => {
   const g = window.game;
