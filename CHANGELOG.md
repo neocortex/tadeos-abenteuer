@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Answer stones
+
+- The numbers on the elder's answer stones are sharp and easy to read instead of melting into their glow, and the chosen
+  one now really shines gold
+
 ### Menu
 
 - A faint ship's wheel in the corner opens a small menu, with a click or Esc. The world stands still while it is open

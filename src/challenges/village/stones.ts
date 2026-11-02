@@ -13,7 +13,9 @@ import { numberTexture, pointerTexture } from "./textures";
 import { Owned } from "../shared/dispose";
 
 const GOLD = new THREE.Color(3.2, 2.3, 0.9);
-const IDLE = new THREE.Color(1.25, 1.15, 0.95);
+// Reason: the digits stay just above the village's bloom threshold, so they glow without melting into their light
+const IDLE = new THREE.Color(1.0, 0.93, 0.78);
+const CHOSEN = new THREE.Color(1.7, 1.1, 0.22);
 const GREEN = new THREE.Color(0.8, 3.4, 1.1);
 const RED = new THREE.Color(3.6, 0.6, 0.5);
 
@@ -88,7 +90,7 @@ class Stone {
     this.ring.position.y = this.levelNow + 0.04;
     this.ringMat.opacity = this.selected && this.levelNow > -0.3 ? 0.55 + Math.sin(time * 6) * 0.25 : 0;
     this.ring.scale.setScalar(1 + Math.sin(time * 6) * 0.04);
-    const base = this.selected ? GOLD : IDLE;
+    const base = this.selected ? CHOSEN : IDLE;
     this.numberMat.color.copy(base).lerp(this.flashColor, Math.min(this.flash * 1.4, 1));
     this.group.visible = this.levelNow > -2.1;
   }

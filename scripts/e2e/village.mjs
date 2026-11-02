@@ -75,6 +75,53 @@ async function shotOnce(name, delay = 0) {
   await page.screenshot({ path: `${OUT}/${name}.png` });
 }
 
+/**
+ * How sharp the digit on each answer stone is: the steepest brightness steps between neighbouring pixels, as a share
+ * of the way from slate to digit. A blurred or over-glowing number only ever takes small steps.
+ */
+async function measureDigitSharpness() {
+  // Reason: the camera move and the stones' rise have to finish, or the crops miss the faces
+  await page.waitForTimeout(1800);
+  await page.screenshot({ path: `${OUT}/05-math-numbers.png` });
+  const boxes = await page.evaluate(() => {
+    const { stage, camera } = window.engine.scene;
+    return stage.stones.stones.map((stone) => {
+      const number = stone.inner.children[1];
+      const corners = [-0.42, 0.42].map((d) => {
+        const p = number.position.clone().set(d, -d, 0);
+        number.localToWorld(p).project(camera);
+        return { x: ((p.x + 1) / 2) * innerWidth, y: ((1 - p.y) / 2) * innerHeight };
+      });
+      return { x: corners[0].x, y: corners[0].y, width: corners[1].x - corners[0].x, height: corners[1].y - corners[0].y };
+    });
+  });
+  const sharpness = [];
+  for (const clip of boxes) {
+    const png = await page.screenshot({ clip });
+    sharpness.push(
+      await page.evaluate(async (base64) => {
+        const bitmap = await createImageBitmap(await (await fetch(`data:image/png;base64,${base64}`)).blob());
+        const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+        const g = canvas.getContext("2d");
+        g.drawImage(bitmap, 0, 0);
+        const { data, width } = g.getImageData(0, 0, bitmap.width, bitmap.height);
+        const light = [];
+        for (let i = 0; i < data.length; i += 4) light.push(0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]);
+        const sorted = [...light].sort((a, b) => a - b);
+        const slateToDigit = sorted[Math.floor(sorted.length * 0.98)] - sorted[Math.floor(sorted.length * 0.1)];
+        const steps = [];
+        for (let i = 0; i < light.length; i++) {
+          if ((i + 1) % width !== 0) steps.push(Math.abs(light[i + 1] - light[i]));
+          if (i + width < light.length) steps.push(Math.abs(light[i + width] - light[i]));
+        }
+        steps.sort((a, b) => a - b);
+        return Number((steps[Math.floor(steps.length * 0.99)] / slateToDigit).toFixed(3));
+      }, png.toString("base64")),
+    );
+  }
+  return sharpness;
+}
+
 /** Notes every dialogue line and every bubble read aloud, so a short line is never missed. */
 async function recordLines() {
   await page.evaluate(async () => {
@@ -109,6 +156,7 @@ const mistakes = { drum: false, math: false };
 let lastKey = "";
 let result = null;
 let entered = false;
+let digitSharpness = null;
 
 while (Date.now() - started < TIMEOUT_MS) {
   const st = await read();
@@ -180,6 +228,7 @@ while (Date.now() - started < TIMEOUT_MS) {
     }
     case "math": {
       await shotOnce("05-math", 500);
+      digitSharpness ??= await measureDigitSharpness();
       // First answer wrong on purpose (a new question follows), then the right one
       const target = mistakes.math ? st.correct : [0, 1, 2].find((i) => i !== st.correct);
       if (st.selected !== target) {
@@ -212,6 +261,9 @@ if (result) {
   await page.screenshot({ path: `${OUT}/08-back-on-island.png` });
 }
 const inventory = await page.evaluate(() => JSON.parse(localStorage.getItem("schatzkarten_save") ?? "null"));
+
+// Reason: at this window size numbers blurred into their glow score about 0.1, and sharp ones from about 0.16
+check("the numbers on the stones have sharp edges", digitSharpness?.every((s) => s >= 0.13), JSON.stringify(digitSharpness));
 
 // ── What was said ─────────────────────────────────────────────
 

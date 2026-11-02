@@ -67,19 +67,16 @@ export function keycapTexture(glyph: string, color: string): THREE.CanvasTexture
   });
 }
 
-/** A number carved in light: white core, soft halo (multiplied by the material colour for bloom). */
+/** A number carved in light: hard-edged white digit over a faint halo (multiplied by the material colour). */
 export function numberTexture(n: number): THREE.CanvasTexture {
-  return canvasTexture(256, (g, s) => {
+  return canvasTexture(512, (g, s) => {
     g.textAlign = "center";
     g.textBaseline = "middle";
-    const size = n >= 10 ? s * 0.62 : s * 0.78;
+    const size = n >= 10 ? s * 0.68 : s * 0.84;
     g.font = `600 ${size}px ${FONT}`;
-    g.shadowColor = "rgba(255, 255, 255, 0.9)";
-    g.shadowBlur = s * 0.08;
-    g.lineJoin = "round";
-    g.lineWidth = s * 0.05;
-    g.strokeStyle = "rgba(255,255,255,0.6)";
-    g.strokeText(String(n), s / 2, s * 0.54);
+    // Reason: the material colour brightens the halo too, so a stronger one fills the holes of the digits
+    g.shadowColor = "rgba(255, 255, 255, 0.3)";
+    g.shadowBlur = s * 0.05;
     g.fillStyle = "#ffffff";
     g.fillText(String(n), s / 2, s * 0.54);
   });
