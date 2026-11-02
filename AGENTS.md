@@ -29,10 +29,16 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
 - The island is the old ellipse plus four region lobes (lagoon, jungle, swamp, hills); `world/regions.ts`
   owns the lobes and their terrain, and `hf.regionAt(x, z, REGION_INDEX.<name>)` says where a region is.
   Landmarks sit at their `SPOTS` entry in `world/layout.ts`, which also feeds the vegetation keep-outs.
-- `game/Game.ts` is the adventure flow on the island (title, intro, objectives, NPC talks, coins,
-  launching challenges, rewards, saving). Keep it under ~550 lines: put new features in their own
-  module in `game/` (see `Sightings.ts`, `sideGames.ts`, `Wardrobe.ts`, `lake.ts`, `hedgeOpening.ts`,
-  `boulderLift.ts`, `TurtleFamily.ts`).
+- `game/Game.ts` is the frame loop on the island: controls, prompts, NPC chats, the title screen and side games. Keep
+  it under ~550 lines: put new features in their own module in `game/` (see `Sightings.ts`, `sideGames.ts`,
+  `Wardrobe.ts`, `lake.ts`, `hedgeOpening.ts`, `boulderLift.ts`, `TurtleFamily.ts`).
+- `data/quests.ts` is the quest table, data only: name, hint, reward, kind of goal and gate. A quest's number is its
+  place in the list, which saves keep and `?quest=N` asks for; code names quests through `QUEST.forest`, never a number.
+- `game/QuestFlow.ts` is how a quest is reached, played and completed: the three starts (`beginAdventure`, `resume`,
+  `jumpTo`) share one arrival step, and it knows what each kind of goal asks for. Adding a quest: a row in the table, its
+  challenge folder, a story point in `data/jumps.ts`, and `scripts/e2e/questTable.mjs` says what is missing.
+- `game/IslandDirector.ts` is what island scenes share: `talk(script, framing)`, remarks, placing Tadeo, cinematics,
+  shots and screen positions. Scenes take the director, not the camera rig or callbacks from `Game`.
 - `game/StoryWorld.ts` makes the island follow the story. `apply(milestone)` sets what stands where (the thorn hedge,
   the mountain boulder, Tadeo's wreck or his mended boat, Paco's and the ogre's places), `rumble(finished)` shakes the
   volcano a bit harder after every quest, and `beforeQuest` / `afterQuest` hold the island scenes around a challenge.
@@ -76,6 +82,10 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   until the next frame begins, so code resuming after an `await` still sees them.
 - Instanced meshes spread over the whole island need `frustumCulled = false`.
 - In the browser console use `window.game` only after `main.ts` ran (`<div id="game">` shadows it before).
+- **E2E tests use `window.probe`** (`game/GameProbe.ts`), not private members of `Game`, for what the probe covers. Add
+  to the probe when a test needs more. New tests start from `scripts/e2e/lib/harness.mjs`; move a helper there once
+  two converted tests need the same version of it.
+- The domain's words are in `GLOSSARY.md`.
 
 ## Shader pitfalls
 

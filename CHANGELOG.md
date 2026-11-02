@@ -4,6 +4,12 @@
 
 ### Under the hood
 
+- One table holds every quest, and one place decides how a quest is reached, played and completed, whether the game
+  started from the title, a save or a jump. The player sees no difference
+- Island scenes share one director for talks, remarks and the camera, instead of a list of helpers each
+- E2E tests go through a small typed probe and a shared harness, and a new test checks the quest table against the
+  challenges and the menu
+- `?challenge=festival` plays the festival and the end card instead of crashing
 - The island builds about a quarter faster at startup, with exactly the same terrain
 - Less waste every frame: key presses, sparks, coin sparkles, collision lookups, the boat's wake and the status bar
 - Removed code nothing used, and replaced local copies of small helpers with one shared version
