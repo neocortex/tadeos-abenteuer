@@ -295,9 +295,10 @@ async function sceneFraming(spots) {
     };
     requestAnimationFrame(tick);
     // Reason: this measures the camera in the opening, so the hedge talks, which wait for a key, are left out
-    const talk = g.story.talk;
-    g.story.talk = async () => {};
-    const done = g.story.beforeQuest(6).finally(() => (g.story.talk = talk));
+    const { director } = g;
+    const talk = director.talk;
+    director.talk = async () => {};
+    const done = g.story.beforeQuest(6).finally(() => (director.talk = talk));
     const samples = [];
     for (const wait of [1300, 1700]) {
       await new Promise((r) => setTimeout(r, wait));

@@ -8,19 +8,17 @@
  */
 
 import * as THREE from "three";
-import { CameraRig } from "../core/CameraRig";
 import { Circle, Colliders } from "../world/Colliders";
 import { Island } from "../world/Island";
 import { LANDMARKS, P2, SPOTS } from "../world/layout";
 import { Site } from "../world/models/site";
 import { faceDir } from "../world/models/shapes";
 import { HedgeProp, StoryProp, mountainBoulder, standProp, thornHedge } from "../world/models/storyProps";
-import { Player } from "../characters/Player";
-import { DialogueScript } from "../data/dialogues";
 import { BoulderLift, LiftPhase } from "./boulderLift";
 import { CHULETA_BEHIND_HEDGE } from "./chuletaLines";
 import { HedgeOpening } from "./hedgeOpening";
-import { Npc, Npcs, NpcId } from "./Npcs";
+import { IslandDirector } from "./IslandDirector";
+import { Npcs, NpcId } from "./Npcs";
 import { OgreSpot, Sightings } from "./Sightings";
 import { audio } from "../audio/Audio";
 import { QUEST, QUESTS } from "../data/quests";
@@ -96,16 +94,15 @@ export class StoryWorld {
   private lastRumble = 0;
   private hedgeRemarkIn = 0;
 
+  private island: Island;
+
   constructor(
-    private island: Island,
-    private rig: CameraRig,
-    private player: Player,
+    private director: IslandDirector,
     private npcs: Npcs,
     private sightings: Sightings,
-    private talk: (script: string | DialogueScript, npc?: Npc) => Promise<void>,
-    private chuletaSay: (text: string) => void,
   ) {
-    const { hf, colliders, landmarks } = island;
+    this.island = director.island.island;
+    const { hf, colliders, landmarks } = this.island;
     const ground = (x: number, z: number) => hf.heightAt(x, z);
     this.boulder = new Barrier(mountainBoulder(), colliders, SPOTS.trailBoulder[0], SPOTS.trailBoulder[1], 0, ground);
     const [gx, gz] = LANDMARKS.forestGate;
@@ -113,8 +110,8 @@ export class StoryWorld {
     const [hx, hz] = Site.local(gx, gz, rot, 0, HEDGE_BEHIND_GATE);
     this.hedge = new Barrier(thornHedge(), colliders, hx, hz, rot, ground);
     this.group.add(this.boulder.prop.group, this.hedge.prop.group);
-    this.hedgeOpening = new HedgeOpening({ scene: island.scene, rig, player, hedge: this.hedge, ground });
-    this.boulderLift = new BoulderLift({ scene: island.scene, rig, player, sightings, boulder: this.boulder, ground, talk });
+    this.hedgeOpening = new HedgeOpening({ director, hedge: this.hedge, ground });
+    this.boulderLift = new BoulderLift({ director, sightings, boulder: this.boulder, ground });
     // Reason: all rocks, thorns and the wreck are up while Game places the coins, so no coin lands inside them; `apply` then sets the real state
     landmarks.setBoatVisible("wreck", true);
     const paco = npcs.get(PACO);
@@ -142,7 +139,7 @@ export class StoryWorld {
   rumble(finished: number): void {
     const strength = THREE.MathUtils.clamp(finished / QUESTS.length, 0, 1);
     this.lastRumble = strength;
-    this.rig.addShake(0.2 + 0.5 * strength);
+    this.director.shake(0.2 + 0.5 * strength);
     this.island.ambient.volcano.burst(strength);
     // Reason: a groan from under the ground, louder with every quest won
     audio.playSfx("sfx_rumble", 0.5 + 0.5 * strength);
@@ -161,20 +158,17 @@ export class StoryWorld {
         // Reason: a reload in the forest brings the hedge back, so the sword opens it again
         if (this.hedge.up) {
           this.hedgeOpening.faceTheHedge();
-          await this.talk("forest_hedge");
+          await this.director.talk("forest_hedge");
           // Reason: the follow camera would show Tadeo from the forest side, so the opening's last shot stays on the open gate for this talk
           await this.hedgeOpening.play(true);
-          await this.talk("forest_hedge_open");
+          await this.director.talk("forest_hedge_open");
           this.hedgeOpening.release();
         }
         return;
-      case QUEST.sea: {
-        const talking = this.talk("sea_dock", this.npcs.get(PACO));
+      case QUEST.sea:
         // Reason: a talk frames the two speakers from the side, and here that puts the camera behind the sail
-        this.rig.setShot(DOCK_TALK_SHOT, 0.9);
-        await talking;
+        await this.director.talk("sea_dock", { with: this.npcs.get(PACO), shot: DOCK_TALK_SHOT });
         return;
-      }
       default:
         return;
     }
@@ -184,7 +178,7 @@ export class StoryWorld {
   async afterQuest(m: number): Promise<void> {
     switch (m) {
       case QUEST.village:
-        await this.talk("village_after", this.npcs.get("elder"));
+        await this.director.talk("village_after", { with: this.npcs.get("elder") });
         return;
       case QUEST.ogre:
         // Reason: a reload after the fight brings the boulder back, and the ogre lifts it again after the next fight
@@ -201,8 +195,9 @@ export class StoryWorld {
     this.hedgeOpening.update(dt);
     this.boulderLift.update(dt);
     this.hedgeRemarkIn -= dt;
-    if (this.hedgeRemarkIn <= 0 && this.behindHedge(this.player.position.x, this.player.position.z)) {
-      this.chuletaSay(CHULETA_BEHIND_HEDGE);
+    const p = this.director.island.player.position;
+    if (this.hedgeRemarkIn <= 0 && this.behindHedge(p.x, p.z)) {
+      this.director.chuletaSay(CHULETA_BEHIND_HEDGE);
       this.hedgeRemarkIn = BEHIND_HEDGE_REPEAT;
     }
   }

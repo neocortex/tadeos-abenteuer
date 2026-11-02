@@ -64,7 +64,8 @@ async function measureStands({ ids, radii, angles }) {
   const three = performance.getEntriesByType("resource").map((e) => e.name).find((n) => /deps\/three\.js/.test(n));
   const THREE = await import(three);
   const { talkShot } = await import("/src/game/talkShot.ts");
-  const { island, npcs, engine, chuleta } = window.game;
+  const { island, npcs, engine, director } = window.game;
+  const { chuleta } = director;
   const { hf, colliders, landmarks } = island.island;
   const { renderer } = engine;
   const player = island.player;

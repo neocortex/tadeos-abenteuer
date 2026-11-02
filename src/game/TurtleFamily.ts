@@ -13,9 +13,8 @@ import { henVoice } from "../audio/henVoice";
 import { Bursts } from "../challenges/shared/bursts";
 import { OutfitId } from "../characters/hats";
 import { DialogueScript } from "../data/dialogues";
-import { IslandScene } from "../scenes/IslandScene";
+import { IslandDirector } from "./IslandDirector";
 import { NarrationManager } from "../systems/NarrationManager";
-import { GameUI } from "../ui/GameUI";
 import { Bubble } from "../ui/Hud";
 import { CritterMesh } from "../world/ambient/CritterMesh";
 import { TURTLE_ANIM } from "../world/ambient/critterAnims";
@@ -119,12 +118,9 @@ interface Baby {
 }
 
 interface TurtleFamilyDeps {
-  island: IslandScene;
-  ui: GameUI;
+  director: IslandDirector;
   wardrobe: Wardrobe;
   coins: Coins;
-  talk(script: DialogueScript): Promise<void>;
-  chuletaSay(text: string): void;
 }
 
 export class TurtleFamily {
@@ -152,7 +148,7 @@ export class TurtleFamily {
   private tmp = new THREE.Vector3();
 
   constructor(private d: TurtleFamilyDeps) {
-    const { island } = d;
+    const { island } = d.director;
     // Reason: plain blending, not additive: added light disappears on the bright white sand
     const glintMat = new THREE.SpriteMaterial({ map: glowTexture(), color: "#ffc21f", opacity: 0.95, depthWrite: false, fog: false });
     this.babies = LOST_AT.map(() => ({
@@ -173,7 +169,7 @@ export class TurtleFamily {
     }));
     this.group.add(this.babyMesh.mesh, this.mumMesh.mesh, this.sparks.mesh, ...this.babies.map((b) => b.glint));
     island.scene.add(this.group);
-    this.bubble = new Bubble(d.ui.layer);
+    this.bubble = new Bubble(d.director.ui.layer);
     this.mum.set(MUM[0], island.player.world.groundHeight(MUM[0], MUM[1]), MUM[1]);
     island.island.colliders.add(MUM[0], MUM[1], MUM_RADIUS);
     this.won = d.wardrobe.hasPrize(PRIZE);
@@ -192,7 +188,7 @@ export class TurtleFamily {
 
   /** The talk Tadeo can start beside Frau Moos, shaped like one of the game's objectives. */
   offer(): { at: P2; radius: number; verb: string; run(): Promise<void> } | null {
-    const p = this.d.island.player.position;
+    const p = this.d.director.island.player.position;
     if (this.finishing || Math.hypot(p.x - MUM[0], p.z - MUM[1]) > TALK_RANGE) return null;
     return { at: MUM, radius: TALK_RANGE, verb: "Sprechen", run: () => this.chat() };
   }
@@ -202,7 +198,8 @@ export class TurtleFamily {
    * @returns A scene that wants to run now, if any.
    */
   update(dt: number, free: boolean): (() => Promise<void>) | null {
-    const { wardrobe, ui, island } = this.d;
+    const { wardrobe, director } = this.d;
+    const { ui, island } = director;
     // Reason: the prize is the only thing saved, and a new adventure forgets it, so the babies go back to the beach
     const won = wardrobe.hasPrize(PRIZE);
     if (won !== this.won) {
@@ -221,7 +218,7 @@ export class TurtleFamily {
     this.babyMesh.commit();
     this.updateMum(dt, p);
     this.sparks.update(dt);
-    if (this.bubble.speaking) this.bubble.place(this.onScreen(this.tmp.copy(this.mum).setY(this.mum.y + 2.4)));
+    if (this.bubble.speaking) this.bubble.place(this.d.director.onScreen(this.mum.x, this.mum.y + 2.4, this.mum.z));
     else this.bubble.place(null);
 
     const near = Math.hypot(p.x - MUM[0], p.z - MUM[1]);
@@ -292,8 +289,8 @@ export class TurtleFamily {
     henVoice.peep();
     audio.playSfx("sfx_berry_collect", 0.6, 1.6);
     this.sparks.emit(this.tmp.set(b.x, this.ground(b.x, b.z) + 0.4, b.z), { count: 18, color: "#fff0a8", speed: [1, 2.6], up: 2, life: [0.4, 0.8], size: [0.16, 0.3], gravity: 6 });
-    if (this.found === LOST_AT.length) this.d.chuletaSay(LAST_BABY);
-    else if (this.found === 1 && !this.asked) this.d.chuletaSay(WHERE_IS_MUM);
+    if (this.found === LOST_AT.length) this.d.director.chuletaSay(LAST_BABY);
+    else if (this.found === 1 && !this.asked) this.d.director.chuletaSay(WHERE_IS_MUM);
   }
 
   /** Walk to this baby's place on Tadeo's trail, so the line follows his way round every palm and crate. */
@@ -321,7 +318,7 @@ export class TurtleFamily {
     const step = Math.min(SCUTTLE_SPEED * dt, d);
     // Reason: past their mother, not through her
     this.tmp.set(b.x + (dx / d) * step, 0, b.z + (dz / d) * step);
-    this.d.island.island.colliders.resolve(this.tmp, 0.2);
+    this.d.director.island.island.colliders.resolve(this.tmp, 0.2);
     this.moveTo(b, this.tmp.x, this.tmp.z, dt);
   }
 
@@ -403,7 +400,8 @@ export class TurtleFamily {
 
   /** A conversation with Frau Moos: she is too big and too low for the villagers' framing. */
   private async converse(script: DialogueScript): Promise<void> {
-    const { player, rig } = this.d.island;
+    const { director } = this.d;
+    const { player } = director.island;
     const p = player.position;
     player.facing = yawTo(p.x, p.z, this.mum.x, this.mum.z);
     const mid = p.clone().lerp(this.mum, 0.5);
@@ -412,20 +410,15 @@ export class TurtleFamily {
     // Reason: from the land side, so the water and the swimming babies are behind the two of them
     if (side.x * (POOL[0] - mid.x) + side.z * (POOL[1] - mid.z) > 0) side.negate();
     // Reason: high and looking low, because her head is near the sand and the dialogue box covers the bottom of the screen
-    rig.setShot({ pos: mid.clone().addScaledVector(side, 7.5).add(new THREE.Vector3(0, 3.4, 0)), look: mid.add(new THREE.Vector3(0, 0.3, 0)) }, 0.9);
+    director.shot({ pos: mid.clone().addScaledVector(side, 7.5).add(new THREE.Vector3(0, 3.4, 0)), look: mid.add(new THREE.Vector3(0, 0.3, 0)) }, 0.9);
     this.mumTalking = true;
-    await this.d.talk(script);
+    await director.talk(script);
     this.mumTalking = false;
-    rig.setShot(null, 0.9);
+    director.shot(null, 0.9);
   }
 
   private ground(x: number, z: number): number {
-    return this.d.island.player.world.groundHeight(x, z);
+    return this.d.director.island.player.world.groundHeight(x, z);
   }
 
-  /** Screen pixels of a world point, or null behind the camera. */
-  private onScreen(v: THREE.Vector3): { x: number; y: number } | null {
-    v.project(this.d.island.camera);
-    return v.z > 1 ? null : { x: (v.x * 0.5 + 0.5) * window.innerWidth, y: (-v.y * 0.5 + 0.5) * window.innerHeight };
-  }
 }

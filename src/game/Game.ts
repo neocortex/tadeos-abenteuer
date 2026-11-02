@@ -6,15 +6,13 @@
 
 import * as THREE from "three";
 import { Engine } from "../core/Engine";
-import { Shot } from "../core/CameraRig";
 import { IslandScene } from "../scenes/IslandScene";
 import { GameUI } from "../ui/GameUI";
-import { Bubble } from "../ui/Hud";
 import { Beacon } from "./Beacon";
+import { IslandDirector } from "./IslandDirector";
 import { GameProbe } from "./GameProbe";
 import { Npcs, Npc } from "./Npcs";
 import { Title } from "./Title";
-import { Chuleta } from "../characters/Chuleta";
 import { CHULETA_CHEERS } from "./chuletaLines";
 import { Coins } from "./Coins";
 import { Wardrobe } from "./Wardrobe";
@@ -24,7 +22,6 @@ import { StoryWorld } from "./StoryWorld";
 import { TurtleFamily } from "./TurtleFamily";
 import { Lake } from "./lake";
 import { IslandSounds } from "./IslandSounds";
-import { talkShot } from "./talkShot";
 import { playOpening } from "./opening";
 import { playEnding } from "./ending";
 import { showMapCard } from "../ui/MapCard";
@@ -34,7 +31,6 @@ import { InventoryManager } from "../systems/InventoryManager";
 import { SaveManager } from "../systems/SaveManager";
 import { NarrationManager } from "../systems/NarrationManager";
 import { QUEST, QUESTS, gateOf } from "../data/quests";
-import { DialogueScript } from "../data/dialogues";
 import { LANDMARKS, VILLAGE, P2 } from "../world/layout";
 import { loadChallenge } from "../challenges/registry";
 import { ChallengeName } from "../challenges/types";
@@ -59,9 +55,7 @@ export class Game {
   private island = new IslandScene();
   private beacon = new Beacon();
   private npcs: Npcs;
-  private bubble: Bubble;
-  private chuleta: Chuleta;
-  private chuletaBubble: Bubble;
+  private director: IslandDirector;
   private hintTimer = 0;
   private coins: Coins;
   private wardrobe: Wardrobe;
@@ -73,8 +67,6 @@ export class Game {
   /** True while a cutscene, conversation or challenge owns the controls. */
   private busy = true;
   private title: Title | null = null;
-  private cinematic: ((t: number) => Shot) | null = null;
-  private cinematicTime = 0;
   private remarkCooldown = 0;
   private islandSounds: IslandSounds;
   /** The places of later quests Tadeo has already remarked on during this quest. */
@@ -88,21 +80,18 @@ export class Game {
     const walkHeight = (x: number, z: number) => landmarks.surfaceHeight(x, z) ?? hf.heightAt(x, z);
     this.islandSounds = new IslandSounds(hf);
     this.npcs = new Npcs(walkHeight, colliders);
-    this.chuleta = new Chuleta(this.island.player);
-    this.chuleta.snap();
-    this.island.scene.add(this.npcs.group, this.beacon.group, this.chuleta.root);
-    this.bubble = new Bubble(this.ui.layer);
-    this.chuletaBubble = new Bubble(this.ui.layer);
+    this.island.scene.add(this.npcs.group, this.beacon.group);
     this.sightings = new Sightings(walkHeight, colliders, this.ui.layer);
-    this.story = new StoryWorld(this.island.island, this.island.rig, this.island.player, this.npcs, this.sightings, (script, npc) => this.talk(script, npc), (text) => this.chuletaSay(text));
+    this.director = new IslandDirector(this.island, this.ui, this.sightings);
+    this.story = new StoryWorld(this.director, this.npcs, this.sightings);
     this.island.scene.add(this.sightings.group, this.story.group);
-    this.lake = new Lake({ island: this.island, ui: this.ui, input: engine.input, talk: (script) => this.talk(script) });
+    this.lake = new Lake({ director: this.director, input: engine.input });
     // Reason: coins come after the NPCs so none lands inside a villager, and after the story's rocks and thorns for the same reason
     this.coins = new Coins(hf, colliders);
     this.island.scene.add(this.coins.group);
-    this.wardrobe = new Wardrobe(this.island.player.avatar, this.chuleta, this.ui, (t) => this.chuletaSay(t));
+    this.wardrobe = new Wardrobe(this.island.player.avatar, this.director.chuleta, this.ui, (t) => this.director.chuletaSay(t));
     this.wardrobe.dress(this.coins.collected);
-    this.family = new TurtleFamily({ island: this.island, ui: this.ui, wardrobe: this.wardrobe, coins: this.coins, talk: (script) => this.talk(script), chuletaSay: (t) => this.chuletaSay(t) });
+    this.family = new TurtleFamily({ director: this.director, wardrobe: this.wardrobe, coins: this.coins });
     this.story.apply(this.quest.currentMilestone);
     engine.onFrame = (dt, time) => this.frame(dt, time);
   }
@@ -167,16 +156,10 @@ export class Game {
 
     const player = this.island.player;
     this.npcs.update(dt, player.position);
-    this.sightings.update(dt, player.position, this.quest.currentMilestone, (v) => {
-      const s = this.project(v.x, v.y, v.z);
-      return s.behind ? null : this.pixels(s);
-    });
+    this.sightings.update(dt, player.position, this.quest.currentMilestone, (v) => this.director.onScreen(v.x, v.y, v.z));
     this.story.update(dt);
     this.lake.update(dt, time);
-    if (this.cinematic) {
-      this.cinematicTime += dt;
-      this.island.rig.jumpToShot(this.cinematic(this.cinematicTime));
-    }
+    this.director.update(dt);
 
     const free = this.free;
     player.controlsEnabled = free;
@@ -187,7 +170,7 @@ export class Game {
     if (main) this.tmp.set(main.at[0], this.groundAt(main.at), main.at[1]);
     this.beacon.set(main ? this.tmp : null);
     this.beacon.update(dt, time, main ? this.distance(main.at) : 99, this.island.camera);
-    this.ui.hud.updateCompass(main ? this.project(this.tmp.x, this.tmp.y, this.tmp.z) : null);
+    this.ui.hud.updateCompass(main ? this.director.project(this.tmp.x, this.tmp.y, this.tmp.z) : null);
 
     // Interaction prompt: quest objectives first, then casual chats
     const near = objectives.find((o) => this.distance(o.at) < o.radius) ?? (free ? this.family.offer() : null);
@@ -198,7 +181,7 @@ export class Game {
     } else if (npc) {
       const side = SIDE_GAMES.find((s) => s.host === npc.id);
       this.showPrompt([npc.position.x, npc.position.z], side?.verb ?? "Sprechen");
-      if (input.consume("Space")) void this.run(() => (side ? this.playSideGame(side, npc) : this.talk(this.npcs.nextChat(npc), npc)));
+      if (input.consume("Space")) void this.run(() => (side ? this.playSideGame(side, npc) : this.director.talk(this.npcs.nextChat(npc), { with: npc })));
     } else {
       this.ui.prompt.show(null);
     }
@@ -208,21 +191,15 @@ export class Game {
 
     this.remarkCooldown -= dt;
     if (free) this.remarkAtFutureGates(objectives);
-    const head = this.project(player.position.x, player.position.y + 2.3, player.position.z);
-    this.bubble.place(head.behind ? null : this.pixels(head));
+    this.director.followCompanions(dt);
 
     if (this.coins.update(dt, time, player.position)) this.wardrobe.onCoins(this.coins.collected);
 
-    // Chuleta comes along; she offers a hint when nothing has happened for a while
-    this.chuleta.update(dt);
-    this.chuleta.talking = this.chuletaBubble.speaking;
-    const hp = this.chuleta.position;
-    const beak = this.project(hp.x, hp.y + 0.75, hp.z);
-    this.chuletaBubble.place(beak.behind ? null : this.pixels(beak));
+    // Chuleta offers a hint when nothing has happened for a while
     this.hintTimer = free ? this.hintTimer + dt : 0;
     const hinted = this.quest.currentQuest;
     if (this.hintTimer > HINT_AFTER && hinted.goal.kind !== "opening") {
-      this.chuletaSay(hinted.hint);
+      this.director.chuletaSay(hinted.hint);
       this.hintTimer = -HINT_AFTER;
     }
 
@@ -248,7 +225,7 @@ export class Game {
         return game.busy;
       },
       goals: () => this.objectives(),
-      place: (x, z, facing) => this.placePlayer(x, z, facing),
+      place: (x, z, facing) => this.director.place(x, z, facing),
       advance: () => this.advance(),
       playQuest: (m) => this.run(() => this.playChallenge(m)),
       holdControls: (hold) => {
@@ -256,11 +233,11 @@ export class Game {
       },
       save: (at) => this.saveAt(at),
       get chuleta() {
-        return { position: game.chuleta.position, visible: game.chuleta.root.visible, line: game.chuletaBubble.line };
+        const { chuleta, chuletaLine } = game.director;
+        return { position: chuleta.position, visible: chuleta.root.visible, line: chuletaLine };
       },
       get cinematic() {
-        const shotAt = game.cinematic;
-        return shotAt && { time: game.cinematicTime, shotAt };
+        return game.director.runningCinematic;
       },
     };
   }
@@ -307,10 +284,10 @@ export class Game {
   /** The legend of the Feuerherz; Tadeo's map shows where the heart is. */
   private async meetElder(): Promise<void> {
     const elder = this.npcs.get("elder");
-    await this.talk("elder_legend", elder, this.npcs.get("villager3"));
+    await this.director.talk("elder_legend", { with: elder, also: this.npcs.get("villager3") });
     // Reason: the card closes on Space, which the island leaves alone while controls are off
     await showMapCard(this.ui.layer, this.engine.input);
-    await this.talk("elder_after_map", elder, this.npcs.get("villager3"));
+    await this.director.talk("elder_after_map", { with: elder, also: this.npcs.get("villager3") });
     await this.advance();
   }
 
@@ -320,7 +297,7 @@ export class Game {
   }
 
   private async villageElder(): Promise<void> {
-    await this.talk("village_enter", this.npcs.get("elder"), this.npcs.get("villager3"));
+    await this.director.talk("village_enter", { with: this.npcs.get("elder"), also: this.npcs.get("villager3") });
     await this.playChallenge(QUEST.village);
   }
 
@@ -339,8 +316,7 @@ export class Game {
     const place = later.find((at) => this.distance(at) < 4.5 && !this.remarked.has(at));
     if (place) {
       const text = `Hier komme ich später wieder hin. Zuerst: ${this.quest.currentQuest.name}!`;
-      this.bubble.say(text, 3800);
-      NarrationManager.getInstance().speakLine(text, "Tadeo");
+      this.director.tadeoSay(text);
       this.remarked.add(place);
       this.remarkCooldown = 12;
     }
@@ -350,7 +326,7 @@ export class Game {
 
   private async titleScreen(): Promise<void> {
     this.ui.hud.setVisible(false);
-    this.startCinematic((t) => {
+    this.director.startCinematic((t) => {
       // Reason: the clouds are seeded, so this start is clear of them on every load (scripts/e2e/title.mjs measures it)
       const a = 0.2 + t * 0.045;
       return {
@@ -371,8 +347,8 @@ export class Game {
     const data = choice === "continue" ? save.load() : null;
     if (data) {
       this.story.apply(this.quest.currentMilestone);
-      this.placePlayer(data.playerX, data.playerY);
-      this.endCinematic(0.01);
+      this.director.place(data.playerX, data.playerY);
+      this.director.endCinematic(0.01);
       this.ui.hud.refresh();
       this.ui.hud.setVisible(true);
       this.islandAudio();
@@ -391,16 +367,7 @@ export class Game {
     }
     this.wardrobe.dress(this.coins.collected);
     this.ui.hud.refresh();
-    await playOpening({
-      engine: this.engine,
-      ui: this.ui,
-      island: this.island,
-      talk: (script) => this.talk(script),
-      startCinematic: (fn) => this.startCinematic(fn),
-      endCinematic: (seconds) => this.endCinematic(seconds),
-      placePlayer: (x, z, facing) => this.placePlayer(x, z, facing),
-      chuleta: this.chuleta,
-    });
+    await playOpening({ engine: this.engine, director: this.director });
     this.ui.hud.setVisible(true);
     await this.advance();
     this.busy = false;
@@ -438,7 +405,7 @@ export class Game {
   /** A villager's side game: invitation, the game itself, then the prize hat on the first win. */
   private async playSideGame(side: SideGame, npc?: Npc): Promise<void> {
     const won = this.wardrobe.hasPrize(side.prize);
-    if (npc) await this.talk(won ? side.again : side.invite, npc);
+    if (npc) await this.director.talk(won ? side.again : side.invite, { with: npc });
     await this.enterChallenge(side.challenge);
     const host = this.npcs.get(side.host).position;
     await this.backToIsland(side.back, Math.atan2(host.x - side.back[0], host.z - side.back[1]));
@@ -451,7 +418,7 @@ export class Game {
     this.ui.hud.setVisible(false);
     this.ui.prompt.show(null);
     this.ui.hud.updateCompass(null);
-    this.bubble.place(null);
+    this.director.hideTadeoRemark();
     audio.setAmbience(false);
     const challenge = factory({ engine: this.engine, ui: this.ui });
     await this.engine.setScene(challenge, 700);
@@ -460,8 +427,8 @@ export class Game {
   }
 
   private async backToIsland(at: P2, facing?: number): Promise<void> {
-    this.placePlayer(at[0], at[1], facing);
-    this.endCinematic(0.01);
+    this.director.place(at[0], at[1], facing);
+    this.director.endCinematic(0.01);
     await this.engine.setScene(this.island, 700);
     this.islandAudio();
     this.ui.hud.setVisible(true);
@@ -480,12 +447,7 @@ export class Game {
     this.hintTimer = 0;
     audio.playSfx("sfx_victory_fanfare", 0.6);
     await this.ui.hud.showBanner(`Neue Aufgabe · ${this.quest.currentMilestone} von ${QUESTS.length}`, this.quest.currentQuest.name);
-    if (CHULETA_CHEERS[finished]) this.chuletaSay(CHULETA_CHEERS[finished]);
-  }
-
-  private chuletaSay(text: string): void {
-    this.chuletaBubble.say(text, 4800);
-    NarrationManager.getInstance().speakLine(text, "Chuleta");
+    if (CHULETA_CHEERS[finished]) this.director.chuletaSay(CHULETA_CHEERS[finished]);
   }
 
   /** The last quest: up the volcano with the heart, then the festival, then the end card. */
@@ -496,31 +458,6 @@ export class Game {
   }
 
   // ── Helpers ───────────────────────────────────────────────
-
-  /** Play a conversation; with an NPC the camera frames both of them, and with `also` a third person too. */
-  private async talk(script: string | DialogueScript, npc?: Npc, also?: Npc): Promise<void> {
-    const rig = this.island.rig;
-    const p = this.island.player;
-    if (npc) {
-      p.facing = Math.atan2(npc.position.x - p.position.x, npc.position.z - p.position.z);
-      rig.setShot(talkShot(p.position, npc.position, this.island.island.colliders, also?.position), 0.9);
-    }
-    rig.setZoom(0.62);
-    this.ui.dialogue.onLine = (speaker) => {
-      this.sightings.speaking = speaker === "Oger";
-      p.avatar.pose = speaker === "Tadeo" ? "talk" : "normal";
-      if (npc) npc.avatar.pose = speaker === npc.speaker ? "talk" : "normal";
-    };
-    await this.ui.say(script);
-    this.ui.dialogue.onLine = null;
-    this.sightings.speaking = false;
-    p.avatar.pose = "normal";
-    if (npc) {
-      npc.avatar.pose = "normal";
-      rig.setShot(null, 0.9);
-    }
-    rig.setZoom(1);
-  }
 
   /** Set quest state as if milestones 1..m-1 were done (debug starts) and place Tadeo near the goal, or on the beach. */
   private setupMilestone(m: number, onBeach = m === 1): void {
@@ -534,24 +471,14 @@ export class Game {
     const hf = this.island.island.hf;
     const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => hf.isWalkable(x, z) && !this.story.behindHedge(x, z));
     const [x, z] = spot ?? LANDMARKS.spawn;
-    this.placePlayer(x, z);
+    this.director.place(x, z);
   }
 
   /** Through black to a place picked on the menu's map. */
   private async travelTo([x, z]: P2): Promise<void> {
     await this.engine.fade(1, TRAVEL_FADE);
-    this.placePlayer(x, z);
+    this.director.place(x, z);
     await this.engine.fade(0, TRAVEL_FADE);
-  }
-
-  /** Teleport Tadeo and bring the camera and Chuleta along. */
-  private placePlayer(x: number, z: number, facing?: number): void {
-    const p = this.island.player;
-    p.teleport(x, z, facing);
-    p.avatar.root.updateMatrixWorld(true);
-    this.island.rig.follow(p.position, p.velocity);
-    this.island.rig.snap();
-    this.chuleta.snap();
   }
 
   private islandAudio(): void {
@@ -563,21 +490,8 @@ export class Game {
     SaveManager.getInstance().save(at[0], at[1]);
   }
 
-  private startCinematic(fn: (t: number) => Shot): void {
-    this.cinematic = fn;
-    this.cinematicTime = 0;
-    this.island.rig.jumpToShot(fn(0));
-  }
-
-  /** Hand the camera back to the follow rig with a smooth blend. */
-  private endCinematic(seconds: number): void {
-    this.cinematic = null;
-    this.island.rig.setShot(null, seconds);
-  }
-
   private showPrompt(at: P2, verb: string): void {
-    const s = this.project(at[0], this.groundAt(at) + 2.6, at[1]);
-    this.ui.prompt.show(s.behind ? null : this.pixels(s), verb);
+    this.ui.prompt.show(this.director.onScreen(at[0], this.groundAt(at) + 2.6, at[1]), verb);
   }
 
   private groundAt(at: P2): number {
@@ -589,12 +503,4 @@ export class Game {
     return Math.hypot(p.x - at[0], p.z - at[1]);
   }
 
-  private project(x: number, y: number, z: number): { x: number; y: number; behind: boolean } {
-    const v = new THREE.Vector3(x, y, z).project(this.island.camera);
-    return { x: v.x, y: v.y, behind: v.z > 1 };
-  }
-
-  private pixels(s: { x: number; y: number }): { x: number; y: number } {
-    return { x: (s.x * 0.5 + 0.5) * window.innerWidth, y: (-s.y * 0.5 + 0.5) * window.innerHeight };
-  }
 }

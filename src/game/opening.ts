@@ -29,16 +29,11 @@ import { NORTH_DOCK_BOAT, sailboat } from "../world/models/boats";
 import { glowTexture, puffTexture } from "../world/ambient/textures";
 import { CHULETA_INTRO } from "./chuletaLines";
 import { wait } from "../core/wait";
+import { IslandDirector } from "./IslandDirector";
 
 export interface OpeningDeps {
   engine: Engine;
-  ui: GameUI;
-  island: IslandScene;
-  talk(script: string | DialogueScript): Promise<void>;
-  startCinematic(fn: (t: number) => Shot): void;
-  endCinematic(seconds: number): void;
-  placePlayer(x: number, z: number, facing?: number): void;
-  chuleta: Chuleta;
+  director: IslandDirector;
 }
 
 const { clamp, lerp, smoothstep, smootherstep } = THREE.MathUtils;
@@ -448,33 +443,33 @@ class SeaShot {
 
 /** Sky, beach, bottle, map, and off he goes. */
 async function findTheBottle(d: OpeningDeps): Promise<void> {
-  const { engine, island } = d;
-  const beach = new BeachShot(island);
+  const { engine, director } = d;
+  const beach = new BeachShot(director.island);
   // Reason: he looks down at the bottle, three-quarters towards the camera
-  d.placePlayer(HOLIDAY_BEACH[0], HOLIDAY_BEACH[1], Math.atan2(BOTTLE_AT.x, BOTTLE_AT.z));
-  d.startCinematic((t) => beach.frame(t));
+  d.director.place(HOLIDAY_BEACH[0], HOLIDAY_BEACH[1], Math.atan2(BOTTLE_AT.x, BOTTLE_AT.z));
+  d.director.startCinematic((t) => beach.frame(t));
   audio.setAmbience(true);
   audio.stopMusic(1);
   await engine.fade(0, 1400);
   await wait(1100);
-  await d.talk("intro_bottle");
+  await d.director.talk("intro_bottle");
   beach.closeUp = true;
   // Reason: for his big line he looks straight into the camera
-  island.player.facing = -1.45;
-  await showMapCard(d.ui.layer, engine.input);
-  await d.talk("intro_treasure");
-  island.player.avatar.pose = "cheer";
+  director.island.player.facing = -1.45;
+  await showMapCard(d.director.ui.layer, engine.input);
+  await d.director.talk("intro_treasure");
+  director.island.player.avatar.pose = "cheer";
   await wait(750);
   await engine.fade(1, 450);
-  island.player.avatar.pose = "normal";
+  director.island.player.avatar.pose = "normal";
   beach.dispose();
-  await d.ui.sayOverBlack("intro_sailing");
+  await d.director.ui.sayOverBlack("intro_sailing");
 }
 
 /** Sailing, the fin, the hit, the cut to black. Nothing but the picture for the whole of it. */
 async function sharkAtSea(d: OpeningDeps): Promise<void> {
-  const sea = new SeaShot(d.island, d.engine);
-  d.startCinematic((t) => sea.frame(t));
+  const sea = new SeaShot(d.director.island, d.engine);
+  d.director.startCinematic((t) => sea.frame(t));
   void d.engine.fade(0, 500);
   await sea.cut;
   await d.engine.fade(1, 50);
@@ -487,14 +482,14 @@ async function sharkAtSea(d: OpeningDeps): Promise<void> {
 
 /** Start the flight from the open sea down to Tadeo on the landing beach (the screen is still black). */
 function flyToTheLandingBeach(d: OpeningDeps): void {
-  const p = d.island.player;
-  d.placePlayer(LANDMARKS.spawn[0], LANDMARKS.spawn[1], 0);
+  const p = d.director.island.player;
+  d.director.place(LANDMARKS.spawn[0], LANDMARKS.spawn[1], 0);
   const from: Shot = { pos: v3(-150, 34, 135), look: v3(-74, 4, 56) };
   const to: Shot = {
     pos: p.position.clone().add(v3(1.5, 4.5, 8.5)),
     look: p.position.clone().add(v3(0, 1.2, 0)),
   };
-  d.startCinematic((t) => {
+  d.director.startCinematic((t) => {
     const k = smootherstep(t, 0, 9);
     return { pos: from.pos.clone().lerp(to.pos, k), look: from.look.clone().lerp(to.look, k) };
   });
@@ -502,13 +497,13 @@ function flyToTheLandingBeach(d: OpeningDeps): void {
 
 /** Tadeo turns to the smoking mountain, and the camera looks over his shoulder so that it fills the top of the picture. */
 function lookAtTheVolcano(d: OpeningDeps): void {
-  const p = d.island.player.position;
+  const p = d.director.island.player.position;
   const [vx, vz] = LANDMARKS.volcano;
   const dir = v3(vx - p.x, 0, vz - p.z).normalize();
-  d.island.player.facing = Math.atan2(dir.x, dir.z);
+  d.director.island.player.facing = Math.atan2(dir.x, dir.z);
   // Reason: the lens is narrow (40°), so the camera aims above the crater to keep the smoke in the upper half
-  const vent = v3(vx, d.island.island.hf.heightAt(vx, vz) + 5, vz);
-  d.island.rig.setShot({ pos: p.clone().addScaledVector(dir, -8).add(v3(0, 10, 0)), look: vent }, 1.6);
+  const vent = v3(vx, d.director.island.island.hf.heightAt(vx, vz) + 5, vz);
+  d.director.shot({ pos: p.clone().addScaledVector(dir, -8).add(v3(0, 10, 0)), look: vent }, 1.6);
 }
 
 /** Washed ashore: the flight's end, Chuleta out of the backpack, the wreck, the voice from the volcano. */
@@ -517,20 +512,20 @@ async function arrive(d: OpeningDeps): Promise<void> {
   audio.setAmbience(true);
   await d.engine.fade(0, 1200);
   await wait(2600);
-  await d.ui.hud.showBanner("Kapitel 1", QUESTS[0].name, 3200);
+  await d.director.ui.hud.showBanner("Kapitel 1", QUESTS[0].name, 3200);
   await wait(1400);
-  d.endCinematic(1.8);
+  d.director.endCinematic(1.8);
   await wait(900);
   // Reason: Tadeo says where he is before Chuleta climbs out
   const landing = DIALOGUES.intro_landing;
-  await d.talk(landing.slice(0, 3));
+  await d.director.talk(landing.slice(0, 3));
   lookAtTheVolcano(d);
-  await d.talk(landing.slice(3));
-  d.island.rig.setShot(null, 1.5);
-  d.chuleta.climbOut();
+  await d.director.talk(landing.slice(3));
+  d.director.shot(null, 1.5);
+  d.director.chuleta.climbOut();
   await wait(800);
-  await d.talk(CHULETA_INTRO);
-  await d.talk("intro_arrival");
+  await d.director.talk(CHULETA_INTRO);
+  await d.director.talk("intro_arrival");
 }
 
 /**
@@ -539,7 +534,7 @@ async function arrive(d: OpeningDeps): Promise<void> {
  * @param deps What the opening needs from the game. The screen is black when it starts.
  */
 export async function playOpening(deps: OpeningDeps): Promise<void> {
-  deps.chuleta.hideInBackpack();
+  deps.director.chuleta.hideInBackpack();
   await findTheBottle(deps);
   await sharkAtSea(deps);
   await arrive(deps);

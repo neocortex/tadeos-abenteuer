@@ -5,9 +5,9 @@
  */
 
 import * as THREE from "three";
-import { CameraRig, Shot } from "../core/CameraRig";
+import { Shot } from "../core/CameraRig";
+import { IslandDirector } from "./IslandDirector";
 import { smoothstep } from "../core/noise";
-import { Player } from "../characters/Player";
 import { Bursts } from "../challenges/shared/bursts";
 import { glowTexture } from "../world/ambient/textures";
 import { createSword } from "../world/models/items";
@@ -38,9 +38,7 @@ const ramp = (t: number, [from, to]: [number, number]) => THREE.MathUtils.clamp(
 const pop = (k: number) => 1 + 2.7 * (k - 1) ** 3 + 1.7 * (k - 1) ** 2;
 
 interface HedgeOpeningDeps {
-  scene: THREE.Scene;
-  rig: CameraRig;
-  player: Player;
+  director: IslandDirector;
   /** The hedge across the gate, and the way to take it away (colliders go with it). */
   hedge: { prop: HedgeProp; remove(): Promise<void> };
   ground: (x: number, z: number) => number;
@@ -84,21 +82,22 @@ export class HedgeOpening {
   /** Take the opening's first shot and turn Tadeo to the hedge, so a talk before it flows into the scene. */
   faceTheHedge(): void {
     const toward = this.toward();
-    this.d.player.facing = Math.atan2(toward.x, toward.z);
+    this.d.director.island.player.facing = Math.atan2(toward.x, toward.z);
     const [first] = this.shots();
     // Reason: the talk's dialogue box covers the bottom of the picture, so the view aims lower to lift Tadeo above it
     first.look.y -= 1.4;
-    this.d.rig.setShot(first, 0.9);
+    this.d.director.shot(first, 0.9);
   }
 
   /** Give the camera back to the follow rig after `play(true)`. */
   release(): void {
-    this.d.rig.setShot(null, 1);
+    this.d.director.shot(null, 1);
   }
 
   /** Raise the sword and burn the hedge away; the camera goes back to the follow rig, unless `keepShot` holds it for a talk. */
   async play(keepShot = false): Promise<void> {
-    const { rig, player, scene, hedge } = this.d;
+    const { director, hedge } = this.d;
+    const { player, scene } = director.island;
     const avatar = player.avatar;
     const blade = this.drawSword();
     const bursts = new Bursts(glowTexture(), true);
@@ -112,7 +111,7 @@ export class HedgeOpening {
 
     avatar.pose = "holdUp";
     avatar.handR.add(blade.sword);
-    rig.setShot(from, GLIDE[0] - 0.2);
+    director.shot(from, GLIDE[0] - 0.2);
 
     try {
       await new Promise<void>((done) => {
@@ -128,7 +127,7 @@ export class HedgeOpening {
             while (cues.length && cues[0][0] <= t) cues.shift()![1]();
             if (t >= GLIDE[0]) {
               const k = smoothstep(0, 1, ramp(t, GLIDE));
-              rig.jumpToShot({ pos: from.pos.clone().lerp(to.pos, k), look: from.look.clone().lerp(to.look, k) });
+              director.cut({ pos: from.pos.clone().lerp(to.pos, k), look: from.look.clone().lerp(to.look, k) });
             }
             this.burn(t, blade);
             this.light(t);
@@ -139,9 +138,9 @@ export class HedgeOpening {
       });
       await this.sinking;
       // Reason: the dialogue box covers the bottom of the picture, so a held shot aims lower to lift Tadeo above it
-      if (keepShot) rig.setShot({ pos: to.pos, look: to.look.clone().setY(to.look.y - 1.4) }, 0.6);
+      if (keepShot) director.shot({ pos: to.pos, look: to.look.clone().setY(to.look.y - 1.4) }, 0.6);
     } finally {
-      if (!keepShot) rig.setShot(null, 1);
+      if (!keepShot) director.shot(null, 1);
       avatar.pose = "normal";
       avatar.handR.remove(blade.sword);
       hedge.prop.shine(0, 0);
@@ -155,7 +154,7 @@ export class HedgeOpening {
 
   /** One-off moments: [seconds, what happens]. */
   private cues(bursts: Bursts, blade: Blade): [number, () => void][] {
-    const { rig, hedge } = this.d;
+    const { director, hedge } = this.d;
     const tip = () => blade.sword.localToWorld(new THREE.Vector3(0, 1.25, 0));
     const at = hedge.prop.group.position;
     return [
@@ -171,7 +170,7 @@ export class HedgeOpening {
       [SHRINK_AT, () => {
         // Reason: the groan of roots letting go of the ground
         audio.playSfx("sfx_rumble", 0.45);
-        rig.addShake(0.3);
+        director.shake(0.3);
         this.sinking = hedge.remove();
       }],
       [GONE_AT, () => {
@@ -261,7 +260,8 @@ export class HedgeOpening {
    * at him through the thorns.
    */
   private shots(): [Shot, Shot] {
-    const { hedge, player, ground } = this.d;
+    const { hedge, director, ground } = this.d;
+    const { player } = director.island;
     const group = hedge.prop.group;
     const n = this.toward();
     const along = new THREE.Vector3(Math.cos(group.rotation.y), 0, -Math.sin(group.rotation.y));

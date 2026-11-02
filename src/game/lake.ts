@@ -8,14 +8,13 @@
 import * as THREE from "three";
 import { Shot } from "../core/CameraRig";
 import { Input } from "../core/Input";
-import { IslandScene } from "../scenes/IslandScene";
-import { GameUI } from "../ui/GameUI";
 import { askRiddle } from "../ui/RiddleCard";
 import { createHueter } from "../characters/Hueter";
-import { DIALOGUES, DialogueScript } from "../data/dialogues";
+import { DIALOGUES } from "../data/dialogues";
 import { LANDMARKS, WATER_LEVEL } from "../world/layout";
 import { audio } from "../audio/Audio";
 import { wait } from "../core/wait";
+import { IslandDirector } from "./IslandDirector";
 
 /** Riddle i belongs to tablet i. The right answer is never first, because the card starts on the first answer. */
 export const RIDDLES: { lines: string[]; answers: string[]; right: number }[] = [
@@ -39,11 +38,8 @@ function distanceToSegment(a: THREE.Vector3, b: THREE.Vector3, px: number, pz: n
 }
 
 interface LakeDeps {
-  island: IslandScene;
-  ui: GameUI;
+  director: IslandDirector;
   input: Input;
-  /** Play a conversation: a key of `DIALOGUES` or a script. */
-  talk: (script: string | DialogueScript) => Promise<void>;
 }
 
 export class Lake {
@@ -52,7 +48,7 @@ export class Lake {
   private hueter = createHueter();
 
   constructor(private d: LakeDeps) {
-    d.island.scene.add(this.hueter.root);
+    d.director.island.scene.add(this.hueter.root);
   }
 
   update(dt: number, time: number): void {
@@ -66,16 +62,16 @@ export class Lake {
   async solve(i: number): Promise<boolean> {
     const { lines, answers, right } = RIDDLES[i];
     const [tx, tz] = LANDMARKS.tablets[i];
-    const player = this.d.island.player;
+    const player = this.d.director.island.player;
     player.facing = Math.atan2(tx - player.position.x, tz - player.position.z);
     // Reason: `solved` forgets the tablets on a reload, so this plays once per visit to the lake and not again after a wrong answer
-    if (this.solved.size === 0) await this.d.talk("lake_first_tablet");
-    await this.d.talk(lines.map((text) => ({ speaker: "Steintafel", portrait: "", text })));
-    while ((await askRiddle(this.d.ui.layer, this.d.input, answers, lines)) !== right) await this.d.talk("lake_wrong");
+    if (this.solved.size === 0) await this.d.director.talk("lake_first_tablet");
+    await this.d.director.talk(lines.map((text) => ({ speaker: "Steintafel", portrait: "", text })));
+    while ((await askRiddle(this.d.director.ui.layer, this.d.input, answers, lines)) !== right) await this.d.director.talk("lake_wrong");
 
-    const { rig } = this.d.island;
-    const { landmarks } = this.d.island.island;
-    rig.setShot(this.tabletShot(i), 0.9);
+    const { director } = this.d;
+    const { landmarks } = director.island.island;
+    director.shot(this.tabletShot(i), 0.9);
     await wait(900);
     landmarks.lightTablet(i);
     this.solved.add(i);
@@ -83,33 +79,34 @@ export class Lake {
     await wait(2000);
     if (this.solved.size === RIDDLES.length) return true;
     // Reason: the tablet is still in shot while they talk about it
-    await this.d.talk(this.solved.size === 1 ? "lake_lit_first" : "lake_lit_second");
-    rig.setShot(null, 1);
+    await this.d.director.talk(this.solved.size === 1 ? "lake_lit_first" : "lake_lit_second");
+    director.shot(null, 1);
     return false;
   }
 
   /** After the third tablet: the lake goes still, the Hüter rises and tells the legend's other half, then he is gone. */
   async awaken(): Promise<void> {
-    await this.d.talk("lake_still");
+    await this.d.director.talk("lake_still");
     await this.rise();
-    await this.d.talk([...DIALOGUES.lake_hueter, ...DIALOGUES.lake_rhyme, ...DIALOGUES.lake_after_rhyme]);
+    await this.d.director.talk([...DIALOGUES.lake_hueter, ...DIALOGUES.lake_rhyme, ...DIALOGUES.lake_after_rhyme]);
     await this.fade();
-    await this.d.talk("lake_gone");
+    await this.d.director.talk("lake_gone");
   }
 
   /** The Hüter rises out of the lake, facing Tadeo, while the camera watches from behind Tadeo. */
   async rise(): Promise<void> {
-    const { rig, player } = this.d.island;
+    const { director } = this.d;
+    const { player } = director.island;
     const p = player.position;
     const spot = this.risingSpot();
     this.hueter.root.position.copy(spot);
     this.hueter.root.rotation.y = Math.atan2(p.x - spot.x, p.z - spot.z);
     player.facing = Math.atan2(spot.x - p.x, spot.z - p.z);
-    rig.setShot(this.lakeShot(spot), 1.8);
+    director.shot(this.lakeShot(spot), 1.8);
     await wait(CALM_MS);
     // Reason: a deep groan from under the water
     audio.playSfx("sfx_rumble", 0.7);
-    rig.addShake(0.3);
+    director.shake(0.3);
     const risen = this.hueter.rise();
     await wait(1600);
     audio.playSfx("sfx_heal", 0.55, 0.5);
@@ -120,22 +117,22 @@ export class Lake {
   /** He thins out and drifts away; then the camera goes back to Tadeo. */
   async fade(): Promise<void> {
     await this.hueter.fade();
-    this.d.island.rig.setShot(null, 1.4);
+    this.d.director.shot(null, 1.4);
   }
 
   /** What the lake really shows, read from the scene. */
   get e2e(): { solved: number; lit: boolean[]; ghost: boolean } {
-    const { landmarks } = this.d.island.island;
+    const { landmarks } = this.d.director.island.island;
     return { solved: this.solved.size, lit: RIDDLES.map((_, i) => landmarks.isTabletLit(i)), ghost: this.hueter.root.visible };
   }
 
   /** The lit face of tablet `i` from a side, on the side away from Tadeo so he never stands in front of it. */
   private tabletShot(i: number): Shot {
-    const { hf } = this.d.island.island;
+    const { hf } = this.d.director.island.island;
     const [tx, tz] = LANDMARKS.tablets[i];
     const front = new THREE.Vector2(LANDMARKS.lake[0] - tx, LANDMARKS.lake[1] - tz).normalize();
     const side = new THREE.Vector2(-front.y, front.x);
-    const p = this.d.island.player.position;
+    const p = this.d.director.island.player.position;
     const at = (s: number) => new THREE.Vector2(tx, tz).addScaledVector(front, 4.4).addScaledVector(side, s * 4.8);
     const [a, b] = [at(1), at(-1)];
     const cam = a.distanceTo(new THREE.Vector2(p.x, p.z)) > b.distanceTo(new THREE.Vector2(p.x, p.z)) ? a : b;
@@ -146,7 +143,7 @@ export class Lake {
 
   /** In the lake, a little way from its middle towards Tadeo. */
   private risingSpot(): THREE.Vector3 {
-    const p = this.d.island.player.position;
+    const p = this.d.director.island.player.position;
     const [lx, lz] = LANDMARKS.lake;
     const towardsTadeo = new THREE.Vector3(p.x - lx, 0, p.z - lz).normalize();
     return new THREE.Vector3(lx, WATER_LEVEL, lz).addScaledVector(towardsTadeo, RISE_TOWARDS_TADEO);
@@ -154,8 +151,8 @@ export class Lake {
 
   /** Over Tadeo's shoulder, across the water to the Hüter. */
   private lakeShot(spot: THREE.Vector3): Shot {
-    const { hf } = this.d.island.island;
-    const p = this.d.island.player.position;
+    const { hf } = this.d.director.island.island;
+    const p = this.d.director.island.player.position;
     const look = spot.clone().setY(WATER_LEVEL + 2.6);
     const dir = new THREE.Vector3(spot.x - p.x, 0, spot.z - p.z).normalize();
     const side = new THREE.Vector3(-dir.z, 0, dir.x);

@@ -6,12 +6,12 @@
  */
 
 import * as THREE from "three";
-import { CameraRig, Shot } from "../core/CameraRig";
-import { Player } from "../characters/Player";
+import { Shot } from "../core/CameraRig";
 import { Bursts } from "../challenges/shared/bursts";
-import { DIALOGUES, DialogueScript } from "../data/dialogues";
+import { DIALOGUES } from "../data/dialogues";
 import { puffTexture } from "../world/ambient/textures";
 import { BOULDER_EXIT, BOULDER_LIFTER, BOULDER_SPLASH, StoryProp } from "../world/models/storyProps";
+import { IslandDirector } from "./IslandDirector";
 import { Sightings } from "./Sightings";
 import { audio } from "../audio/Audio";
 import { wrapAngle } from "../world/ambient/spawn";
@@ -32,14 +32,11 @@ const DUST = "#cdb892";
 const WATER = "#eaf9ff";
 
 interface BoulderLiftDeps {
-  scene: THREE.Scene;
-  rig: CameraRig;
-  player: Player;
+  director: IslandDirector;
   sightings: Sightings;
   /** The boulder on the trail, and the way to take it away (colliders go with it). */
   boulder: { prop: StoryProp; remove(): Promise<void> };
   ground: (x: number, z: number) => number;
-  talk: (script: DialogueScript) => Promise<void>;
 }
 
 export class BoulderLift {
@@ -64,7 +61,8 @@ export class BoulderLift {
 
   /** The ogre goes to the boulder, lifts it away and goes back to his place. */
   async play(): Promise<void> {
-    const { scene, rig, player, sightings, boulder, talk } = this.d;
+    const { director, sightings, boulder } = this.d;
+    const { scene, player } = director.island;
     const ogre = sightings.ogre;
     const stand = boulder.prop.group.localToWorld(new THREE.Vector3(BOULDER_LIFTER[0], 0, BOULDER_LIFTER[1]));
     const view = this.view(stand);
@@ -77,13 +75,13 @@ export class BoulderLift {
     ogre.club.visible = false;
 
     this.phase = "walk";
-    rig.setShot(view(home), 1.4);
+    director.shot(view(home), 1.4);
     this.frame = (dt) => this.watch(boulder.prop.group.position, dt);
     try {
       // Facing north, towards the boulder: his left arm goes up on the east side, the club arm stays out of it
       await sightings.ogreLift([stand.x, stand.z], Math.PI);
       this.phase = "talk";
-      await talk(DIALOGUES.ogre_boulder);
+      await director.talk(DIALOGUES.ogre_boulder);
 
       this.phase = "heave";
       this.stomp(ogre.root.position);
@@ -95,18 +93,18 @@ export class BoulderLift {
       ogre.setPose("windup", 6);
       player.avatar.pose = "cheer";
       await this.wait(0.4);
-      await talk(DIALOGUES.ogre_boulder_done);
+      await director.talk(DIALOGUES.ogre_boulder_done);
 
       this.phase = "rest";
       player.avatar.pose = "normal";
       ogre.club.visible = clubWasVisible;
-      rig.setShot(null, 1.4);
+      director.shot(null, 1.4);
       this.frame = (dt) => this.watch(ogre.root.position, dt);
       await sightings.ogreRest();
     } finally {
       this.phase = "idle";
       this.frame = null;
-      rig.setShot(null, 1);
+      director.shot(null, 1);
       player.avatar.pose = "normal";
       ogre.club.visible = clubWasVisible;
       scene.remove(bursts.mesh);
@@ -120,7 +118,8 @@ export class BoulderLift {
 
   /** The giant's exit with everything that goes with it: dust, the strain, the throw, the splash. */
   private async lift(view: (look: THREE.Vector3) => Shot, home: THREE.Vector3): Promise<void> {
-    const { rig, player, sightings, boulder } = this.d;
+    const { director, sightings, boulder } = this.d;
+    const { player } = director.island;
     const ogre = sightings.ogre;
     const group = boulder.prop.group;
     const giant = group.children[0];
@@ -142,19 +141,19 @@ export class BoulderLift {
       else if (t < BOULDER_EXIT.landAt) target.copy(giant.getWorldPosition(rock)).lerp(home, 0.35);
       else target.copy(splash).lerp(home, 0.3).y += 1.5;
       world.lerp(target, 1 - Math.exp(-dt * 4));
-      rig.jumpToShot(view(world));
+      director.cut(view(world));
     };
 
     // Dust leaps up from where the giant sat
     this.after(0.05, () => {
       audio.playSfx("sfx_rumble", 0.7);
-      rig.addShake(0.35);
+      director.shake(0.35);
       this.dust(group.position.clone().setY(group.position.y + 0.4), 3.4, 46);
     });
     // The strain: the giant hangs overhead and the ground shudders
     this.after(BOULDER_EXIT.held, () => {
       audio.playSfx("sfx_rumble", 0.5);
-      rig.addShake(0.25);
+      director.shake(0.25);
     });
     this.after(BOULDER_EXIT.throwAt, () => {
       this.phase = "airborne";
@@ -164,7 +163,7 @@ export class BoulderLift {
     this.after(BOULDER_EXIT.landAt, () => {
       this.phase = "landed";
       this.splash(splash);
-      rig.addShake(1);
+      director.shake(1);
       audio.playSfx("sfx_hammer_hit", 1, 0.55);
       audio.playSfx("sfx_wave", 1, 0.8);
     });
@@ -174,7 +173,7 @@ export class BoulderLift {
   /** The ogre plants his feet to lift. */
   private stomp(at: THREE.Vector3): void {
     audio.playSfx("sfx_hammer_hit", 0.5, 0.9);
-    this.d.rig.addShake(0.2);
+    this.d.director.shake(0.2);
     this.dust(at.clone().setY(at.y + 0.2), 1.3, 18);
   }
 
@@ -206,7 +205,7 @@ export class BoulderLift {
 
   /** Tadeo turns to look at `at`. */
   private watch(at: THREE.Vector3, dt: number): void {
-    const { player } = this.d;
+    const { player } = this.d.director.island;
     player.facing = this.turned(player.facing, this.heading(player.position, at), dt, 6);
   }
 
