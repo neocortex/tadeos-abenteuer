@@ -9,34 +9,17 @@
  *
  * The pick is a real click or key press. As in `jumpIn.mjs`, what comes after a challenge is under test and not the
  * challenge: each one is ended by resolving its `finished` promise, which is what a win does, and a goal is reached
- * with `game.placePlayer` instead of walking. Quests 3 and 4 only show their goal here: `island.mjs` plays them through.
+ * with `probe.place` instead of walking. Quests 3 and 4 only show their goal here: `island.mjs` plays them through.
  *
  * Run (dev server on :5199 must be running):  node scripts/e2e/menuJump.mjs [baseUrl]
  * Proof: scripts/e2e/out/menuJump/{*.png, summary.json}
  */
 
-import { chromium } from "playwright";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { BASE, launch, proof } from "./lib/harness.mjs";
 
-const BASE = process.argv[2] ?? "http://localhost:5199";
-const OUT = "scripts/e2e/out/menuJump";
 const SAVE_KEY = "schatzkarten_save";
-mkdirSync(OUT, { recursive: true });
-
-const browser = await chromium.launch({
-  channel: "chrome",
-  args: ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"],
-});
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-const errors = [];
-page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => m.type() === "error" && !m.text().includes("404") && errors.push(m.text()));
-
-const results = [];
-const check = (name, ok, detail = "") => {
-  results.push({ name, ok, detail: String(detail) });
-  console.log(`${ok ? "✔" : "✘"} ${name}${detail !== "" ? ` — ${detail}` : ""}`);
-};
+const { out: OUT, check, finish } = proof("menuJump");
+const { browser, page, errors } = await launch();
 
 const wait = (ms) => page.waitForTimeout(ms);
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
@@ -49,8 +32,8 @@ const state = () =>
     return {
       onIsland: e.scene === g.island,
       switching: e.isSwitching,
-      busy: g.busy,
-      milestone: g.quest.currentMilestone,
+      busy: window.probe.busy,
+      milestone: window.probe.milestone,
       dialogue: !!document.querySelector(".dialogue.open"),
       mapCard: !!document.querySelector(".map-card"),
       endCard: !!document.querySelector(".endcard"),
@@ -86,8 +69,8 @@ async function playUntil(done, timeoutMs = 90_000) {
 /** Go to the goal of the current quest and press Space there. */
 async function startNextQuest() {
   await page.evaluate(() => {
-    const [goal] = window.game.objectives();
-    window.game.placePlayer(goal.at[0], goal.at[1]);
+    const [goal] = window.probe.goals();
+    window.probe.place(goal.at[0], goal.at[1]);
   });
   await wait(500);
   await page.keyboard.press("Space");
@@ -111,7 +94,7 @@ async function tadeoWalks() {
 /** Open the game on the island, free to walk. */
 async function openIsland(query = "notitle") {
   await page.goto(`${BASE}/?${query}`);
-  await page.waitForFunction(() => window.game?.busy === false && !window.engine.isSwitching, null, { timeout: 90_000 });
+  await page.waitForFunction(() => window.probe?.busy === false && !window.engine.isSwitching, null, { timeout: 90_000 });
 }
 
 /** Wait for the fresh page a jump opens, until it stands at this quest. */
@@ -120,8 +103,8 @@ async function landedOn(milestone, onIsland) {
     ([m, island]) => {
       const g = window.game;
       const e = window.engine;
-      if (!g?.quest || g.quest.currentMilestone !== m || !e.scene || e.isSwitching) return false;
-      return island ? e.scene === g.island && g.busy === false : e.scene !== g.island;
+      if (!window.probe || window.probe.milestone !== m || !e.scene || e.isSwitching) return false;
+      return island ? e.scene === g.island && window.probe.busy === false : e.scene !== g.island;
     },
     [milestone, onIsland],
     { timeout: 120_000 },
@@ -169,7 +152,7 @@ for (const point of POINTS) {
   await wait(700);
   await shot(`point-${point.milestone}`);
   if (point.onIsland) {
-    const goals = await page.evaluate(() => window.game.objectives().length);
+    const goals = await page.evaluate(() => window.probe.goals().length);
     check(`${point.name}: the quest shows its goal`, goals > 0, `${goals} goal(s)`);
     check(`${point.name}: Tadeo can walk`, await tadeoWalks());
     continue;
@@ -188,7 +171,7 @@ await page.evaluate(() => {
   const n = window.game.npcs.get("villager1").position;
   const world = window.game.island.player.world;
   const spot = [[1.6, 0], [-1.6, 0], [0, 1.6], [0, -1.6]].map(([dx, dz]) => [n.x + dx, n.z + dz]).find(([x, z]) => world.canStand(x, z));
-  window.game.placePlayer(spot[0], spot[1]);
+  window.probe.place(spot[0], spot[1]);
 });
 await wait(300);
 await page.keyboard.press("Space");
@@ -238,7 +221,7 @@ check("a reload goes to the title and does not jump again", true);
 await openIsland("quest=9");
 await page.evaluate(() => {
   localStorage.clear();
-  window.game.saveAt(window.game.objectives()[0].at);
+  window.probe.save(window.probe.goals()[0].at);
 });
 const saved = await page.evaluate((key) => localStorage.getItem(key), SAVE_KEY);
 check("a save at quest 9 exists", JSON.parse(saved)?.milestone === 9);
@@ -278,7 +261,4 @@ await shot("05-end-card");
 check("no errors on the page", errors.length === 0, errors.slice(0, 3).join(" / "));
 
 await browser.close();
-const passed = results.every((r) => r.ok);
-writeFileSync(`${OUT}/summary.json`, JSON.stringify({ passed, when: new Date().toISOString(), results }, null, 2));
-console.log(`\n${results.filter((r) => r.ok).length}/${results.length} ${passed ? "PASS" : "FAIL"} → ${OUT}/summary.json`);
-process.exit(passed ? 0 : 1);
+finish();

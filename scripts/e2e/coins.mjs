@@ -33,7 +33,7 @@ page.on("console", (m) => {
 
 const openGame = async () => {
   await page.goto(`${BASE}/?notitle`);
-  await page.waitForFunction(() => window.game?.busy === false, null, { timeout: 90_000 });
+  await page.waitForFunction(() => window.probe?.busy === false, null, { timeout: 90_000 });
 };
 await openGame();
 
@@ -98,7 +98,7 @@ for (let i = 0; i < corners.length; i++) {
     ([cx, cz]) => {
       const { island } = window.game;
       const free = [[0, 4], [3, 3], [-3, 3], [4, 0], [-4, 0], [0, -4]].map(([dx, dz]) => [cx + dx, cz + dz]).find(([ax, az]) => island.player.world.canStand(ax, az) && !island.island.colliders.hits(ax, az, 0.5));
-      window.game.placePlayer(...(free ?? [cx, cz + 1]));
+      window.probe.place(...(free ?? [cx, cz + 1]));
     },
     [x, z],
   );
@@ -142,7 +142,7 @@ const [cx, cz] = corners[0];
 await page.evaluate(([x, z]) => {
   const { island } = window.game;
   const free = [[0, 5], [4, 3], [-4, 3], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [x + dx, z + dz]).find(([ax, az]) => island.player.world.canStand(ax, az) && !island.island.colliders.hits(ax, az, 0.5));
-  window.game.placePlayer(...free);
+  window.probe.place(...free);
 }, [cx, cz]);
 await page.waitForTimeout(400);
 const before = (await state()).collected;

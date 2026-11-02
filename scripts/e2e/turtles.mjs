@@ -56,7 +56,7 @@ const wait = (ms) => page.waitForTimeout(ms);
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 const openGame = async (query = "notitle") => {
   await page.goto(`${BASE}/?${query}`);
-  await page.waitForFunction(() => window.game?.busy === false, null, { timeout: 90_000 });
+  await page.waitForFunction(() => window.probe?.busy === false, null, { timeout: 90_000 });
 };
 
 const state = () =>
@@ -70,7 +70,7 @@ const state = () =>
       x: p.x,
       z: p.z,
       yaw: g.island.rig.yaw,
-      busy: g.busy,
+      busy: window.probe.busy,
       family: g.family.state,
       dialogue: !!document.querySelector(".dialogue.open"),
       speaker: box.nameEl.textContent,
@@ -78,7 +78,7 @@ const state = () =>
       portrait: box.portraitEl.textContent,
       pill: status && status.style.display !== "none" ? status.textContent : null,
       prompt: prompt && prompt.style.display !== "none" ? prompt.textContent : null,
-      chuleta: g.chuletaBubble.speaking ? g.chuletaBubble.el.textContent : null,
+      chuleta: window.probe.chuleta.line,
       won: g.wardrobe.hasPrize("shellHat"),
       wearing: g.wardrobe.worn.has("shellHat"),
     };
@@ -179,7 +179,7 @@ checks.noCoinOnFrauMoos = await page.evaluate(() => {
   const [x, z] = window.game.family.state.mum;
   return window.game.coins.spots.every((c) => Math.hypot(c.x - x, c.z - z) > 3);
 });
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z), PATH_END);
+await page.evaluate(([x, z]) => window.probe.place(x, z), PATH_END);
 await wait(1500);
 await shot("01-arriving-at-the-lagoon");
 
@@ -233,11 +233,11 @@ checks.secondBabyFollows = await fetchBaby();
 checks.thirdBabyFollows = await fetchBaby();
 await shot("06-two-babies-in-a-line");
 const beach = await state();
-await page.evaluate(() => window.game.placePlayer(60, 46));
+await page.evaluate(() => window.probe.place(60, 46));
 await wait(400);
 s = await walkTo(60, 53);
 checks.babiesComeAlongAfterATeleport = s.family.babies.filter((b) => b.state === "following").every((b) => Math.hypot(b.x - s.x, b.z - s.z) < 4);
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [beach.x, beach.z]);
+await page.evaluate(([x, z]) => window.probe.place(x, z), [beach.x, beach.z]);
 await wait(400);
 await walkRoute([...TO_SOUTH_BEACH].reverse());
 await walkTo(mum[0] - 3, mum[1] + 2);
@@ -295,7 +295,7 @@ await until((n) => !n.busy, 4000);
 // Whichever side Tadeo comes from, the talk shot shows her above the dialogue box
 const framed = {};
 for (const [side, dx, dz] of [["west", -3.2, 0], ["north-west", -2.4, -2.4], ["north", 0, -3.2], ["south-west", -2.4, 2.4], ["south", 0, 3.2]]) {
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [mum[0] + dx, mum[1] + dz]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z), [mum[0] + dx, mum[1] + dz]);
   await wait(500);
   await page.keyboard.press("Space");
   await until((n) => n.dialogue, 3000);
@@ -308,7 +308,7 @@ for (const [side, dx, dz] of [["west", -3.2, 0], ["north-west", -2.4, -2.4], ["n
 checks.frauMoosAboveTheBoxFromEverySide = Object.values(framed).every(Boolean);
 
 // The story must carry on as normal after all this
-checks.questUntouched = await page.evaluate(() => window.game.quest.currentMilestone === 2);
+checks.questUntouched = await page.evaluate(() => window.probe.milestone === 2);
 const fpsLog = await page.evaluate(() => window.__fps ?? []);
 
 // ── A reload keeps the hat and the swimming babies ────────────
@@ -316,7 +316,7 @@ await openGame();
 s = await state();
 checks.reloadKeepsTheHat = s.won && s.wearing;
 checks.reloadKeepsBabiesHome = count(s, "home") === 5;
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [mum[0] - 3, mum[1]]);
+await page.evaluate(([x, z]) => window.probe.place(x, z), [mum[0] - 3, mum[1]]);
 await wait(1500);
 await shot("11-family-after-reload");
 

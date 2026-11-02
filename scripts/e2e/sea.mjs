@@ -217,7 +217,7 @@ try {
   const story = await page.evaluate(() => window.game.story.e2e);
   check("Paco and the ogre wait at the dock", story.paco === "dock" && story.ogre === "dock" && story.dockBoat, JSON.stringify(story));
   check("the wreck left the beach", !story.wreck);
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [-33, -69.5]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z), [-33, -69.5]);
   await sleep(800);
   await walkIsland(-34.5, -73.3);
   await sleep(500);

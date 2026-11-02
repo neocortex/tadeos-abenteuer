@@ -394,8 +394,8 @@ async function hearLines(stop = onIsland, tag = "g") {
 async function mashThroughTheRescue() {
   // Reason: through the game's own quest flow, so that `busy` and the reward are the real ones
   await page.goto(`${BASE}/?quest=2`);
-  await waitFor(() => page.evaluate(() => window.game?.busy === false && window.engine?.scene === window.game.island), "island for mashing", 30000);
-  await page.evaluate(() => void window.game.run(() => window.game.playChallenge(2)));
+  await waitFor(() => page.evaluate(() => window.probe?.busy === false && window.engine?.scene === window.game.island), "island for mashing", 30000);
+  await page.evaluate(() => void window.probe.playQuest(2));
   await waitFor(() => page.evaluate(() => window.engine?.scene?.state === "intro"), "volcano scene for mashing", 25000);
   await waitFor(dialogueOpen, "volcano_enter dialogue for mashing", 20000);
   await skipDialogues();
@@ -415,7 +415,7 @@ async function mashThroughTheRescue() {
   })();
   let ended = false;
   try {
-    await waitFor(() => page.evaluate(() => window.engine.scene === window.game.island && window.game.busy === false), "free island after the mashed rescue", 90000);
+    await waitFor(() => page.evaluate(() => window.engine.scene === window.game.island && window.probe.busy === false), "free island after the mashed rescue", 90000);
     ended = true;
   } catch {}
   mashing = false;

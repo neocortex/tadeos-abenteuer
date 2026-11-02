@@ -53,7 +53,7 @@ const read = () =>
     const s = scene?.state;
     return {
       onIsland: !!scene && "island" in scene,
-      milestone: window.game.quest.currentMilestone,
+      milestone: window.probe.milestone,
       phase: s?.phase ?? null,
       trial: s?.trial ?? 0,
       sequence: s?.sequence ?? [],
@@ -145,7 +145,7 @@ const said = () => page.evaluate(() => window.said ?? []);
 
 // The elder first: Tadeo asks him for the key on the island, and the challenge starts when the talk ends
 await recordLines();
-await page.evaluate(() => window.game.placePlayer(65, 39.5));
+await page.evaluate(() => window.probe.place(65, 39.5));
 await page.waitForTimeout(500);
 const prompt = await page.evaluate(() => document.querySelector(".prompt")?.textContent.trim() ?? "");
 check("the elder offers a talk before the trials", prompt.includes("Sprechen"), prompt);
@@ -286,10 +286,10 @@ check("every line has at most 14 words", [...added, ...welcome].every((l) => wor
 check("the welcome at the fire says there are three trials", welcome.some((l) => l.includes("drei Prüfungen")) || lines.some((l) => l.includes("Es gibt drei Prüfungen")));
 check("nobody says Monster", !/Monster/.test(lines.join("\n")));
 // Reason: the whole run pressed Space every 60 ms through village_enter, WELCOME and village_after
-await page.waitForFunction(() => !window.game.busy, null, { timeout: 15_000 }).catch(() => {});
+await page.waitForFunction(() => !window.probe.busy, null, { timeout: 15_000 }).catch(() => {});
 const control = await page.evaluate(async () => {
   const before = [window.game.island.player.position.x, window.game.island.player.position.z];
-  return { before, milestone: window.game.quest.currentMilestone, busy: window.game.busy, talking: !!document.querySelector(".dialogue.open") };
+  return { before, milestone: window.probe.milestone, busy: window.probe.busy, talking: !!document.querySelector(".dialogue.open") };
 });
 await page.keyboard.down("ArrowLeft");
 await page.waitForTimeout(700);

@@ -227,7 +227,7 @@ async function walkTo(x, z, radius = 1.5, timeoutMs = 12000) {
 }
 /** Walk a route of waypoints; returns the first waypoint that could not be reached, or null. */
 async function walkRoute(route) {
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), route[0]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z), route[0]);
   await wait(800);
   for (const [x, z] of route.slice(1)) if (!(await walkTo(x, z))) return [x, z, await state()];
   return null;
@@ -256,7 +256,7 @@ await page.waitForFunction(() => window.game?.island, null, { timeout: 30000 });
 await wait(2500);
 let n = 10;
 for (const [name, [x, z]] of Object.entries(VIEWS)) {
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z, Math.PI), [x, z]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z, Math.PI), [x, z]);
   await wait(3500);
   await shot(`${n++}_${name}`);
   check(`${name} view renders (not black)`, (await brightness()) > 40);
@@ -308,7 +308,7 @@ const ANIMALS = {
 };
 n = 30;
 for (const [label, [x, z, name, r]] of Object.entries(ANIMALS)) {
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z, Math.PI), [x, z]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z, Math.PI), [x, z]);
   await wait(3000);
   const seen = await critterCount(name, x, z, r);
   await shot(`${n++}_${name}`);

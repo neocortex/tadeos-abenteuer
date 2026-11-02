@@ -11,6 +11,7 @@ import { IslandScene } from "../scenes/IslandScene";
 import { GameUI } from "../ui/GameUI";
 import { Bubble } from "../ui/Hud";
 import { Beacon } from "./Beacon";
+import { GameProbe } from "./GameProbe";
 import { Npcs, Npc } from "./Npcs";
 import { Title } from "./Title";
 import { Chuleta } from "../characters/Chuleta";
@@ -97,6 +98,8 @@ export class Game {
   /** The places of later quests Tadeo has already remarked on during this quest. */
   private remarked = new Set<P2>();
   private tmp = new THREE.Vector3();
+  /** The interface E2E tests use. */
+  readonly probe: GameProbe = this.createProbe();
 
   constructor(private engine: Engine) {
     const { landmarks, hf, colliders } = this.island.island;
@@ -250,6 +253,33 @@ export class Game {
   /** Whether Tadeo walks freely: no cutscene, conversation or scene change has the controls. */
   private get free(): boolean {
     return !this.busy && !this.ui.dialogue.isOpen && !this.engine.isSwitching;
+  }
+
+  private createProbe(): GameProbe {
+    const game = this;
+    return {
+      get milestone() {
+        return game.quest.currentMilestone;
+      },
+      get busy() {
+        return game.busy;
+      },
+      goals: () => this.objectives(),
+      place: (x, z, facing) => this.placePlayer(x, z, facing),
+      advance: () => this.advance(),
+      playQuest: (m) => this.run(() => this.playChallenge(m)),
+      holdControls: (hold) => {
+        this.busy = hold;
+      },
+      save: (at) => this.saveAt(at),
+      get chuleta() {
+        return { position: game.chuleta.position, visible: game.chuleta.root.visible, line: game.chuletaBubble.line };
+      },
+      get cinematic() {
+        const shotAt = game.cinematic;
+        return shotAt && { time: game.cinematicTime, shotAt };
+      },
+    };
   }
 
   private async run(action: () => Promise<void>): Promise<void> {

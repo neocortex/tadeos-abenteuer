@@ -205,8 +205,8 @@ while (Date.now() - started < TIMEOUT_MS) {
 let busyAfter = null;
 if (result) {
   await page.waitForFunction(() => !window.engine.isSwitching, null, { timeout: 10_000 });
-  await page.waitForFunction(() => window.game?.busy === false, null, { timeout: 15_000 }).catch(() => {});
-  busyAfter = await page.evaluate(() => window.game?.busy);
+  await page.waitForFunction(() => window.probe?.busy === false, null, { timeout: 15_000 }).catch(() => {});
+  busyAfter = await page.evaluate(() => window.probe?.busy);
   await page.waitForTimeout(1500);
   await page.screenshot({ path: `${OUT}/11-back-on-island.png` });
 }

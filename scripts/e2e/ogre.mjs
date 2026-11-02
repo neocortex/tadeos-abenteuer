@@ -193,8 +193,8 @@ async function watchBoulderScene() {
       const ogre = g.sightings.ogre;
       const giant = g.story.boulder.prop.group.children[0];
       return {
-        milestone: g.quest.currentMilestone,
-        busy: g.busy,
+        milestone: window.probe.milestone,
+        busy: window.probe.busy,
         dialogue: !!document.querySelector(".dialogue.open"),
         line: window.said.at(-1) ?? "",
         talking: ogre.talking,
@@ -470,7 +470,7 @@ try {
   check("his mouth moves for his line and not for Tadeo's", scene.mouth.ogre === true && scene.mouth.tadeo === false, JSON.stringify(scene.mouth));
   check("no frame stalls during the scene", scene.longestFrame < 250, `longest frame ${scene.longestFrame.toFixed(0)} ms`);
   check("Tadeo can walk to the mountain gate afterwards", await reach(page, GATE, MOUNTAIN_GATE));
-  const after = await page.evaluate(() => ({ milestone: window.game.quest.currentMilestone, busy: window.game.busy }));
+  const after = await page.evaluate(() => ({ milestone: window.probe.milestone, busy: window.probe.busy }));
   check("the quest moved on to the mountain once the scene was over", after.milestone === 9 && !after.busy, JSON.stringify(after));
   const own = await page.evaluate(async () => {
     const { DIALOGUES } = await import("/src/data/dialogues.ts");

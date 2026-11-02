@@ -210,7 +210,7 @@ const page = await open("notitle");
 
   const fast = await page.evaluate(async () => {
     const audio = window.audio;
-    window.game.busy = true;
+    window.probe.holdControls(true);
     audio.playMusic("music_dungeon");
     audio.playMusic("music_combat");
     audio.playMusic("music_overworld");
@@ -240,7 +240,7 @@ const page = await open("notitle");
     return key;
   });
   check("a missing file leaves the music playing", missing === "music_overworld" && page.problems.length === before, String(missing));
-  await page.evaluate(() => (window.game.busy = false));
+  await page.evaluate(() => (window.probe.holdControls(false)));
 }
 
 for (const [query, key] of [["challenge=cave", "music_dungeon"], ["challenge=mountain", "music_mountain"], ["challenge=volcano", "music_combat"], ["challenge=village", "music_village"]]) {
@@ -290,7 +290,7 @@ for (const [query, key] of [["challenge=cave", "music_dungeon"], ["challenge=mou
   // Reason: the combat theme keeps one loudness throughout, so a change at the speakers comes from the game and not
   // from a quieter passage of the music
   await page.evaluate(() => {
-    window.game.busy = true;
+    window.probe.holdControls(true);
     window.audio.playMusic("music_combat", 0.2);
   });
   await waitForTrack(page, "music_combat");
@@ -345,7 +345,7 @@ for (const [query, key] of [["challenge=cave", "music_dungeon"], ["challenge=mou
 {
   const run = await page.evaluate(async () => {
     const audio = window.audio;
-    window.game.busy = true;
+    window.probe.holdControls(true);
     audio.setAmbience(false);
     audio.playMusic("music_victory", 0.2);
     const tap = audio.ctx.tap;

@@ -142,7 +142,7 @@ async function measureFlight({ seconds, start }) {
   const { game } = window;
 
   const now = new Clouds();
-  now.update(game.cinematicTime);
+  now.update(window.probe.cinematic.time);
   const live = game.island.island.clouds.clouds;
   const copyOffset = Math.max(...now.clouds.map((m, i) => m.position.distanceTo(live[i].position)));
 
@@ -152,7 +152,7 @@ async function measureFlight({ seconds, start }) {
   const [COLS, ROWS, STEP] = [24, 14, 0.5];
   const worst = { startCover: 0, cover: 0, coverAt: 0, nearest: Infinity, nearestAt: 0 };
   for (let t = 0; t <= seconds; t += STEP) {
-    const shot = game.cinematic(t);
+    const shot = window.probe.cinematic.shotAt(t);
     camera.position.copy(shot.pos);
     camera.lookAt(shot.look);
     camera.updateMatrixWorld(true);

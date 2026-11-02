@@ -281,7 +281,7 @@ let best = null;
 if (result) {
   await page.waitForFunction(() => !window.engine.isSwitching, null, { timeout: 10_000 }).catch(() => {});
   controlsFree = await page
-    .waitForFunction(() => window.game.busy === false, null, { timeout: 15_000 })
+    .waitForFunction(() => window.probe.busy === false, null, { timeout: 15_000 })
     .then(() => true)
     .catch(() => false);
   await page.waitForTimeout(1500);

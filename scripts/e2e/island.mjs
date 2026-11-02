@@ -53,11 +53,11 @@ const state = () =>
     return {
       x: p.x,
       z: p.z,
-      milestone: g.quest.currentMilestone,
+      milestone: window.probe.milestone,
       coins: g.coins.collected,
       dialogue: g.ui.dialogue.isOpen,
-      busy: g.busy,
-      free: !g.busy && !g.ui.dialogue.isOpen,
+      busy: window.probe.busy,
+      free: !window.probe.busy && !g.ui.dialogue.isOpen,
       prompt: document.querySelector(".prompt")?.style.display !== "none" ? document.querySelector(".prompt")?.textContent.trim() : null,
     };
   });
@@ -141,7 +141,7 @@ const story = () => page.evaluate(() => window.game.story.e2e);
 const bannerText = () => page.textContent(".banner");
 const hasObject = (name) => page.evaluate((n) => !!window.game.island.scene.getObjectByName(n), name);
 const mapCardOpen = () => page.isVisible(".map-card");
-const chuletaVisible = () => page.evaluate(() => window.game.chuleta.root.visible);
+const chuletaVisible = () => page.evaluate(() => window.probe.chuleta.visible);
 const dialogueOpen = async () => (await state()).dialogue;
 const screenBlack = () => page.evaluate(() => Number(getComputedStyle(document.getElementById("fade")).opacity) > 0.95);
 const banner2Shows = async () => (await page.isVisible(".banner.show")) && (await bannerText()).includes("von");
@@ -297,7 +297,7 @@ const [coin, coinStart] = await page.evaluate(() => {
   const start = [[0, 4], [4, 0], [0, -4], [-4, 0]].map(([dx, dz]) => [x + dx, z + dz]).find(([sx, sz]) => g.island.player.world.canStand(sx, sz));
   return [[x, z], start];
 });
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z), coinStart);
+await page.evaluate(([x, z]) => window.probe.place(x, z), coinStart);
 await wait(500);
 await walkTo(coin[0], coin[1], 0.6, 8000);
 await wait(300);
@@ -337,7 +337,7 @@ async function continueAt(m) {
   await page.goto(BASE);
   await wait(4000);
   await page.keyboard.press("Space");
-  await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.game.busy, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.probe.busy, null, { timeout: 30000 });
   await recordLines();
 }
 /** Press Space, as separate presses every 60 ms like a child mashing it, while a talk is open, until `n` lines have begun. */
@@ -361,7 +361,7 @@ const elder = await page.evaluate(() => {
   const p = window.game.npcs.get("elder").position;
   return [p.x, p.z];
 });
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), elder);
+await page.evaluate(([x, z]) => window.probe.place(x, z + 2.2, Math.PI), elder);
 await wait(600);
 s = await state();
 check("elder: prompt to talk", s.prompt?.includes("Sprechen") ?? false, s.prompt ?? "no prompt");
@@ -420,7 +420,7 @@ check("all three tablets start dark and asleep", (await lake()).lit.every((l) =>
 
 async function goToTablet(i) {
   const [tx, tz, ax, az] = tablets[i];
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [tx + ax * 3.2, tz + az * 3.2]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z), [tx + ax * 3.2, tz + az * 3.2]);
   await wait(500);
   await walkTo(tx + ax * 2.2, tz + az * 2.2, 0.6, 6000);
   s = await state();
@@ -503,7 +503,7 @@ check("a wrong answer doesn't replay the first talk", firstTablet.every((l) => c
 check("the first talk comes before the riddle, the first lit line after the wrong answer", lakeHeard.indexOf(firstTablet[0]) === 0 && lakeHeard.indexOf(litFirst[0]) > lakeHeard.indexOf((await scriptLines("lake_wrong"))[0]));
 
 // A lit tablet is silent: walking back to it and pressing Space adds no line
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [tablets[0][0], tablets[0][1] + 2.2]);
+await page.evaluate(([x, z]) => window.probe.place(x, z), [tablets[0][0], tablets[0][1] + 2.2]);
 await wait(500);
 await page.keyboard.press("Space");
 await wait(800);
@@ -604,13 +604,13 @@ async function solveAllTablets() {
 // A reload in the elder's talk and in the Hüter's talk: the quest stays, and the talk is told again from its start
 const elderTalk = await scriptLines("elder_legend");
 await continueAt(3);
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), elder);
+await page.evaluate(([x, z]) => window.probe.place(x, z + 2.2, Math.PI), elder);
 await wait(600);
 await page.keyboard.press("Space");
 check("a reload in the elder's talk: the talk is at line 10", await pressUntilLines(10, 30000));
 await continueAt();
 check("a reload in the elder's talk keeps the quest", (await state()).milestone === 3 && (await said()).length === 0);
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z + 2.2, Math.PI), elder);
+await page.evaluate(([x, z]) => window.probe.place(x, z + 2.2, Math.PI), elder);
 await wait(600);
 await page.keyboard.press("Space");
 await readUntil(mapCardOpen, 90000);
@@ -653,7 +653,7 @@ check("mashing Space through the lake skips no line", (await said()).join("\n") 
 // ── 6. Village chat ─────────────────────────────────────────
 await page.goto(`${BASE}?quest=8`);
 await wait(4000);
-await page.evaluate(() => window.game.placePlayer(69.2, 38.4, -Math.PI / 2));
+await page.evaluate(() => window.probe.place(69.2, 38.4, -Math.PI / 2));
 await wait(600);
 s = await state();
 check("villager offers a chat", s.prompt?.includes("Sprechen") ?? false, s.prompt ?? "no prompt");
@@ -664,7 +664,7 @@ check("chat dialogue with a villager", (await state()).dialogue && chatName === 
 await shot("08-village-chat");
 await finishDialogue();
 await waitUntilFree();
-await page.evaluate(() => window.game.placePlayer(60, 42.4, Math.PI));
+await page.evaluate(() => window.probe.place(60, 42.4, Math.PI));
 await wait(600);
 s = await state();
 check("Fischer Jonas offers the fishing side game", s.prompt?.includes("Angeln") ?? false, s.prompt ?? "no prompt");
@@ -742,9 +742,9 @@ for (const [quest, keys, tag] of [[3, ["elder_legend", "elder_after_map"], "elde
   const pacoLines = (await scriptLines(...keys)).filter((l) => l.startsWith("Käpt'n Paco: "));
   for (const [name, at] of Object.entries(pacoSides)) {
     await page.goto(`${BASE}?quest=${quest}`);
-    await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.game.busy, null, { timeout: 30000 });
+    await page.waitForFunction(() => window.engine?.scene === window.game?.island && !window.probe.busy, null, { timeout: 30000 });
     await recordLines();
-    await page.evaluate(([x, z]) => window.game.placePlayer(x, z), at);
+    await page.evaluate(([x, z]) => window.probe.place(x, z), at);
     await wait(500);
     await page.keyboard.press("Space");
     const measured = new Set();
@@ -865,7 +865,7 @@ await page.goto(`${BASE}?quest=12`);
 await wait(4000);
 s = await state();
 check("a game at quest 12 is free, with no prompt away from the gate", s.milestone === 12 && !s.dialogue && !s.busy && s.prompt === null, JSON.stringify(s));
-const finalGoal = await page.evaluate(() => window.game.objectives()[0]?.verb ?? null);
+const finalGoal = await page.evaluate(() => window.probe.goals()[0]?.verb ?? null);
 check("quest 12 has a goal", finalGoal === "Los geht's!", String(finalGoal));
 
 // ── 8. A save from an older version ─────────────────────────
@@ -938,7 +938,7 @@ check("after mashing: wreck on the sand", mashed.wreck);
 check("after mashing: nothing of the opening is left", !(await hasObject("opening-sea")) && !(await hasObject("opening-beach")));
 check("after mashing: the camera is back with Tadeo", await page.evaluate(() => {
   const g = window.game;
-  return g.cinematic === null && g.island.camera.position.distanceTo(g.island.player.position) < 25;
+  return window.probe.cinematic === null && g.island.camera.position.distanceTo(g.island.player.position) < 25;
 }));
 await shot("20-after-mashing");
 check("after mashing: no dialogue is open and the layer is down", !s.dialogue && (await layerIndex()) === "", `z-index "${await layerIndex()}"`);

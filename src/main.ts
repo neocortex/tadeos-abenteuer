@@ -16,4 +16,4 @@ const game = new Game(engine);
 void game.start();
 
 // Reason: expose the engine, game and sound for E2E tests and debugging in the browser console
-Object.assign(window, { engine, game, audio, narration: NarrationManager.getInstance() });
+Object.assign(window, { engine, game, probe: game.probe, audio, narration: NarrationManager.getInstance() });

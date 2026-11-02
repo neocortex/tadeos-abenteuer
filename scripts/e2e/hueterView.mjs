@@ -92,7 +92,7 @@ export async function hueterViewChecks({ page, BASE, check, shot, wait }) {
   await page.goto(`${BASE}?quest=4`);
   await wait(4000);
   await page.evaluate(() => {
-    window.game.placePlayer(-12.44, -10.56);
+    window.probe.place(-12.44, -10.56);
     void window.game.lake.rise();
   });
   await wait(6500);

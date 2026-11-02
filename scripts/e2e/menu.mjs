@@ -42,7 +42,7 @@ const wait = (ms) => page.waitForTimeout(ms);
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 const openGame = async (query = "notitle") => {
   await page.goto(`${BASE}/?${query}`);
-  await page.waitForFunction(() => window.game?.busy === false && !window.engine.isSwitching, null, { timeout: 90_000 });
+  await page.waitForFunction(() => window.probe?.busy === false && !window.engine.isSwitching, null, { timeout: 90_000 });
 };
 const isOpen = () => page.locator(".menu-panel").isVisible();
 const active = () => page.locator(".menu-panel .active").first().innerText();
@@ -55,7 +55,7 @@ const tadeo = () => page.evaluate(() => {
 
 // ── 1. The wheel on the island ──────────────────────────────
 await page.goto(`${BASE}/?notitle`);
-await page.waitForFunction(() => window.game?.busy === false && !window.engine.isSwitching, null, { timeout: 90_000 });
+await page.waitForFunction(() => window.probe?.busy === false && !window.engine.isSwitching, null, { timeout: 90_000 });
 await wait(1000);
 const wheel = await page.evaluate(() => {
   const el = document.querySelector(".menu-wheel");
@@ -118,7 +118,7 @@ const chat = await page.evaluate(() => {
   const n = window.game.npcs.get("villager1").position;
   const world = window.game.island.player.world;
   const spot = [[1.6, 0], [-1.6, 0], [0, 1.6], [0, -1.6]].map(([dx, dz]) => [n.x + dx, n.z + dz]).find(([x, z]) => world.canStand(x, z));
-  window.game.placePlayer(spot[0], spot[1]);
+  window.probe.place(spot[0], spot[1]);
   return spot;
 });
 await wait(300);
@@ -167,7 +167,7 @@ check("V shows on the Stimme switch", (await chip("Stimme").innerText()).endsWit
 await chip("Stimme").click();
 await page.keyboard.press("Escape");
 await page.reload();
-await page.waitForFunction(() => window.game?.busy === false, null, { timeout: 90_000 });
+await page.waitForFunction(() => window.probe?.busy === false, null, { timeout: 90_000 });
 check("music and voice stay off after a reload", (await states()).music === false && (await states()).voice === false);
 await page.keyboard.press("Escape");
 check("the switches show that after a reload", (await chip("Musik").innerText()).endsWith("aus") && (await chip("Stimme").innerText()).endsWith("aus"));
@@ -293,12 +293,12 @@ for (const place of places) {
   await page.keyboard.press("Escape");
   await pin(place.name).click();
   check(`${place.name}: picking it closes the menu`, !(await isOpen()));
-  await page.waitForFunction(() => window.game.busy === false, null, { timeout: 5000 });
+  await page.waitForFunction(() => window.probe.busy === false, null, { timeout: 5000 });
   await wait(250);
   const arrived = await page.evaluate(() => {
     const g = window.game;
     const p = g.island.player.position;
-    const c = g.chuleta.position;
+    const c = window.probe.chuleta.position;
     const look = g.island.rig.look;
     return { x: p.x, z: p.z, hen: Math.hypot(c.x - p.x, c.z - p.z), cam: Math.hypot(look.x - p.x, look.z - p.z), fade: Number(getComputedStyle(document.getElementById("fade")).opacity) };
   });
@@ -320,7 +320,7 @@ for (const place of places) {
 // Tadeo's marker shows where he is
 await page.keyboard.press("Escape");
 await pin("Dorf").click();
-await page.waitForFunction(() => window.game.busy === false, null, { timeout: 5000 });
+await page.waitForFunction(() => window.probe.busy === false, null, { timeout: 5000 });
 await wait(200);
 await page.keyboard.press("Escape");
 const marks = await page.evaluate(() => {
@@ -339,7 +339,7 @@ await page.keyboard.press("ArrowDown");
 const lit = (await active()).trim().split("\n").pop();
 const litAt = places.find((p) => p.name === lit);
 await page.keyboard.press("Space");
-await page.waitForFunction(() => window.game.busy === false, null, { timeout: 5000 });
+await page.waitForFunction(() => window.probe.busy === false, null, { timeout: 5000 });
 await wait(200);
 const byKey = await tadeo();
 check("arrows + Space travel too", !!litAt && Math.hypot(byKey.x - litAt.at[0], byKey.z - litAt.at[1]) < 1, lit);

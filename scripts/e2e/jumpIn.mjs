@@ -6,34 +6,17 @@
  *
  * What comes after a challenge is under test here, not the challenge: each one is ended by resolving its
  * `finished` promise, which is what a win does, and every other step uses real key presses. Reaching a goal
- * uses `game.placePlayer` instead of walking. Quests 3 and 4 are left out: `island.mjs` plays them through.
+ * uses `probe.place` instead of walking. Quests 3 and 4 are left out: `island.mjs` plays them through.
  *
  * Usage: node scripts/e2e/jumpIn.mjs [baseUrl]
  * Output: scripts/e2e/out/jumpIn/{*.png, summary.json, console.log}
  */
 
-import { chromium } from "playwright";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
+import { BASE, launch, proof } from "./lib/harness.mjs";
 
-const BASE = process.argv[2] ?? "http://localhost:5199";
-const OUT = "scripts/e2e/out/jumpIn";
-mkdirSync(OUT, { recursive: true });
-
-const browser = await chromium.launch({
-  channel: "chrome",
-  args: ["--use-angle=metal", "--enable-gpu", "--ignore-gpu-blocklist", "--autoplay-policy=no-user-gesture-required"],
-});
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
-const errors = [];
-const logs = [];
-page.on("pageerror", (e) => errors.push(e.message));
-page.on("console", (m) => logs.push(`[${m.type()}] ${m.text()}`));
-
-const checks = [];
-const check = (name, ok, detail = "") => {
-  checks.push({ name, ok, detail });
-  console.log(`${ok ? "ok  " : "FAIL"} ${name}${detail ? `  (${detail})` : ""}`);
-};
+const { out: OUT, check, finish } = proof("jumpIn");
+const { browser, page, errors, logs } = await launch();
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const state = () =>
@@ -43,8 +26,8 @@ const state = () =>
     return {
       onIsland: e.scene === g.island,
       switching: e.isSwitching,
-      busy: g.busy,
-      milestone: g.quest.currentMilestone,
+      busy: window.probe.busy,
+      milestone: window.probe.milestone,
       dialogue: !!document.querySelector(".dialogue.open"),
       mapCard: !!document.querySelector(".map-card"),
       endCard: !!document.querySelector(".endcard"),
@@ -95,8 +78,8 @@ async function tadeoWalks() {
 /** Go to the goal of the current quest and press Space there. */
 async function startNextQuest() {
   await page.evaluate(() => {
-    const [goal] = window.game.objectives();
-    window.game.placePlayer(goal.at[0], goal.at[1]);
+    const [goal] = window.probe.goals();
+    window.probe.place(goal.at[0], goal.at[1]);
   });
   await wait(500);
   await page.keyboard.press("Space");
@@ -131,7 +114,7 @@ for (const [name, quest] of [["volcano", 2], ["cave", 5], ["forest", 6], ["villa
 for (const quest of [2, 5, 6, 7, 8, 9]) {
   await open(`quest=${quest}`);
   await clearSave();
-  await page.waitForFunction(() => window.engine.scene === window.game.island && !window.game.busy, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.engine.scene === window.game.island && !window.probe.busy, null, { timeout: 30000 });
   await startNextQuest();
   const s = await playUntil((x) => x.milestone === quest + 1 && free(x), 60000);
   if (!s) {
@@ -149,7 +132,7 @@ for (const query of ["challenge=forest", "quest=6"]) {
   await open(query);
   await clearSave();
   if (query.startsWith("quest")) {
-    await page.waitForFunction(() => window.engine.scene === window.game.island && !window.game.busy, null, { timeout: 30000 });
+    await page.waitForFunction(() => window.engine.scene === window.game.island && !window.probe.busy, null, { timeout: 30000 });
     await startNextQuest();
   }
   const reached = [];
@@ -170,9 +153,6 @@ for (const query of ["challenge=forest", "quest=6"]) {
 
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
-const failed = checks.filter((c) => !c.ok);
-writeFileSync(`${OUT}/summary.json`, JSON.stringify({ passed: failed.length === 0, checks, errors }, null, 2));
 writeFileSync(`${OUT}/console.log`, logs.join("\n"));
-console.log(`${checks.length - failed.length} of ${checks.length} checks passed`);
 await browser.close();
-process.exit(failed.length ? 1 : 0);
+finish();

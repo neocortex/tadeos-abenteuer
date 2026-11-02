@@ -164,6 +164,11 @@ export class Bubble {
     return performance.now() < this.until;
   }
 
+  /** The remark showing now, if any. */
+  get line(): string | null {
+    return this.speaking ? this.el.textContent : null;
+  }
+
   /** Follow a screen position (pixels); hides itself once the remark has expired. */
   place(px: { x: number; y: number } | null): void {
     const show = px !== null && performance.now() < this.until;

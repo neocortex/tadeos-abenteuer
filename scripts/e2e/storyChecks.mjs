@@ -112,7 +112,7 @@ export async function storyChecks({ page, BASE, check, shot, wait, brightness })
       return landmarks.tablets.group.children.filter((o) => o.name === "tablet-runes" && o.material === landmarks.materials.pulse).length;
     });
   const place = async (x, z) => {
-    await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [x, z]);
+    await page.evaluate(([x, z]) => window.probe.place(x, z), [x, z]);
     await wait(500);
   };
   const player = () => page.evaluate(() => [window.game.island.player.position.x, window.game.island.player.position.z]);
@@ -357,10 +357,10 @@ export async function storyChecks({ page, BASE, check, shot, wait, brightness })
     await page.waitForFunction(() => window.game?.title, null, { timeout: 30000 });
     await wait(300);
     await page.keyboard.press("Space");
-    await page.waitForFunction(() => !window.game.busy && !window.game.title, null, { timeout: 15000 });
+    await page.waitForFunction(() => !window.probe.busy && !window.game.title, null, { timeout: 15000 });
     await wait(500);
     const got = await story();
-    const goal = await page.evaluate(() => window.game.objectives()[0] ?? null);
+    const goal = await page.evaluate(() => window.probe.goals()[0] ?? null);
     const pos = await player();
     const reachable = await reach(page, pos, goal.at, { radius: goal.radius - 0.1 });
     check(`Continue at quest ${m} matches the island and the goal is reachable`, sameFields(got, EXPECTED[m]) && reachable, JSON.stringify({ got, goal: goal?.at, reachable }));
@@ -395,7 +395,7 @@ export async function storyChecks({ page, BASE, check, shot, wait, brightness })
   const talkBefore = await page.evaluate(() => ({ open: window.game.ui.dialogue.isOpen }));
   await page.evaluate(() => window.game.story.rumble(11));
   await wait(400);
-  const talkAfter = await page.evaluate(() => ({ open: window.game.ui.dialogue.isOpen, busy: window.game.busy }));
+  const talkAfter = await page.evaluate(() => ({ open: window.game.ui.dialogue.isOpen, busy: window.probe.busy }));
   check("a rumble does not interrupt a conversation", talkBefore.open && talkAfter.open && talkAfter.busy, JSON.stringify({ talkBefore, talkAfter }));
 
   // ── How it looks and runs ─────────────────────────────────

@@ -283,7 +283,7 @@ async function sceneFraming(spots) {
   const inside = (v) => v.ahead && Math.abs(v.x) < 0.92 && Math.abs(v.y) < 0.92;
   const out = [];
   for (const [x, z] of spots) {
-    g.placePlayer(x, z);
+    window.probe.place(x, z);
     // Reason: a stall while the scene plays is what a child would see as a stutter
     let longest = 0;
     let last = performance.now();
@@ -339,7 +339,7 @@ const promptShown = () =>
     return el && el.style.display !== "none" ? el.textContent.trim() : null;
   });
 async function placeTadeo(x, z) {
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), [x, z]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z), [x, z]);
   await sleep(300);
 }
 /** Metres from the hedge to Tadeo along the way through it: below 0 on the lake side, above 0 on the forest side. */
@@ -433,7 +433,7 @@ try {
   check("no frame stalls while the hedge opens", longest < 250, `longest frame ${longest.toFixed(0)} ms`);
 
   // The real thing: up the lake path, one Space at the gate
-  await page.evaluate(([x, z]) => window.game.placePlayer(x, z), GATE_SPOTS[0]);
+  await page.evaluate(([x, z]) => window.probe.place(x, z), GATE_SPOTS[0]);
   await sleep(600);
   await walkIsland(FOREST_GATE[0], FOREST_GATE[1] - 2.6);
   await sleep(500);

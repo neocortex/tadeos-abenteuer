@@ -55,7 +55,7 @@ const wait = (ms) => page.waitForTimeout(ms);
 
 async function open(quest) {
   await page.goto(`${BASE}?quest=${quest}`);
-  await page.waitForFunction(() => window.game?.story && window.engine?.scene === window.game.island && !window.game.busy, null, { timeout: 30000 });
+  await page.waitForFunction(() => window.game?.story && window.engine?.scene === window.game.island && !window.probe.busy, null, { timeout: 30000 });
   await wait(2500);
 }
 
@@ -160,7 +160,7 @@ pictureChecks("dock", await page.evaluate(measureStands, { ids: ["villager3"], r
 
 // ── 2. A real talk where the post used to stand in the way ──
 await open(7);
-await page.evaluate(([x, z]) => window.game.placePlayer(x, z), POST_STAND);
+await page.evaluate(([x, z]) => window.probe.place(x, z), POST_STAND);
 await wait(500);
 await page.keyboard.press("Space");
 await wait(1500);
@@ -187,7 +187,7 @@ await page.evaluate(async () => {
   };
 });
 const remarks = () => page.evaluate((text) => window.said.filter((l) => l.includes(text)), REMARK);
-const place = (at) => page.evaluate(([x, z]) => window.game.placePlayer(x, z), at);
+const place = (at) => page.evaluate(([x, z]) => window.probe.place(x, z), at);
 
 await place(NEAR_LATER_PLACE);
 await wait(STAY_MS);
@@ -202,7 +202,7 @@ await wait(COME_BACK_MS);
 heard = await remarks();
 check("coming back during the same quest he does not say it again", heard.length === 1, `${heard.length} times`);
 
-await page.evaluate(() => window.game.advance());
+await page.evaluate(() => window.probe.advance());
 await place(AWAY);
 await wait(1000);
 await place(NEAR_LATER_PLACE);

@@ -168,8 +168,8 @@ const island = () =>
     const prompt = document.querySelector(".prompt");
     return {
       player: [p.x, p.z],
-      milestone: g.quest.currentMilestone,
-      free: !g.busy && !g.ui.dialogue.isOpen && !window.engine.isSwitching,
+      milestone: window.probe.milestone,
+      free: !window.probe.busy && !g.ui.dialogue.isOpen && !window.engine.isSwitching,
       onIsland: window.engine.scene === g.island,
       prompt: prompt?.style.display !== "none" ? prompt?.textContent.trim() : "",
       rumble: g.story.e2e?.lastRumble ?? g.story.lastRumble,
@@ -192,7 +192,7 @@ async function reloadAndContinue() {
 async function playThroughOpening() {
   const end = Date.now() + 120000;
   while (Date.now() < end) {
-    if ((await page.evaluate(() => !window.game.busy && !window.game.ui.dialogue.isOpen && !window.engine.isSwitching)) === true) return;
+    if ((await page.evaluate(() => !window.probe.busy && !window.game.ui.dialogue.isOpen && !window.engine.isSwitching)) === true) return;
     await page.keyboard.press("Space");
     await sleep(120);
   }
@@ -429,7 +429,7 @@ try {
   await page.evaluate(() => {
     const g = window.game;
     const jonas = g.npcs.get("villager0").position;
-    g.placePlayer(jonas.x + 1.6, jonas.z + 0.6);
+    window.probe.place(jonas.x + 1.6, jonas.z + 0.6);
   });
   await sleep(700);
   const atJonas = await island();
@@ -706,7 +706,7 @@ try {
     const { playEnding } = await import("/src/game/ending.ts");
     const g = window.game;
     // Reason: a free Tadeo jumps on Space, and the card never hears it; on the way to the card the game is always busy
-    g.busy = true;
+    window.probe.holdControls(true);
     void playEnding(g.ui, window.engine.input, g.coins, g.wardrobe);
   });
   await waitFor(() => page.isVisible(".endcard"), "the end card again", 10000);
