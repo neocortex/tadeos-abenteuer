@@ -1,7 +1,7 @@
 /**
  * The twelve quests of the adventure, in story order. A quest's number (its milestone, which saves keep and `?quest=N`
  * asks for) is its place in this list, so code names quests through `QUEST`. This is data only: what each kind of goal
- * does is in game/Game.ts.
+ * does is in game/QuestFlow.ts.
  */
 
 import type { ChallengeName } from "../challenges/types";

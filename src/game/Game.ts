@@ -10,10 +10,10 @@ import { IslandScene } from "../scenes/IslandScene";
 import { GameUI } from "../ui/GameUI";
 import { Beacon } from "./Beacon";
 import { IslandDirector } from "./IslandDirector";
-import { GameProbe } from "./GameProbe";
+import { Objective, QuestFlow, TALK_RANGE } from "./QuestFlow";
+import { GameProbe, createProbe } from "./GameProbe";
 import { Npcs, Npc } from "./Npcs";
 import { Title } from "./Title";
-import { CHULETA_CHEERS } from "./chuletaLines";
 import { Coins } from "./Coins";
 import { Wardrobe } from "./Wardrobe";
 import { SIDE_GAMES, SideGame } from "./sideGames";
@@ -22,31 +22,14 @@ import { StoryWorld } from "./StoryWorld";
 import { TurtleFamily } from "./TurtleFamily";
 import { Lake } from "./lake";
 import { IslandSounds } from "./IslandSounds";
-import { playOpening } from "./opening";
-import { playEnding } from "./ending";
-import { showMapCard } from "../ui/MapCard";
 import { Menu } from "../ui/Menu";
 import { QuestManager } from "../systems/QuestManager";
-import { InventoryManager } from "../systems/InventoryManager";
 import { SaveManager } from "../systems/SaveManager";
 import { NarrationManager } from "../systems/NarrationManager";
-import { QUEST, QUESTS, gateOf } from "../data/quests";
-import { LANDMARKS, VILLAGE, P2 } from "../world/layout";
-import { loadChallenge } from "../challenges/registry";
+import { VILLAGE, P2 } from "../world/layout";
 import { ChallengeName } from "../challenges/types";
 import { audio } from "../audio/Audio";
-import { ItemKey } from "../world/models/items";
 
-interface Objective {
-  at: P2;
-  radius: number;
-  verb: string;
-  run(): Promise<void>;
-}
-
-const TALK_RANGE = 2.8;
-/** Seconds without progress before Chuleta offers a hint. */
-const HINT_AFTER = 45;
 /** Milliseconds of black each way when Tadeo travels from the menu's map. */
 const TRAVEL_FADE = 350;
 
@@ -56,24 +39,21 @@ export class Game {
   private beacon = new Beacon();
   private npcs: Npcs;
   private director: IslandDirector;
-  private hintTimer = 0;
   private coins: Coins;
   private wardrobe: Wardrobe;
   private sightings: Sightings;
   private story: StoryWorld;
   private lake: Lake;
   private family: TurtleFamily;
+  private flow: QuestFlow;
   private quest = QuestManager.getInstance();
   /** True while a cutscene, conversation or challenge owns the controls. */
   private busy = true;
   private title: Title | null = null;
-  private remarkCooldown = 0;
   private islandSounds: IslandSounds;
-  /** The places of later quests Tadeo has already remarked on during this quest. */
-  private remarked = new Set<P2>();
   private tmp = new THREE.Vector3();
   /** The interface E2E tests use. */
-  readonly probe: GameProbe = this.createProbe();
+  readonly probe: GameProbe;
 
   constructor(private engine: Engine) {
     const { landmarks, hf, colliders } = this.island.island;
@@ -92,6 +72,16 @@ export class Game {
     this.wardrobe = new Wardrobe(this.island.player.avatar, this.director.chuleta, this.ui, (t) => this.director.chuletaSay(t));
     this.wardrobe.dress(this.coins.collected);
     this.family = new TurtleFamily({ director: this.director, wardrobe: this.wardrobe, coins: this.coins });
+    this.flow = new QuestFlow({ engine, director: this.director, story: this.story, npcs: this.npcs, lake: this.lake, coins: this.coins, wardrobe: this.wardrobe });
+    this.probe = createProbe({
+      flow: this.flow,
+      director: this.director,
+      isBusy: () => this.busy,
+      holdControls: (hold) => {
+        this.busy = hold;
+      },
+      run: (action) => this.run(action),
+    });
     this.story.apply(this.quest.currentMilestone);
     engine.onFrame = (dt, time) => this.frame(dt, time);
   }
@@ -122,23 +112,20 @@ export class Game {
     const milestone = Number(params.get("quest") ?? 0);
     const side = SIDE_GAMES.find((s) => s.challenge === challenge);
     if (side) {
-      this.setupMilestone(milestone || 1);
+      this.flow.jumpTo(milestone || 1);
       await this.playSideGame(side);
       this.busy = false;
       return;
     }
     if (challenge) {
-      const m = QUESTS.findIndex((q) => gateOf(q)?.challenge === challenge) + 1 || 1;
-      this.setupMilestone(m);
-      await this.playChallenge(m);
+      await this.flow.startChallenge(challenge);
       this.busy = false;
       return;
     }
     if (milestone || params.has("notitle")) {
       // Reason: quest 1 is the opening's cutscene and has no goal, so a game that skips it starts on the beach at quest 2
-      this.setupMilestone(milestone || 2, !milestone);
-      await this.engine.setScene(this.island, 300);
-      this.islandAudio();
+      this.flow.jumpTo(milestone || 2, !milestone);
+      await this.flow.showIsland();
       this.busy = false;
       return;
     }
@@ -163,7 +150,7 @@ export class Game {
 
     const free = this.free;
     player.controlsEnabled = free;
-    const objectives = free ? this.objectives() : [];
+    const objectives = free ? this.flow.goals() : [];
     const main = this.mainObjective(objectives);
 
     // Beacon + compass towards the current goal
@@ -189,19 +176,10 @@ export class Game {
     const familyScene = this.family.update(dt, free && !this.busy);
     if (familyScene) void this.run(familyScene);
 
-    this.remarkCooldown -= dt;
-    if (free) this.remarkAtFutureGates(objectives);
+    this.flow.update(dt, free, objectives);
     this.director.followCompanions(dt);
 
     if (this.coins.update(dt, time, player.position)) this.wardrobe.onCoins(this.coins.collected);
-
-    // Chuleta offers a hint when nothing has happened for a while
-    this.hintTimer = free ? this.hintTimer + dt : 0;
-    const hinted = this.quest.currentQuest;
-    if (this.hintTimer > HINT_AFTER && hinted.goal.kind !== "opening") {
-      this.director.chuletaSay(hinted.hint);
-      this.hintTimer = -HINT_AFTER;
-    }
 
     if (free) {
       const inVillage = this.distance(VILLAGE.plaza) < 24;
@@ -215,33 +193,6 @@ export class Game {
     return !this.busy && !this.ui.dialogue.isOpen && !this.engine.isSwitching;
   }
 
-  private createProbe(): GameProbe {
-    const game = this;
-    return {
-      get milestone() {
-        return game.quest.currentMilestone;
-      },
-      get busy() {
-        return game.busy;
-      },
-      goals: () => this.objectives(),
-      place: (x, z, facing) => this.director.place(x, z, facing),
-      advance: () => this.advance(),
-      playQuest: (m) => this.run(() => this.playChallenge(m)),
-      holdControls: (hold) => {
-        this.busy = hold;
-      },
-      save: (at) => this.saveAt(at),
-      get chuleta() {
-        const { chuleta, chuletaLine } = game.director;
-        return { position: chuleta.position, visible: chuleta.root.visible, line: chuletaLine };
-      },
-      get cinematic() {
-        return game.director.runningCinematic;
-      },
-    };
-  }
-
   private async run(action: () => Promise<void>): Promise<void> {
     this.busy = true;
     this.ui.prompt.show(null);
@@ -252,28 +203,6 @@ export class Game {
     }
   }
 
-  // ── Quest objectives ──────────────────────────────────────
-
-  private objectives(): Objective[] {
-    const m = this.quest.currentMilestone;
-    const { goal } = this.quest.currentQuest;
-    switch (goal.kind) {
-      case "opening":
-        return [];
-      case "talk":
-        return [{ at: goal.at, radius: TALK_RANGE, verb: "Sprechen", run: () => this.meetElder() }];
-      case "tablets":
-        return LANDMARKS.tablets
-          .map((at, i) => ({ at, i }))
-          .filter(({ i }) => !this.lake.solved.has(i))
-          .map(({ at, i }) => ({ at, radius: 3.2, verb: "Lesen", run: () => this.readTablet(i) }));
-      case "talkThenChallenge":
-        return [{ at: goal.gate.at, radius: TALK_RANGE, verb: "Sprechen", run: () => this.villageElder() }];
-      default:
-        return [{ at: goal.gate.at, radius: 3.5, verb: "Los geht's!", run: () => this.playChallenge(m) }];
-    }
-  }
-
   /** The goal the beacon marks: the nearest open objective. */
   private mainObjective(list: Objective[]): Objective | null {
     let best: Objective | null = null;
@@ -281,48 +210,7 @@ export class Game {
     return best;
   }
 
-  /** The legend of the Feuerherz; Tadeo's map shows where the heart is. */
-  private async meetElder(): Promise<void> {
-    const elder = this.npcs.get("elder");
-    await this.director.talk("elder_legend", { with: elder, also: this.npcs.get("villager3") });
-    // Reason: the card closes on Space, which the island leaves alone while controls are off
-    await showMapCard(this.ui.layer, this.engine.input);
-    await this.director.talk("elder_after_map", { with: elder, also: this.npcs.get("villager3") });
-    await this.advance();
-  }
-
-  /** A riddle at a tablet. The third one wakes the Hüter, who speaks the rhyme of the four things. */
-  private async readTablet(i: number): Promise<void> {
-    if (await this.lake.solve(i)) await this.lake.awaken().then(() => this.advance());
-  }
-
-  private async villageElder(): Promise<void> {
-    await this.director.talk("village_enter", { with: this.npcs.get("elder"), also: this.npcs.get("villager3") });
-    await this.playChallenge(QUEST.village);
-  }
-
-  /** Short remark when Tadeo wanders to a place whose quest comes later. */
-  private remarkAtFutureGates(open: Objective[]): void {
-    if (this.remarkCooldown > 0) return;
-    const m = this.quest.currentMilestone;
-    const later: P2[] = [];
-    QUESTS.forEach((q, i) => {
-      const gate = gateOf(q);
-      // Reason: the treasure and the finale reuse the gates of the sea and the volcano, and the elder and the village quests share the elder, so neither counts as a later place
-      const ownSpot = gate && open.some((o) => o.at[0] === gate.at[0] && o.at[1] === gate.at[1]);
-      if (gate && i + 1 > m && i + 1 < QUEST.treasure && !ownSpot) later.push(gate.at);
-    });
-    if (m < QUEST.lake) later.push(...LANDMARKS.tablets);
-    const place = later.find((at) => this.distance(at) < 4.5 && !this.remarked.has(at));
-    if (place) {
-      const text = `Hier komme ich später wieder hin. Zuerst: ${this.quest.currentQuest.name}!`;
-      this.director.tadeoSay(text);
-      this.remarked.add(place);
-      this.remarkCooldown = 12;
-    }
-  }
-
-  // ── Flow ──────────────────────────────────────────────────
+  // ── Title and side games ──────────────────────────────────
 
   private async titleScreen(): Promise<void> {
     this.ui.hud.setVisible(false);
@@ -345,149 +233,28 @@ export class Game {
     await this.engine.fade(1, 700);
 
     const data = choice === "continue" ? save.load() : null;
-    if (data) {
-      this.story.apply(this.quest.currentMilestone);
-      this.director.place(data.playerX, data.playerY);
-      this.director.endCinematic(0.01);
-      this.ui.hud.refresh();
-      this.ui.hud.setVisible(true);
-      this.islandAudio();
-      await this.engine.fade(0, 800);
-      if (this.quest.currentMilestone === QUESTS.length) this.story.rumble(QUESTS.length);
-      void this.ui.hud.showBanner("Willkommen zurück!", this.quest.currentQuest.name);
-      this.busy = false;
-      return;
-    }
-    save.fullReset();
-    this.story.apply(1);
-    // Reason: only a running adventure is abandoned; after a save from an older version the coins and hats stay
-    if (hasSave) {
-      this.coins.reset();
-      this.wardrobe.reset();
-    }
-    this.wardrobe.dress(this.coins.collected);
-    this.ui.hud.refresh();
-    await playOpening({ engine: this.engine, director: this.director });
-    this.ui.hud.setVisible(true);
-    await this.advance();
+    if (data) await this.flow.resume(data);
+    else await this.flow.beginAdventure(hasSave);
     this.busy = false;
-  }
-
-  /** Fade into a challenge scene, wait for the win, then reward and return to the island. */
-  private async playChallenge(milestone: number): Promise<void> {
-    const quest = QUESTS[milestone - 1];
-    if (quest.goal.kind === "finale") return this.finale();
-    const gate = gateOf(quest)!;
-    // Reason: a debug start has no island on screen yet, and the treasure comes straight from the sea
-    if (this.engine.scene === this.island) await this.story.beforeQuest(milestone);
-    await this.enterChallenge(gate.challenge);
-    this.story.won(milestone);
-
-    const reward = quest.reward as ItemKey | null;
-    if (reward) InventoryManager.getInstance().addItem(reward);
-    if (quest.straightOn) {
-      this.quest.completeMilestone();
-      this.saveAt(quest.straightOn.saveAt);
-      if (quest.straightOn.overBlack) {
-        await this.engine.fade(1, 700);
-        await this.ui.sayOverBlack(quest.straightOn.overBlack);
-      }
-      return this.playChallenge(milestone + 1);
-    }
-
-    const back = gate.back ?? gate.at;
-    await this.backToIsland([back[0], back[1] + (gate.back ? 0 : 2.5)]);
-    if (reward) this.ui.hud.popItem(reward);
-    await this.story.afterQuest(milestone);
-    await this.advance();
   }
 
   /** A villager's side game: invitation, the game itself, then the prize hat on the first win. */
   private async playSideGame(side: SideGame, npc?: Npc): Promise<void> {
     const won = this.wardrobe.hasPrize(side.prize);
     if (npc) await this.director.talk(won ? side.again : side.invite, { with: npc });
-    await this.enterChallenge(side.challenge);
+    await this.flow.enterChallenge(side.challenge);
     const host = this.npcs.get(side.host).position;
-    await this.backToIsland(side.back, Math.atan2(host.x - side.back[0], host.z - side.back[1]));
+    await this.flow.backToIsland(side.back, Math.atan2(host.x - side.back[0], host.z - side.back[1]));
     await this.wardrobe.givePrize(side.prize, side.prizeName, side.cheer, this.coins.collected);
   }
 
-  /** Fade into a challenge scene and wait until the player wins it. */
-  private async enterChallenge(name: ChallengeName): Promise<void> {
-    const factory = await loadChallenge(name);
-    this.ui.hud.setVisible(false);
-    this.ui.prompt.show(null);
-    this.ui.hud.updateCompass(null);
-    this.director.hideTadeoRemark();
-    audio.setAmbience(false);
-    const challenge = factory({ engine: this.engine, ui: this.ui });
-    await this.engine.setScene(challenge, 700);
-    await challenge.finished;
-    this.ui.status(null);
-  }
-
-  private async backToIsland(at: P2, facing?: number): Promise<void> {
-    this.director.place(at[0], at[1], facing);
-    this.director.endCinematic(0.01);
-    await this.engine.setScene(this.island, 700);
-    this.islandAudio();
-    this.ui.hud.setVisible(true);
-  }
-
-  /** Complete the current milestone, save and announce the next quest. */
-  private async advance(): Promise<void> {
-    const finished = this.quest.currentMilestone;
-    this.quest.completeMilestone();
-    this.remarked.clear();
-    this.story.apply(this.quest.currentMilestone);
-    this.story.rumble(finished);
-    const p = this.island.player.position;
-    this.saveAt([p.x, p.z]);
-    this.ui.hud.refresh();
-    this.hintTimer = 0;
-    audio.playSfx("sfx_victory_fanfare", 0.6);
-    await this.ui.hud.showBanner(`Neue Aufgabe · ${this.quest.currentMilestone} von ${QUESTS.length}`, this.quest.currentQuest.name);
-    if (CHULETA_CHEERS[finished]) this.director.chuletaSay(CHULETA_CHEERS[finished]);
-  }
-
-  /** The last quest: up the volcano with the heart, then the festival, then the end card. */
-  private async finale(): Promise<void> {
-    await this.enterChallenge("finale");
-    await this.enterChallenge("festival");
-    await playEnding(this.ui, this.engine.input, this.coins, this.wardrobe);
-  }
-
   // ── Helpers ───────────────────────────────────────────────
-
-  /** Set quest state as if milestones 1..m-1 were done (debug starts) and place Tadeo near the goal, or on the beach. */
-  private setupMilestone(m: number, onBeach = m === 1): void {
-    this.quest.setMilestone(m);
-    this.story.apply(m);
-    const items = QUESTS.slice(0, m - 1).map((q) => q.reward).filter((r): r is string => !!r);
-    InventoryManager.getInstance().setItems(items);
-    this.ui.hud.refresh();
-    this.ui.hud.setVisible(true);
-    const goal = onBeach ? LANDMARKS.spawn : (this.objectives()[0]?.at ?? LANDMARKS.spawn);
-    const hf = this.island.island.hf;
-    const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => hf.isWalkable(x, z) && !this.story.behindHedge(x, z));
-    const [x, z] = spot ?? LANDMARKS.spawn;
-    this.director.place(x, z);
-  }
 
   /** Through black to a place picked on the menu's map. */
   private async travelTo([x, z]: P2): Promise<void> {
     await this.engine.fade(1, TRAVEL_FADE);
     this.director.place(x, z);
     await this.engine.fade(0, TRAVEL_FADE);
-  }
-
-  private islandAudio(): void {
-    audio.playMusic("music_overworld");
-    audio.setAmbience(true);
-  }
-
-  private saveAt(at: P2): void {
-    SaveManager.getInstance().save(at[0], at[1]);
   }
 
   private showPrompt(at: P2, verb: string): void {
@@ -502,5 +269,4 @@ export class Game {
     const p = this.island.player.position;
     return Math.hypot(p.x - at[0], p.z - at[1]);
   }
-
 }

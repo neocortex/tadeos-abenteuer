@@ -5,7 +5,10 @@
 
 import * as THREE from "three";
 import { Shot } from "../core/CameraRig";
+import { QuestManager } from "../systems/QuestManager";
 import { P2 } from "../world/layout";
+import { IslandDirector } from "./IslandDirector";
+import { QuestFlow } from "./QuestFlow";
 
 /** A goal Tadeo can walk to now. */
 export interface ProbeGoal {
@@ -34,4 +37,38 @@ export interface GameProbe {
   readonly chuleta: { position: THREE.Vector3; visible: boolean; line: string | null };
   /** The running cinematic, or null when the camera follows Tadeo. */
   readonly cinematic: { time: number; shotAt(t: number): Shot } | null;
+}
+
+/** What the probe needs from the game. */
+interface ProbeSource {
+  flow: QuestFlow;
+  director: IslandDirector;
+  isBusy(): boolean;
+  holdControls(hold: boolean): void;
+  /** Run an action with the controls held. */
+  run(action: () => Promise<void>): Promise<void>;
+}
+
+export function createProbe({ flow, director, isBusy, holdControls, run }: ProbeSource): GameProbe {
+  return {
+    get milestone() {
+      return QuestManager.getInstance().currentMilestone;
+    },
+    get busy() {
+      return isBusy();
+    },
+    goals: () => flow.goals(),
+    place: (x, z, facing) => director.place(x, z, facing),
+    advance: () => flow.advance(),
+    playQuest: (m) => run(() => flow.play(m)),
+    holdControls,
+    save: (at) => flow.save(at),
+    get chuleta() {
+      const { chuleta, chuletaLine } = director;
+      return { position: chuleta.position, visible: chuleta.root.visible, line: chuletaLine };
+    },
+    get cinematic() {
+      return director.runningCinematic;
+    },
+  };
 }

@@ -151,6 +151,12 @@ for (const query of ["challenge=forest", "quest=6"]) {
   await page.screenshot({ path: `${OUT}/end-${query.replace("=", "-")}.png` });
 }
 
+// The festival has no gate of its own: starting it plays on to the end card.
+await page.goto(`${BASE}/?challenge=festival`);
+await page.waitForFunction(() => window.probe && window.engine.scene && !window.engine.isSwitching, null, { timeout: 90000 });
+const festival = await playUntil((x) => x.endCard, 180000);
+check("?challenge=festival plays on to the end card", !!festival?.endCard, JSON.stringify(festival));
+
 check("no page errors", errors.length === 0, errors.slice(0, 3).join(" | "));
 
 writeFileSync(`${OUT}/console.log`, logs.join("\n"));

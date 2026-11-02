@@ -9,7 +9,7 @@ import { InventoryManager } from "./InventoryManager";
 /** Bump this when save format or game layout changes to invalidate old saves. */
 const SAVE_VERSION = 4;
 
-interface SaveData {
+export interface SaveData {
   version: number;
   milestone: number;
   items: string[];
