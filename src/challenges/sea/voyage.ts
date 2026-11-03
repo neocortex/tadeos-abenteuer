@@ -273,7 +273,6 @@ export class Voyage {
    */
   async fightMiss(restart: () => void): Promise<boolean> {
     const { boat, ui } = this.d;
-    audio.playSfx("sfx_hit_damage", 0.7);
     const last = this.planks.hit();
     boat.losePlank();
     ui.setPlanks(this.planks.count);

@@ -17,6 +17,7 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
     line("Käpt'n Paco", "Hast du alles dabei? Der Hai schwimmt immer noch um die Insel."),
     line("Tadeo", "Ich weiß. Aber ich habe die Zauberbeeren!"),
     line("Käpt'n Paco", "Folge den leuchtenden Seesternen. Da ist das Wasser sicher."),
+    line("Käpt'n Paco", "Und siehst du eine bunte Boje? Dort geht es weiter, wenn was schiefgeht."),
     line("Tadeo", "Woher weißt du das so genau?"),
     line("Käpt'n Paco", "Ach... Ein alter Käpt'n weiß so etwas. Gute Fahrt, Tadeo!"),
   ],
@@ -24,7 +25,7 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
     line("Erzähler", "Zum zweiten Mal fährt Tadeo aufs Meer hinaus. Diesmal ist er bereit."),
     line("Tadeo", "Die kleine Schatzinsel liegt dort drüben! Ich muss mit dem Boot rüberfahren."),
     line("Chuleta", "Diesmal machen wir das Boot aber nicht kaputt! Gack!"),
-    line("Erzähler", "Vorsicht — hohe Wellen! Weiche ihnen mit den Pfeiltasten aus!"),
+    line("Erzähler", "Vorsicht, hohe Wellen! Fahr gerade drauf zu, dann hüpft das Boot!"),
   ],
   // A remark while sailing, when the boat leaves the channel
   sea_offcourse: [line("Chuleta", "Gack! Zu weit raus! Zurück zu den Seesternen!")],

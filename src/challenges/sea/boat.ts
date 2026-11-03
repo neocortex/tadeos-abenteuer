@@ -127,6 +127,7 @@ export class Boat {
   losePlank(): void {
     const parent = this.root.parent;
     if (!parent) return;
+    audio.playSfx("sfx_plank_crack", 0.8);
     const mesh = toonMesh(this.plankGeo, mat("#b7834f", 0.8));
     const side = Math.random() < 0.5 ? -1 : 1;
     mesh.position.copy(this.tilt.localToWorld(new THREE.Vector3(side * 0.8, 0.5, -0.6)));

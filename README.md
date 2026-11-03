@@ -163,6 +163,7 @@ node scripts/e2e/world.mjs    # one test: walks every region path, landmarks, re
 node scripts/e2e/title.mjs    # the game's name fits every window; music with and without the browser's sound block
 node scripts/e2e/island.mjs   # likewise: title, opening, quests 1–4, map card, riddles, coins, fps
 node scripts/e2e/finale.mjs   # quest 12 from the sea to the festival and the end card
+node scripts/e2e/seaVoyage.mjs # the voyage's rules: current, planks, buoys, swells, animals, the shark fight's retry
 node scripts/e2e/questTable.mjs # the quest table agrees with the challenges and the menu; needs no browser or server
 node scripts/e2e/jumpIn.mjs   # a game started with ?quest or ?challenge plays on, up to the end card
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback

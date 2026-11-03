@@ -14,7 +14,8 @@ const EFFECTS = [
   "sfx_berry_collect", "sfx_item_get", "sfx_heal", "sfx_special", "sfx_chest_open", "sfx_victory_fanfare",
   "sfx_attack", "sfx_defend", "sfx_enemy_attack", "sfx_enemy_hit", "sfx_hit_damage", "sfx_hammer_hit", "sfx_hammer_miss",
   "sfx_lava_fall", "sfx_sizzle", "sfx_rumble", "sfx_boom", "sfx_wave", "sfx_dig", "sfx_door", "sfx_key_jiggle",
-  "sfx_key_unlock", "sfx_fox_hop", "sfx_drum", "hen_bok", "hen_bagawk", "hen_cackle", "chick_peep",
+  "sfx_key_unlock", "sfx_fox_hop", "sfx_drum", "sfx_plank_crack", "sfx_whirlpool", "sfx_whale_spout",
+  "sfx_dolphin", "sfx_buoy", "hen_bok", "hen_bagawk", "hen_cackle", "chick_peep",
 ];
 const MUSIC_LEVEL = 0.28;
 const MUSIC_OVERLAP_SECONDS = 4;
