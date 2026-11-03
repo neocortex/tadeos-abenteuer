@@ -9,6 +9,12 @@
 - In the opening Tadeo sits beside the sail instead of in it, so it no longer covers his face
 - Tadeo can no longer step off a dock into deep water
 
+### Ponds and puddles
+
+- Water follows one rule everywhere: shallow water can be waded, deep water is the edge. Steep banks of puddles,
+  ponds, the lake and the lagoon no longer block the way, so Tadeo gets in and out from every side, walking or jumping
+- The sea cliffs and the river still keep him from going round the ogre's bridge or the boulder
+
 ### Under the hood
 
 - One table holds every quest, and one place decides how a quest is reached, played and completed, whether the game

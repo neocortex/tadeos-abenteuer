@@ -17,6 +17,17 @@ const CELL = WORLD_SIZE / (HF_N - 1);
 /** Deepest water the player can wade through. */
 const MAX_WADE_DEPTH = 0.45;
 const MAX_WALK_SLOPE = 0.8;
+/**
+ * Inland, ground lower than this is never too steep to walk.
+ * Reason: puddle and pond banks are short but often steep; with the slope limit they were walls on some sides
+ * and open on others, so Tadeo could wade in at one spot and not climb out at another.
+ */
+const BANK_HEIGHT = 1.0;
+/**
+ * Coast distance (see regions.ts) beyond which the old island's low ground keeps the slope limit.
+ * Reason: there the mountains fall into the sea as cliffs, and a walkable strip at their foot led round the river.
+ */
+const BANK_COAST = 0.9;
 
 const dist2 = (x: number, z: number, p: P2): number => Math.hypot(x - p[0], z - p[1]);
 
@@ -28,6 +39,8 @@ export class Heightfield {
   readonly regions = new Uint8Array(HF_N * HF_N * 4);
   readonly slopes = new Float32Array(HF_N * HF_N);
   private walkable = new Uint8Array(HF_N * HF_N);
+  /** 1 where low ground counts as a bank of inland water (see BANK_HEIGHT). */
+  private banks = new Uint8Array(HF_N * HF_N);
   private noise = new Noise2D(1337);
   private pathDist = new Float32Array(HF_N * HF_N).fill(99);
   private riverDist = new Float32Array(HF_N * HF_N).fill(99);
@@ -139,6 +152,8 @@ export class Heightfield {
         const w = this.weights;
         regionWeights(x, z, this.noise, w);
         for (let k = 0; k < 4; k++) this.regions[i * 4 + k] = Math.round(w[k] * 255);
+        // Reason: the regions' coasts are beaches, not cliffs, so their banks count right up to the sea
+        this.banks[i] = coastDistance(x, z, this.noise) < BANK_COAST || w[0] + w[1] + w[2] + w[3] > 0.5 ? 1 : 0;
         this.heights[i] = this.heightFn(x, z, this.pathDist[i], this.riverDist[i], w);
       }
     }
@@ -276,7 +291,8 @@ export class Heightfield {
         this.masks[m + 2] = Math.round(ash * 255);
         this.masks[m + 3] = Math.round(grass * 255);
 
-        this.walkable[i] = height > -MAX_WADE_DEPTH && slope < MAX_WALK_SLOPE ? 1 : 0;
+        const bank = height < BANK_HEIGHT && this.banks[i] === 1;
+        this.walkable[i] = height > -MAX_WADE_DEPTH && (slope < MAX_WALK_SLOPE || bank) ? 1 : 0;
       }
     }
   }

@@ -17,7 +17,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   prompts are `SOUNDS` in `scripts/audio/generate.mjs`, and deleting an MP3 renders a new take of it
 - `npx tsc --noEmit -p .` — type-check (must be clean)
 - E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (questTable, title, world, island, volcano, cave, forest,
-  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, boat, menu, menuJump, jumpIn, voices,
+  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, ponds, boat, menu, menuJump, jumpIn, voices,
   storyLines, music, fps). Proof goes to `scripts/e2e/out/<name>/`. Restart the server after editing source: once a
   module changed, Vite serves it with a `?t=` stamp, so a test's `import("/src/...")` gets a second copy of it and
   fails falsely.
