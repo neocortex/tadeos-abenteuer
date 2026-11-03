@@ -1,6 +1,8 @@
 /**
  * The open sea in the island's water style: rolling swell (the same wave sum
- * on the GPU and in `seaHeight` for buoyancy), the island's depth colours
+ * on the GPU and in `seaHeight` for buoyancy), the voyage's giant swells that
+ * lift the surface itself and foam white where they break (`swellHeight`, fed
+ * by `swells.ts`), the island's depth colours
  * (turquoise shallows around islands and rocks, deep blue in the open),
  * whitecaps, animated shore foam, sun glints and sparkles, a fresnel sky
  * reflection.
@@ -23,8 +25,21 @@ const GLSL_WAVES = WAVES.map(([x, z, len, amp]) => {
   return `vec4(${(x / n).toFixed(4)}, ${(z / n).toFixed(4)}, ${k.toFixed(5)}, ${amp.toFixed(3)})`;
 }).join(", ");
 
-/** Height of the swell at (x, z) (shared by ocean, wake and the floating things). */
+/** Up to this many giant swells are drawn at once (the nearest ones). */
+export const MAX_SWELLS = 4;
+/** A giant swell's crest: how far it reaches in front (towards +z, the side facing the boat) and behind. */
+export const SWELL_FRONT = 2.8;
+export const SWELL_BACK = 5.5;
+/** Its ends taper off over the last part of its half length. */
+export const SWELL_TAPER = 0.72;
+
+/**
+ * Height of the swell at (x, z) (shared by ocean, wake and the floating things), and of the giant swells:
+ * `uSwells[i]` = (x centre, half length, z of the crest, height), `uSwellBreak[i]` = x range that breaks.
+ */
 export const SEA_GLSL = /* glsl */ `
+uniform vec4 uSwells[${MAX_SWELLS}];
+uniform vec2 uSwellBreak[${MAX_SWELLS}];
 const vec4 SEA_W[4] = vec4[4](${GLSL_WAVES});
 // Reason: sharpened sines (wide troughs, pointy crests) read as cartoon swell
 float seaHeight(vec2 p, float t, float amp, out vec2 grad) {
@@ -40,6 +55,44 @@ float seaHeight(vec2 p, float t, float amp, out vec2 grad) {
     grad += w.xy * d;
   }
   return h * amp;
+}
+// The giant swells: a crest across x (steeper on the front, towards +z) with tapered ends
+float swellHeight(vec2 p, out vec2 grad) {
+  float h = 0.0;
+  grad = vec2(0.0);
+  for (int i = 0; i < ${MAX_SWELLS}; i++) {
+    vec4 s = uSwells[i];
+    if (s.w <= 0.0) continue;
+    float dz = p.y - s.z;
+    float w = dz > 0.0 ? ${SWELL_FRONT.toFixed(2)} : ${SWELL_BACK.toFixed(2)};
+    float c = exp(-(dz * dz) / (w * w));
+    float u = abs(p.x - s.x) / s.y;
+    float e = clamp((u - ${SWELL_TAPER.toFixed(2)}) / ${(1 - SWELL_TAPER).toFixed(2)}, 0.0, 1.0);
+    float taper = 1.0 - e * e * (3.0 - 2.0 * e);
+    float dtaper = -6.0 * e * (1.0 - e) / ${(1 - SWELL_TAPER).toFixed(2)} * sign(p.x - s.x) / s.y;
+    h += s.w * c * taper;
+    grad += s.w * vec2(c * dtaper, taper * c * (-2.0 * dz / (w * w)));
+  }
+  return h;
+}
+// How much of the giant swells' crests is white: a little foam on every crest, a churning band where one breaks
+float swellFoam(vec2 p, float n) {
+  float f = 0.0;
+  for (int i = 0; i < ${MAX_SWELLS}; i++) {
+    vec4 s = uSwells[i];
+    if (s.w <= 0.0) continue;
+    float dz = p.y - s.z;
+    float u = abs(p.x - s.x) / s.y;
+    float along = 1.0 - smoothstep(0.8, 1.0, u);
+    float crest = exp(-(dz * dz) / 4.0) * along * s.w / 2.4;
+    f = max(f, smoothstep(0.6, 1.0, crest + n * 0.3) * 0.45);
+    vec2 b = uSwellBreak[i];
+    float inBreak = smoothstep(b.x - 1.2, b.x + 0.6, p.x) * (1.0 - smoothstep(b.y - 0.6, b.y + 1.2, p.x));
+    // Reason: a breaking crest tumbles forward, so its foam reaches further down the front face than behind it
+    float face = exp(-(dz - 1.2) * (dz - 1.2) / 9.0) * along * s.w / 2.4;
+    f = max(f, inBreak * smoothstep(0.2, 0.55, face + n * 0.35));
+  }
+  return f;
 }
 `;
 
@@ -59,10 +112,23 @@ export function seaHeight(x: number, z: number, t: number): number {
   return h;
 }
 
+/** Uniforms of the giant swells (shared by the ocean and the wake). */
+export interface SwellUniforms {
+  uSwells: { value: THREE.Vector4[] };
+  uSwellBreak: { value: THREE.Vector2[] };
+}
+
+export function swellUniforms(): SwellUniforms {
+  return {
+    uSwells: { value: Array.from({ length: MAX_SWELLS }, () => new THREE.Vector4(0, 1, 0, 0)) },
+    uSwellBreak: { value: Array.from({ length: MAX_SWELLS }, () => new THREE.Vector2(1e5, 1e5)) },
+  };
+}
+
 /** Up to this many islands / rocks get shallows and shore foam. */
 export const MAX_ISLES = 24;
 
-export interface OceanUniforms {
+export interface OceanUniforms extends SwellUniforms {
   [name: string]: THREE.IUniform;
   uTime: { value: number };
   uSunDir: { value: THREE.Vector3 };
@@ -78,6 +144,7 @@ export function oceanUniforms(sunDir: THREE.Vector3): OceanUniforms {
     uSunDir: { value: sunDir },
     uIsles: { value: Array.from({ length: MAX_ISLES }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uIsleSlope: { value: new Array(MAX_ISLES).fill(0.3) },
+    ...swellUniforms(),
   };
 }
 
@@ -106,6 +173,7 @@ uniform float uTime;
 varying vec3 vWPos;
 varying float vH;
 varying float vCalm;
+varying float vSwell;
 ${SEA_GLSL}
 ${ISLES_GLSL}
 #include <fog_pars_vertex>
@@ -113,12 +181,16 @@ void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vec2 info = shoreInfo(wp.xz);
   // Reason: calm water near shores keeps the foam line still; far triangles are too big to carry waves
-  float calm = smoothstep(0.4, 5.0, info.y) * (1.0 - smoothstep(90.0, 260.0, distance(wp.xz, cameraPosition.xz)));
+  float shore = smoothstep(0.4, 5.0, info.y);
+  float calm = shore * (1.0 - smoothstep(90.0, 260.0, distance(wp.xz, cameraPosition.xz)));
   vec2 g;
   float h = seaHeight(wp.xz, uTime, 1.0, g);
-  wp.y += h * calm;
+  // Reason: the giant swells stay tall further out than the small waves, so they rise out of the sea well ahead
+  float sh = swellHeight(wp.xz, g) * shore;
+  wp.y += h * calm + sh;
   vH = h;
   vCalm = calm;
+  vSwell = sh;
   vWPos = wp.xyz;
   vec4 mvPosition = viewMatrix * wp;
   gl_Position = projectionMatrix * mvPosition;
@@ -137,6 +209,7 @@ uniform vec3 uSunColor;
 varying vec3 vWPos;
 varying float vH;
 varying float vCalm;
+varying float vSwell;
 ${NOISE_GLSL}
 ${SEA_GLSL}
 ${ISLES_GLSL}
@@ -159,6 +232,9 @@ void main() {
   vec2 g;
   seaHeight(p, uTime, 1.0, g);
   g *= vCalm;
+  vec2 sg;
+  swellHeight(p, sg);
+  g += sg * smoothstep(0.4, 5.0, depth);
   float e = 0.08;
   float detail = 1.0 - smoothstep(40.0, 160.0, camDist);
   float r0 = ripples(p, uTime);
@@ -174,6 +250,9 @@ void main() {
   float crest = clamp(vH * vCalm / 0.6 * 0.5 + 0.5, 0.0, 1.0);
   col = mix(col, uMid * 1.15, smoothstep(0.55, 1.0, crest) * 0.45);
   col *= 0.9 + crest * 0.14;
+  // Reason: light shines through the giant swells' thin crests, turning them a glassy turquoise
+  float lift = clamp(vSwell / 2.4, 0.0, 1.0);
+  col = mix(col, uMid * 1.3 + vec3(0.04, 0.1, 0.08), smoothstep(0.25, 0.95, lift) * 0.55);
 
   // Sky reflection
   float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 5.0);
@@ -196,6 +275,8 @@ void main() {
   float bandMask = smoothstep(4.0, 0.8, shoreD) * smoothstep(0.86, 0.96, bands);
   float breakup = smoothstep(0.3, 0.7, vnoise(p * 2.4 - uTime * 0.25));
   float foam = max(max(lip, bandMask * breakup * 0.85), caps * 0.8);
+  float churn = vnoise(p * 1.3 + vec2(0.0, uTime * 1.6)) * 0.6 + vnoise(p * 3.7 - uTime * vec2(0.4, 1.1)) * 0.4;
+  foam = max(foam, swellFoam(p, churn - 0.5) * smoothstep(0.25, 0.6, churn + 0.2));
   col = mix(col, vec3(1.0), foam * 0.92);
 
   float alpha = mix(0.55, 1.0, smoothstep(0.05, 2.8, depth));

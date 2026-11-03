@@ -27,6 +27,7 @@ import { SpeechBubble, toScreen } from "../shared/speech";
 import { NarrationManager } from "../../systems/NarrationManager";
 import { CRUISE } from "./helm";
 import { Voyage } from "./voyage";
+import { Swells } from "./swells";
 import { Scenery, LANDING_Z } from "./scenery";
 import { Boat } from "./boat";
 import { Gulls } from "./gulls";
@@ -70,6 +71,7 @@ export class SeaChallenge implements Challenge {
   private atlas = new SignAtlas();
   private scenery: Scenery;
   private course: Course;
+  private swells: Swells;
   private boat: Boat;
   private gulls = new Gulls(6);
   private shark: Shark = createShark();
@@ -119,7 +121,8 @@ export class SeaChallenge implements Challenge {
     this.uniforms = oceanUniforms(this.sunDir);
     this.ocean = new Ocean(this.uniforms, DAY_SKY.horizon);
     this.bin.material(this.ocean.material);
-    this.wake = new Wake(this.uniforms.uTime);
+    this.wake = new Wake(this.uniforms.uTime, this.uniforms);
+    this.swells = new Swells(this.fx, this.uniforms);
     const addIsle = (x: number, z: number, rx: number, rz: number, slope: number) => {
       if (this.isles >= MAX_ISLES) return;
       this.uniforms.uIsles.value[this.isles].set(x, z, rx, rz);
@@ -127,12 +130,14 @@ export class SeaChallenge implements Challenge {
       this.isles++;
     };
     this.scenery = new Scenery(this.bin, this.mats, this.fx, addIsle);
-    this.course = new Course(this.bin, this.mats, this.fx, this.uniforms);
+    this.course = new Course(this.bin, this.mats, this.swells.highSpots);
+    this.course.swellHeight = (x, z) => this.swells.height(x, z);
     for (const r of this.course.rocks) if (r.what === "rock") addIsle(r.x, r.z, r.r * 0.95, r.r * 0.9, 0.6);
     this.atlas.draw();
     this.boat = new Boat(this.atlas, this.mats, this.fx);
+    this.boat.swell = (x, z) => this.swells.height(x, z);
     this.shark.root.visible = false;
-    scene.add(this.ocean.mesh, this.wake.mesh, this.scenery.group, this.course.group, this.boat.root, this.gulls.group, this.shark.root, this.hearts.group, this.fx.group);
+    scene.add(this.ocean.mesh, this.wake.mesh, this.scenery.group, this.course.group, this.swells.group, this.boat.root, this.gulls.group, this.shark.root, this.hearts.group, this.fx.group);
 
     this.fight = new SharkFight(
       {
@@ -160,7 +165,7 @@ export class SeaChallenge implements Challenge {
       ctx,
       boat: this.boat,
       course: this.course,
-      things: [],
+      things: [this.swells],
       ui: this.seaUI,
       fx: this.fx,
       cam: this.cam,
@@ -197,6 +202,11 @@ export class SeaChallenge implements Challenge {
       rock: this.course.rockAhead(this.boat.z),
       ahead: this.course.rockAhead(this.boat.z, true),
       hits: this.voyage.hits,
+      hitsBy: this.voyage.hitsBy,
+      jumps: this.voyage.jumps,
+      airborne: this.boat.airborne,
+      boatY: this.boat.root.position.y,
+      swellUnder: this.swells.height(this.boat.x, this.boat.z),
       planks: this.voyage.planks.count,
       retries: this.voyage.retries,
       retrying: this.voyage.retrying,
@@ -254,7 +264,9 @@ export class SeaChallenge implements Challenge {
       const h = this.voyage.helm.heading * 0.75;
       const fx = -Math.sin(h);
       const fz = -Math.cos(h);
-      this.cam.move(new THREE.Vector3(b.x - fx * 12.5, 6.0, b.z - fz * 12.5), new THREE.Vector3(b.x + fx * 10, 0.6, b.z + fz * 10), 0.3);
+      // Reason: on a swell the boat rides 2-4 m up; a camera that stayed low would end up inside the wave's face
+      const up = Math.max(b.y, 0);
+      this.cam.move(new THREE.Vector3(b.x - fx * 12.5, 6.0 + up * 0.85, b.z - fz * 12.5), new THREE.Vector3(b.x + fx * 10, 0.6 + up * 0.5, b.z + fz * 10), 0.3);
     }
     this.cam.update(dt);
     // Sky, clouds, ocean grid and sun shadows follow the camera / boat

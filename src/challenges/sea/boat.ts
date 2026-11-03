@@ -1,7 +1,8 @@
 /**
  * Tadeo's little mended sailboat (the island's north-dock boat) riding the
- * swell: it bobs, pitches and rolls with the waves, leans into turns, throws
- * spray off the bow and carries Tadeo — sitting at the stern while sailing, or
+ * swell: it bobs, pitches and rolls with the waves, rides up the giant swells
+ * and leaps off their crests, leans into turns, throws spray off the bow,
+ * loses a plank when it hits something, and carries Tadeo — sitting at the stern while sailing, or
  * standing with the magic berries, ready to throw one to the shark.
  */
 
@@ -14,6 +15,7 @@ import { SignAtlas } from "../../world/models/signs";
 import { ModelMaterials, modelGroup, clamp01, ease, lerp } from "../ogre/kit";
 import { Fx } from "../ogre/fx";
 import { mat, toonMesh } from "../../characters/parts";
+import { audio } from "../../audio/Audio";
 import { seaHeight } from "./ocean";
 
 export type SailorPose = "sit" | "stand" | "throw" | "cheer" | "duck";
@@ -23,6 +25,8 @@ export type SailorPose = "sit" | "stand" | "throw" | "cheer" | "duck";
  * Reason: raised any higher, the big bunch comes between his face and the camera.
  */
 const READY_UP = -1.45;
+/** Pull of gravity on a jumping boat (a little stronger than real, so a jump feels snappy). */
+const GRAVITY = 14;
 const READY_OUT = 0.75;
 
 export class Boat {
@@ -44,12 +48,18 @@ export class Boat {
   aground = 0;
   /** False once Tadeo has jumped ashore (the challenge animates him then). */
   aboard = true;
+  /** Height of the giant swells under the boat (set by the challenge). Followed at once, not smoothed like the waves. */
+  swell: (x: number, z: number) => number = () => 0;
+  /** In a jump: height above where the sea would carry the boat, and its upward speed. */
+  private air = { on: false, y: 0, vy: 0 };
   /** Extra heave from splashes (decays). */
   private kick = 0;
   private kickV = 0;
   private t = 0;
   private lastBow = 0;
   private turn = 0;
+  private waveY = 0;
+  private lastSwell = 0;
   /** Planks knocked off, flying until they splash into the sea. */
   private flying: { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3 }[] = [];
   private plankGeo = new THREE.BoxGeometry(1.1, 0.07, 0.24);
@@ -89,8 +99,23 @@ export class Boat {
     this.kickV += amount * 6;
   }
 
+  /** True while the boat flies off a swell's crest. */
+  get airborne(): boolean {
+    return this.air.on;
+  }
+
+  /** Leap off a crest: an arc about `height` m up, landing with a splash. */
+  leap(height: number): void {
+    this.air.on = true;
+    this.air.y = Math.max(this.air.y, 0);
+    this.air.vy = Math.sqrt(2 * GRAVITY * height);
+  }
+
   /** Back level and still after a retry. */
   settle(): void {
+    this.air.on = false;
+    this.air.y = 0;
+    this.air.vy = 0;
     this.kick = 0;
     this.kickV = 0;
     this.vx = 0;
@@ -131,9 +156,13 @@ export class Boat {
     const k = Math.min(dt * 6, 1);
     const afloat = 1 - this.aground;
     // Reason: riding a little low sits the hull deep in the swell
-    this.root.position.y = lerp(this.root.position.y, ((bow + stern + port + star) * 0.25 - 0.1) * afloat + this.aground * 0.4 + this.kick, k);
+    this.waveY = lerp(this.waveY, ((bow + stern + port + star) * 0.25 - 0.1) * afloat + this.aground * 0.4 + this.kick, k);
+    const swell = this.swell(x, z) * afloat;
+    const swellPitch = Math.atan2(this.swell(x + fx * 2, z + fz * 2) - this.swell(x - fx * 2, z - fz * 2), 4);
+    const pitch = this.flight(dt, swell);
+    this.root.position.y = this.waveY + swell + this.air.y;
     this.turn = lerp(this.turn, this.vx, Math.min(dt * 4, 1));
-    this.tilt.rotation.x = lerp(this.tilt.rotation.x, (Math.atan2(bow - stern, 4) * 0.8) * afloat - this.aground * 0.07 - this.kick * 0.25, k);
+    this.tilt.rotation.x = lerp(this.tilt.rotation.x, (Math.atan2(bow - stern, 4) * 0.8 + swellPitch * 0.9 + pitch) * afloat - this.aground * 0.07 - this.kick * 0.25, Math.min(dt * 10, 1));
     this.tilt.rotation.z = lerp(this.tilt.rotation.z, (Math.atan2(port - star, 1.8) * 0.5 + this.turn * 0.035) * afloat + Math.sin(this.t * 7) * this.kick * 0.15, k);
 
     // Spray when the bow cuts into a wave
@@ -144,6 +173,28 @@ export class Boat {
     this.lastBow = bow;
     this.updatePlanks(dt, time);
     if (this.aboard) this.updateSailor(dt);
+  }
+
+  /**
+   * Move a jump along and return the extra pitch it gives (bow up going up, bow down coming down). The arc is kept
+   * above where the swell would carry the boat; it lands when it comes down to that.
+   */
+  private flight(dt: number, swell: number): number {
+    const air = this.air;
+    const under = this.lastSwell;
+    this.lastSwell = swell;
+    if (!air.on) return 0;
+    // Reason: the arc is measured from the swell under the boat, so a swell rolling away behind lengthens the fall
+    air.vy -= GRAVITY * dt;
+    air.y = under + air.y + air.vy * dt - swell;
+    if (air.y <= 0 && air.vy < 0) {
+      air.on = false;
+      air.y = 0;
+      this.kickV -= 3;
+      this.fx.splash(this.root.position.clone().setY(this.waveY + swell + 0.2), 1.2);
+      audio.playSfx("sfx_wave", 0.6, 1.2);
+    }
+    return THREE.MathUtils.clamp(air.vy * 0.05, -0.35, 0.35);
   }
 
   private updatePlanks(dt: number, time: number): void {

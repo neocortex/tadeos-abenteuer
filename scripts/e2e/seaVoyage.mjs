@@ -195,6 +195,44 @@ const CASES = {
     const seen = await ramAhead((s) => !s.retrying, 20000);
     check("double hit on the last plank retries once", r.retries === 1 && r.planks === 0 && seen.every((s) => s.planks >= 0 && s.retries === seen[0].retries), JSON.stringify(r));
   },
+
+  async "a swell taken bow-first is a jump, not a hit"() {
+    await open(0);
+    let shotJump = false;
+    let highest = 0;
+    let s = null;
+    const end = Date.now() + 40000;
+    while (Date.now() < end) {
+      s = await state();
+      if (s.z < -140) break;
+      if (Math.abs(s.z + 128) < 12) highest = Math.max(highest, s.boatY);
+      if (s.airborne && !shotJump) {
+        shotJump = true;
+        await sleep(120);
+        await shot("swell_ride");
+      }
+      await hold(steerTo(s, s.next[0], s.next[1]));
+      await sleep(40);
+    }
+    await hold([]);
+    check("a swell taken bow-first is a jump, not a hit", s.jumps >= 1 && !s.hitsBy.swell && s.planks === 4, `jumps ${s.jumps}, hits ${JSON.stringify(s.hitsBy)}, planks ${s.planks}`);
+    check("the boat rides the visible swell up", highest > 2.2, `highest ${highest.toFixed(2)} m`);
+
+    // ── The second swell, taken sideways
+    await followTrail((k) => k.z < -168);
+    const planks0 = (await state()).planks;
+    const seen = await sail(3500, (k) => (k.z < -190 ? [] : k.heading < 0.9 ? ["ArrowLeft"] : []));
+    const after = seen.at(-1);
+    check("a swell taken sideways costs a plank", after.hitsBy.swell === 1 && after.planks === planks0 - 1, `swell hits ${after.hitsBy.swell ?? 0}, planks ${planks0} → ${after.planks}`);
+  },
+
+  async "a breaking swell shows white foam"() {
+    await open(5);
+    await sleep(1500);
+    await shot("swell_break");
+    const s = await state();
+    check("a breaking swell shows white foam (see swell_break.png)", s.phase === "sail");
+  },
 };
 
 try {

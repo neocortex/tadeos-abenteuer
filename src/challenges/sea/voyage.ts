@@ -59,8 +59,10 @@ export class Voyage {
   retrying = false;
   retries = 0;
   starfish = 0;
-  /** Everything the boat bumped into so far. */
+  /** Everything the boat bumped into so far, by what it was, and the swells it jumped off. */
   hits = 0;
+  hitsBy: Record<string, number> = {};
+  jumps = 0;
   offCourse = false;
   /** Target speed and (when not steered by the player) target x. */
   cruise = 0;
@@ -109,16 +111,17 @@ export class Voyage {
     if (active) this.current(dt, t, p);
     course.keepOut(p);
 
-    const res = course.update(dt, t, p.x, p.z, active);
+    const res = course.update(dt, t, p.x, p.z, active, boat.airborne);
     const s = this.boatState;
     s.x = p.x;
     s.z = p.z;
     s.heading = helm.heading;
     s.speed = helm.speed;
+    s.airborne = boat.airborne;
     const events = things.flatMap((th) => th.update(dt, t, s, active));
     if (!active) return;
-    for (const h of res.hits) this.hit({ kind: "hit", at: h.at, push: h.push, what: h.kind === "wave" ? "swell" : h.kind });
-    for (const e of events) if (e.kind === "hit") this.hit(e);
+    for (const h of res.hits) this.hit({ kind: "hit", at: h.at, push: h.push, what: h.kind });
+    for (const e of events) this.route(e);
     for (const at of res.starfish) this.catchStarfish(at);
     this.d.ui.setVoyage(-p.z / -LANDING_Z, this.starfish);
   }
@@ -147,12 +150,29 @@ export class Voyage {
     this.d.popups.show("Geflickt!", this.headPos(), { color: "#ffe066", size: 52 });
   }
 
+  /** What a thing along the route did to the boat. */
+  private route(e: SeaEvent): void {
+    if (e.kind === "hit") this.hit(e);
+    else if (e.kind === "jump") this.jump(e.height);
+  }
+
+  /** Bow-first over a crest: up and away. */
+  private jump(height: number): void {
+    const { boat, popups, fx } = this.d;
+    this.jumps++;
+    boat.leap(height);
+    fx.splash(boat.bowPos(), 1.4);
+    audio.playSfx("sfx_wave", 0.8, 0.9);
+    popups.show("Hui!", this.headPos(), { color: "#ffe066", size: 60 });
+  }
+
   /** Something hit the boat: a splash, a plank flies off, and with the last plank the boat fades back to the checkpoint. */
   hit(e: Hit): void {
     if (this.retrying) return;
     const { boat, fx, cam, popups, ui } = this.d;
     const wet = e.what === "swell" || e.what === "jelly";
     this.hits++;
+    this.hitsBy[e.what] = (this.hitsBy[e.what] ?? 0) + 1;
     fx.splash(e.at, wet ? 2.0 : 1.3);
     boat.bump(wet ? 1.0 : 0.6);
     this.shove = e.push * 6;

@@ -1,13 +1,13 @@
 /**
  * The boat's foamy wake: a ribbon that remembers where the stern has been,
- * widens and fades with age, and rides on the swell (its vertices use the
+ * widens and fades with age, and rides on the swell and the giant swells (its vertices use the
  * same wave function as the ocean). Bright foam lines on both edges and a
  * churned middle right behind the boat.
  */
 
 import * as THREE from "three";
 import { NOISE_GLSL } from "../../core/glsl";
-import { SEA_GLSL } from "./ocean";
+import { SEA_GLSL, SwellUniforms } from "./ocean";
 
 const N = 64;
 
@@ -23,7 +23,8 @@ ${SEA_GLSL}
 void main() {
   vec4 wp = modelMatrix * vec4(position, 1.0);
   vec2 g;
-  wp.y = seaHeight(wp.xz, uTime, 1.0, g) + 0.05;
+  vec2 sg;
+  wp.y = seaHeight(wp.xz, uTime, 1.0, g) + swellHeight(wp.xz, sg) + 0.05;
   vAge = aAge;
   vSide = aSide;
   vP = wp.xz;
@@ -62,7 +63,7 @@ export class Wake {
   private age: Float32Array;
   private timer = 0;
 
-  constructor(time: { value: number }, private life = 3.2) {
+  constructor(time: { value: number }, swells: SwellUniforms, private life = 3.2) {
     const g = new THREE.BufferGeometry();
     this.pos = new Float32Array(N * 2 * 3);
     this.age = new Float32Array(N * 2).fill(1);
@@ -81,7 +82,7 @@ export class Wake {
     g.setAttribute("aAge", new THREE.BufferAttribute(this.age, 1).setUsage(THREE.DynamicDrawUsage));
     g.setAttribute("aSide", new THREE.BufferAttribute(side, 1));
     const mat = new THREE.ShaderMaterial({
-      uniforms: { ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]), uTime: time },
+      uniforms: { ...THREE.UniformsUtils.merge([THREE.UniformsLib.fog]), uTime: time, ...swells },
       vertexShader: VERT,
       fragmentShader: FRAG,
       transparent: true,
