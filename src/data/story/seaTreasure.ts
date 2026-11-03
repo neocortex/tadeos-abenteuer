@@ -26,6 +26,8 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
     line("Chuleta", "Diesmal machen wir das Boot aber nicht kaputt! Gack!"),
     line("Erzähler", "Vorsicht — hohe Wellen! Weiche ihnen mit den Pfeiltasten aus!"),
   ],
+  // A remark while sailing, when the boat leaves the channel
+  sea_offcourse: [line("Chuleta", "Gack! Zu weit raus! Zurück zu den Seesternen!")],
   // The berries come out on Tadeo's second line
   sea_shark: [
     line("Erzähler", "Plötzlich erscheint eine riesige Flosse im Wasser..."),

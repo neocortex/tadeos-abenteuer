@@ -14,6 +14,8 @@ import { GameUI } from "../ui/GameUI";
 export interface ChallengeContext {
   engine: Engine;
   ui: GameUI;
+  /** Debug start (`&section=N`): begin a challenge that has sections at section N instead of its start. */
+  startSection?: number;
 }
 
 export interface Challenge extends GameScene {

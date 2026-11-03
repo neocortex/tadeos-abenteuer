@@ -29,10 +29,10 @@ export const LANDING_Z = TREASURE.z + TREASURE.r * 0.9 + 2.2;
  */
 export const ISLETS: [number, number, number][] = [
   ...([
-    [-41, -300, 9],
-    [42, -560, 10],
-    [-41, -880, 9],
-    [40, -1120, 8],
+    [-37, -300, 9],
+    [37, -560, 10],
+    [-37, -880, 9],
+    [37, -1120, 8],
   ] as const).map(([dx, z, r]): [number, number, number] => [routeX(z) + dx, z, r]),
   [-130, -210, 11],
   [150, -330, 14],
@@ -226,7 +226,7 @@ export class Scenery {
       if (i % 2) plant("bush", () => bush(4, "#ff6f91"), placement(x + 1.5, ground(x + 1.5, z) - 0.1, z, 1 + rand() * 0.5));
     }
 
-    // Palm islets on the horizon
+    // Palm islets beside the channel and on the horizon
     for (const [x, z, r] of ISLETS) {
       const spec: IslandSpec = { cx: x, cz: z, rx: r, rz: r * 0.8, hill: 1.5, seed: Math.abs(x) };
       const islet = new THREE.Mesh(islandGeometry(spec, x - r * 2, z - r * 2, r * 4, r * 4, 2), terrainMat);

@@ -136,6 +136,7 @@ also goes into `EFFECTS` in `src/audio/Audio.ts`, so that it loads with the game
 |-----------|--------|
 | `?quest=N` | Start at quest N and play on from there (skips the title; earlier rewards are in the inventory) |
 | `?challenge=<name>` | Jump straight into a challenge and play on after it: `volcano`, `cave`, `forest`, `ogre`, `village`, `mountain`, `sea`, `treasure`, `finale`, `festival`, `fishing`, `hens` |
+| `?challenge=sea&section=N` | Sail straight off from section N's buoy (0 start, 1 dolphins, 2 arches, 3 jellyfish, 4 whirlpool and whale, 5 big swells) |
 | `?notitle` | Skip the title screen |
 | `?coins=N` | Pretend N coins are collected (outfits) |
 | `?spawn=x,z` | Start Tadeo at a world position |

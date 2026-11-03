@@ -118,6 +118,7 @@ export class Game {
       return;
     }
     if (challenge) {
+      if (params.has("section")) this.flow.startSection = Number(params.get("section"));
       await this.flow.startChallenge(challenge);
       this.busy = false;
       return;

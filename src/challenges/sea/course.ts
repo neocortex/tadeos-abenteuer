@@ -13,6 +13,7 @@ import { Fx } from "../ogre/fx";
 import { seaHeight } from "./ocean";
 import { StarfishTrail, createStarfishTrail } from "./starfish";
 import { SECTIONS, COURSE_END, routeX, trailX } from "./route";
+import { ISLETS } from "./scenery";
 
 /** Giant waves roll towards the boat at this fraction of the boat's own speed. */
 const WAVE_SPEED = 0.6;
@@ -125,8 +126,16 @@ interface Rock {
   x: number;
   z: number;
   r: number;
-  hit: boolean;
+  what: "rock" | "islet";
+  /** The boat's centre never comes closer than `solid`; within `touch` of its bow-to-stern line it is a hit. */
+  solid: number;
+  touch: number;
+  /** Scene time of the last hit (one hit per bump, not one per frame). */
+  hitAt: number;
 }
+
+/** Seconds before the same rock or islet can cost the boat again. */
+const HIT_COOLDOWN = 2.5;
 
 interface Starfish {
   x: number;
@@ -136,7 +145,7 @@ interface Starfish {
 }
 
 export interface CourseHit {
-  kind: "rock" | "wave";
+  kind: "rock" | "wave" | "islet";
   at: THREE.Vector3;
   /** Which way to push the boat (-1 left, +1 right). */
   push: number;
@@ -184,6 +193,8 @@ export class Course {
       }
       for (const w of sec.swells ?? []) this.addWave(routeX(w.zMeet) + w.x0, routeX(w.zMeet) + w.x1, w.zMeet);
     }
+    // Reason: islets are solid like the rocks; their beach reaches out to the radius, and the boat is 2 m from mid to bow
+    for (const [x, z, r] of ISLETS) this.rocks.push({ x, z, r, what: "islet", solid: r + 2.2, touch: r + 2.5, hitAt: -1e9 });
     // Starfish trail: from the dock along the safe way to the end of the voyage
     for (let z = -12; z > COURSE_END; z -= 7) this.starfish.push({ x: trailX(z), z, taken: false, pop: 0 });
     this.trail = createStarfishTrail(this.starfish.length, bin);
@@ -203,7 +214,7 @@ export class Course {
     g.position.set(x, -0.9, z);
     g.rotation.y = rand() * Math.PI * 2;
     this.group.add(g);
-    this.rocks.push({ x, z, r, hit: false });
+    this.rocks.push({ x, z, r, what: "rock", solid: r * 0.8 + 0.6, touch: r * 0.8 + 0.85, hitAt: -1e9 });
   }
 
   private addWave(x0: number, x1: number, zMeet: number): void {
@@ -216,6 +227,26 @@ export class Course {
     this.waves.push({ mesh, x0, x1, zMeet, z: zMeet - 400, hit: false });
   }
 
+  /** Push the boat's centre out of every rock and islet: they are solid, the boat never sails through them. */
+  keepOut(p: THREE.Vector3): void {
+    for (const r of this.rocks) {
+      const min = r.solid;
+      const dx = p.x - r.x;
+      const dz = p.z - r.z;
+      const d = Math.hypot(dx, dz);
+      if (d >= min || d < 1e-6) continue;
+      p.x = r.x + (dx / d) * min;
+      p.z = r.z + (dz / d) * min;
+    }
+  }
+
+  /** Nearest islet to (x, z): x, z and its shore radius (for the E2E test). */
+  nearestIslet(x: number, z: number): [number, number, number] {
+    let best: Rock | null = null;
+    for (const r of this.rocks) if (r.what === "islet" && (!best || Math.hypot(r.x - x, r.z - z) < Math.hypot(best.x - x, best.z - z))) best = r;
+    return best ? [best.x, best.z, best.r] : [0, 0, 0];
+  }
+
   /**
    * Move waves, float the starfish, and test the boat (centre x, z; bow points to -z).
    * Returns obstacles hit this frame and starfish collected (only while `active`).
@@ -224,13 +255,13 @@ export class Course {
     const hits: CourseHit[] = [];
     const got: THREE.Vector3[] = [];
     for (const r of this.rocks) {
-      if (!active || r.hit || Math.abs(r.z - bz) > r.r + 3) continue;
+      if (!active || t - r.hitAt < HIT_COOLDOWN || Math.abs(r.z - bz) > r.touch + 3) continue;
       // Distance from the rock to the boat's centre line (bow to stern)
       const dz = THREE.MathUtils.clamp(r.z - bz, -2.1, 2.1);
       const d = Math.hypot(r.x - bx, r.z - (bz + dz));
-      if (d < r.r * 0.8 + 0.85) {
-        r.hit = true;
-        hits.push({ kind: "rock", at: new THREE.Vector3(r.x + Math.sign(bx - r.x) * r.r * 0.7, 0.4, bz - 1.5), push: bx >= r.x ? 1 : -1 });
+      if (d < r.touch) {
+        r.hitAt = t;
+        hits.push({ kind: r.what, at: new THREE.Vector3(r.x + Math.sign(bx - r.x) * r.r * 0.7, 0.4, bz - 1.5), push: bx >= r.x ? 1 : -1 });
       }
     }
     this.sprayTimer -= dt;
