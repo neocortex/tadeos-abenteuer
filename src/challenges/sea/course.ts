@@ -1,8 +1,7 @@
 /**
- * The obstacle course between the dock and the treasure island: rocky sea
- * stacks with foam rings, giant rolling waves that sweep towards the boat
- * over one side of the lane, and a trail of glowing starfish that always shows
- * the safe way through. Hits are never fatal — the boat just gets splashed.
+ * The obstacle course along the voyage's route (`route.ts`): rocky sea stacks
+ * with foam rings, giant rolling waves that sweep towards the boat, and a
+ * trail of glowing starfish that always shows the safe way through.
  */
 
 import * as THREE from "three";
@@ -13,36 +12,7 @@ import { Bin, ModelMaterials, modelGroup } from "../ogre/kit";
 import { Fx } from "../ogre/fx";
 import { seaHeight } from "./ocean";
 import { StarfishTrail, createStarfishTrail } from "./starfish";
-
-export interface RowSpec {
-  z: number;
-  /** Sea stacks: x and radius. */
-  rocks?: [number, number][];
-  /** A giant wave covering x0..x1 (meets the boat at this row's z). */
-  wave?: [number, number];
-  /** Where the starfish trail passes (a safe x). */
-  safe: number;
-}
-
-export const COURSE: RowSpec[] = [
-  { z: -60, rocks: [[3.5, 2.2]], safe: -3 },
-  { z: -88, rocks: [[-4, 2.4]], safe: 3 },
-  { z: -116, wave: [0.5, 12], safe: -5 },
-  { z: -144, rocks: [[-6.5, 2.2], [5.5, 2.2]], safe: 0 },
-  { z: -172, wave: [-12, -0.5], safe: 5 },
-  { z: -200, rocks: [[0, 2.6]], safe: 5 },
-  { z: -228, rocks: [[5, 2.0], [-1.5, 2.0]], safe: -6.5 },
-  { z: -256, wave: [-3, 12], safe: -7 },
-  { z: -284, rocks: [[-6, 2.4], [2, 1.6]], safe: 6.5 },
-  { z: -312, wave: [-12, 2.5], safe: 6.5 },
-  { z: -340, rocks: [[6, 2.2], [-6, 2.2]], safe: 0 },
-  { z: -368, wave: [-12, -2], rocks: [[5.5, 1.8]], safe: 1.2 },
-  { z: -396, rocks: [[0.5, 2.4]], safe: -5 },
-];
-/** The course ends here; the shark waits just beyond. */
-export const COURSE_END = -415;
-/** Lateral limit for the boat. */
-export const LANE = 9;
+import { SECTIONS, COURSE_END, routeX, trailX } from "./route";
 
 /** Giant waves roll towards the boat at this fraction of the boat's own speed. */
 const WAVE_SPEED = 0.6;
@@ -205,22 +175,17 @@ export class Course {
       }),
     );
     const rand = mulberry32(31);
-    for (const row of COURSE) {
-      for (const [x, r] of row.rocks ?? []) this.addRock(x, row.z + (rand() - 0.5) * 3, r, rand, mats);
-      if (row.wave) this.addWave(row.wave[0], row.wave[1], row.z);
-    }
-    // Starfish trail: from the dock through every row's safe spot
-    const path: [number, number][] = [[0, -12], ...COURSE.map((r) => [r.safe, r.z] as [number, number]), [0, COURSE_END]];
-    for (let i = 0; i < path.length - 1; i++) {
-      const [xa, za] = path[i];
-      const [xb, zb] = path[i + 1];
-      const n = Math.max(2, Math.round((za - zb) / 7));
-      for (let k = 0; k < n; k++) {
-        const t = k / n;
-        const e = t * t * (3 - 2 * t);
-        this.starfish.push({ x: xa + (xb - xa) * e, z: za + (zb - za) * t, taken: false, pop: 0 });
+    for (const sec of SECTIONS) {
+      for (const row of sec.rows ?? []) {
+        for (const [dx, r] of row.rocks ?? []) {
+          const z = row.z + (rand() - 0.5) * 3;
+          this.addRock(routeX(z) + dx, z, r, rand, mats);
+        }
       }
+      for (const w of sec.swells ?? []) this.addWave(routeX(w.zMeet) + w.x0, routeX(w.zMeet) + w.x1, w.zMeet);
     }
+    // Starfish trail: from the dock along the safe way to the end of the voyage
+    for (let z = -12; z > COURSE_END; z -= 7) this.starfish.push({ x: trailX(z), z, taken: false, pop: 0 });
     this.trail = createStarfishTrail(this.starfish.length, bin);
     this.group.add(this.trail.fish, this.trail.glow);
   }
@@ -249,12 +214,6 @@ export class Course {
     mesh.renderOrder = 3;
     this.group.add(mesh);
     this.waves.push({ mesh, x0, x1, zMeet, z: zMeet - 400, hit: false });
-  }
-
-  /** Safe x of the next row ahead of z (for hints and the E2E test). */
-  nextSafe(z: number): number {
-    const row = COURSE.find((r) => r.z < z - 2);
-    return row ? row.safe : 0;
   }
 
   /**

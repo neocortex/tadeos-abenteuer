@@ -1,11 +1,11 @@
 /**
  * Quest 10 — the sea crossing. Tadeo sails his mended boat from the north
- * dock towards the treasure island on the horizon: ← → dodge sea stacks and
- * giant waves while collecting the trail of glowing starfish. Then a giant
- * angry shark circles the boat; three well-timed magic berries thrown into its
- * open mouth (Space when the ring turns green) make it lieb again, it swims off
- * happy, and the boat runs aground on the treasure island's beach. No failure:
- * hits and misses only splash Tadeo.
+ * dock towards the treasure island: ← → turn the bow, ↑ ↓ set the pace, and
+ * the trail of glowing starfish shows the safe way through a winding channel
+ * of sea stacks and swells. Then a giant angry shark circles the boat; three
+ * well-timed magic berries thrown into its open mouth (Space when the ring
+ * turns green) make it lieb again, it swims off happy, and the boat runs
+ * aground on the treasure island's beach.
  */
 
 import * as THREE from "three";
@@ -21,7 +21,9 @@ import { Director } from "../ogre/director";
 import { Popups } from "../ogre/popups";
 import { Ocean, oceanUniforms, OceanUniforms, MAX_ISLES } from "./ocean";
 import { Wake } from "./wake";
-import { Course, COURSE_END, LANE, CourseHit } from "./course";
+import { Course, CourseHit } from "./course";
+import { COURSE_END, trailX } from "./route";
+import { Helm, CRUISE } from "./helm";
 import { Scenery, LANDING_Z } from "./scenery";
 import { Boat } from "./boat";
 import { Gulls } from "./gulls";
@@ -31,8 +33,6 @@ import { SharkFight } from "./sharkFight";
 import { SeaUI, STARFISH_ICON } from "./seaUI";
 
 export type SeaPhase = "intro" | "sail" | "shark" | "arrive" | "done";
-
-const CRUISE = 9;
 
 export class SeaChallenge implements Challenge {
   readonly scene = new THREE.Scene();
@@ -83,6 +83,9 @@ export class SeaChallenge implements Challenge {
   private cruise = 0;
   private autoX: number | null = null;
   private chase = false;
+  private helm = new Helm();
+  /** Sideways shove from a hit (m/s, decays). */
+  private shove = 0;
   /** Tadeo's walk state once he is ashore. */
   private heroMotion = { speed: 0, grounded: true, vy: 0 };
 
@@ -165,7 +168,8 @@ export class SeaChallenge implements Challenge {
       phase: this.phase,
       x: this.boat.x,
       z: this.boat.z,
-      safe: this.course.nextSafe(this.boat.z),
+      heading: this.helm.heading,
+      next: [trailX(this.boat.z - 14), this.boat.z - 14],
       leaping: this.fight.leaping,
       ringNow: this.fight.ringNow,
       throws: this.fight.throws,
@@ -217,7 +221,13 @@ export class SeaChallenge implements Challenge {
     this.clouds.update(sdt);
     this.fx.update(sdt);
     this.popups.update(dt);
-    if (this.chase) this.cam.move(new THREE.Vector3(b.x * 0.6, 6.0, b.z + 12.5), new THREE.Vector3(b.x * 0.85, 0.6, b.z - 10), 0.3);
+    if (this.chase) {
+      // Behind the stern, looking where the bow points (a little softer than the bow, so turns don't swing the view)
+      const h = this.helm.heading * 0.75;
+      const fx = -Math.sin(h);
+      const fz = -Math.cos(h);
+      this.cam.move(new THREE.Vector3(b.x - fx * 12.5, 6.0, b.z - fz * 12.5), new THREE.Vector3(b.x + fx * 10, 0.6, b.z + fz * 10), 0.3);
+    }
     this.cam.update(dt);
     // Sky, clouds, ocean grid and sun shadows follow the camera / boat
     this.sky.position.copy(this.camera.position);
@@ -229,21 +239,26 @@ export class SeaChallenge implements Challenge {
 
   /** Forward motion, steering, the obstacle course and the starfish trail. */
   private sail(dt: number): void {
-    const boat = this.boat;
-    boat.speed += (this.cruise - boat.speed) * Math.min(dt * 1.2, 1);
-    const input = this.engine?.input;
-    let steer = 0;
-    if (this.phase === "sail" && input && !this.ctx.ui.dialogue.isOpen) steer = (input.isDown("ArrowRight") ? 1 : 0) - (input.isDown("ArrowLeft") ? 1 : 0);
-    else if (this.autoX !== null) steer = THREE.MathUtils.clamp((this.autoX - boat.x) * 0.5, -1, 1);
-    boat.vx += (steer * 7 - boat.vx) * Math.min(dt * 4, 1);
+    const { boat, helm } = this;
     const p = boat.root.position;
-    p.x += boat.vx * dt;
-    if (Math.abs(p.x) > LANE) {
-      p.x = Math.sign(p.x) * LANE;
-      boat.vx = 0;
+    const input = this.engine?.input;
+    const before = helm.heading;
+    if (this.phase === "sail") {
+      const key = (code: string) => (input && !this.ctx.ui.dialogue.isOpen && input.isDown(code) ? 1 : 0);
+      helm.steer(dt, (key("ArrowLeft") - key("ArrowRight")) as -1 | 0 | 1, (key("ArrowUp") - key("ArrowDown")) as -1 | 0 | 1, false);
+    } else {
+      // Outside the sail phase the boat steers itself: towards `autoX`, or straight ahead
+      helm.speed += (this.cruise - helm.speed) * Math.min(dt * 1.2, 1);
+      const want = this.autoX === null ? 0 : THREE.MathUtils.clamp((p.x - this.autoX) * 0.08, -0.5, 0.5);
+      helm.heading = lerp(helm.heading, want, Math.min(dt * 2, 1));
     }
-    p.z -= boat.speed * dt;
-    boat.root.rotation.y = lerp(boat.root.rotation.y, -boat.vx * 0.045, Math.min(dt * 5, 1));
+    boat.speed = helm.speed;
+    p.x += -Math.sin(helm.heading) * helm.speed * dt + this.shove * dt;
+    p.z -= Math.cos(helm.heading) * helm.speed * dt;
+    this.shove *= Math.max(0, 1 - dt * 3);
+    // Reason: `vx` is what the boat leans by; turning right (heading falling) leans it like the old sideways slide did
+    boat.vx = lerp(boat.vx, dt > 0 ? ((before - helm.heading) / dt) * 5.4 : 0, Math.min(dt * 6, 1));
+    boat.root.rotation.y = helm.heading;
     const res = this.course.update(dt, this.sceneTime, p.x, p.z, this.phase === "sail");
     if (this.phase !== "sail") return;
     for (const hit of res.hits) this.onHit(hit);
@@ -260,8 +275,8 @@ export class SeaChallenge implements Challenge {
     const boat = this.boat;
     this.fx.splash(hit.at, hit.kind === "wave" ? 2.0 : 1.3);
     boat.bump(hit.kind === "wave" ? 1.0 : 0.6);
-    boat.vx = hit.push * 7;
-    boat.speed *= 0.45;
+    this.shove = hit.push * 6;
+    this.helm.speed *= 0.45;
     this.cam.shake(0.6);
     audio.playSfx(hit.kind === "wave" ? "sfx_wave" : "sfx_hit_damage", 0.7);
     const head = boat.hero.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 2.2, 0));
@@ -279,7 +294,7 @@ export class SeaChallenge implements Challenge {
     this.chase = true;
     this.cruise = CRUISE;
     seaUI.showVoyage();
-    seaUI.showHint(`<span class="key">←</span><span class="key">→</span> lenken · folge den Seesternen <span class="sea-hint-fish">${STARFISH_ICON}</span>`);
+    seaUI.showHint(`<span class="key">←</span><span class="key">→</span> lenken · <span class="key">↑</span><span class="key">↓</span> Tempo · folge den Seesternen <span class="sea-hint-fish">${STARFISH_ICON}</span>`);
     this.phase = "sail";
     await ui.hud.showBanner("Ahoi!", "Auf zur Schatzinsel!", 1800);
     await tl.wait(5);

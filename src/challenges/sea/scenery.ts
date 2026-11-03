@@ -16,16 +16,30 @@ import { mat } from "../../characters/parts";
 import { Bin, ModelMaterials, modelGroup } from "../ogre/kit";
 import { swayMaterial, scatter, placement } from "../ogre/plants";
 import { Fx } from "../ogre/fx";
+import { COURSE_END, routeX } from "./route";
 
 /** Where things are on the crossing (the boat sails from the pier towards -z). */
 export const HOME = { x: 0, z: 200, rx: 230, rz: 175 };
-export const TREASURE = { x: 0, z: -520, r: 27 };
+export const TREASURE = { x: 0, z: COURSE_END - 110, r: 27 };
 /** Where the boat runs aground on the treasure island's beach (its shore lies at r * 0.9). */
 export const LANDING_Z = TREASURE.z + TREASURE.r * 0.9 + 2.2;
-const ISLETS: [number, number, number][] = [
+/**
+ * Palm islets: x, z, radius. The first ones sit just outside the channel's edge (never within `CHANNEL_HALF` of the
+ * route), so the boat can bump into them; the rest stand far out on the horizon.
+ */
+export const ISLETS: [number, number, number][] = [
+  ...([
+    [-41, -300, 9],
+    [42, -560, 10],
+    [-41, -880, 9],
+    [40, -1120, 8],
+  ] as const).map(([dx, z, r]): [number, number, number] => [routeX(z) + dx, z, r]),
   [-130, -210, 11],
   [150, -330, 14],
-  [-170, -440, 9],
+  [-170, -560, 9],
+  [160, -780, 12],
+  [-150, -1000, 13],
+  [140, -1260, 10],
 ];
 
 type Isle = (x: number, z: number, rx: number, rz: number, slope: number) => void;

@@ -4,8 +4,8 @@
  * Opens `?quest=10` on the island, where Paco and the ogre wait at the dock with
  * the mended boat and the wreck has gone. Tadeo walks to the end of the pier and
  * hears Paco; then the whole crossing is played with real key presses: the live
- * state (`window.engine.scene.e2e`) only decides which arrow key to hold (towards
- * the starfish trail's next safe x) and when the shark's timing ring is green.
+ * state (`window.engine.scene.e2e`) only decides which arrow key to hold (turning
+ * the bow towards the starfish trail a little way ahead) and when the shark's timing ring is green.
  * On the first leap it presses Space too early on purpose and then lets the leap
  * go by, so the shark only flops beside the boat. Three berries in the green
  * window calm the shark. Passes when it swims away happy, the chain runs on into
@@ -268,14 +268,25 @@ try {
   }
   check("runs at the baseline fps", fps >= baseline - 3, `${fps.toFixed(1)}, baseline ${baseline}`);
 
-  // Steer along the starfish trail with the arrow keys
-  const shotsAt = { 100: "04_first_wave", 190: "05_sea_stacks", 300: "06_halfway" };
+  // Steer along the starfish trail with the arrow keys: turn the bow towards the trail a little way ahead
+  const shotsAt = { 130: "04_first_swell", 300: "05_sea_stacks", 640: "06_halfway" };
   let s = await state();
-  const sailEnd = Date.now() + 150000;
+  const sailStart = Date.now();
+  const sailEnd = sailStart + 260000;
+  let headingSign = 0;
+  let signChanges = 0;
   while (s.phase === "sail") {
-    if (Date.now() > sailEnd) throw new Error("course not finished within 150 s");
-    const dx = s.safe - s.x;
-    await hold(new Set(Math.abs(dx) < 0.5 ? [] : [dx > 0 ? "ArrowRight" : "ArrowLeft"]));
+    if (Date.now() > sailEnd) throw new Error("course not finished within 260 s");
+    if (await dialogueOpen()) await page.keyboard.press("Space");
+    // Reason: heading 0 sails towards -z and grows to the left, so the bearing of (dx, dz) is atan2(-dx, -dz)
+    const bearing = Math.atan2(-(s.next[0] - s.x), -(s.next[1] - s.z));
+    const turn = bearing - s.heading;
+    await hold(new Set(Math.abs(turn) < 0.08 ? [] : [turn > 0 ? "ArrowLeft" : "ArrowRight"]));
+    const sign = Math.abs(s.heading) > 0.05 ? Math.sign(s.heading) : 0;
+    if (sign && sign !== headingSign) {
+      if (headingSign) signChanges++;
+      headingSign = sign;
+    }
     for (const [z, name] of Object.entries(shotsAt)) {
       if (-s.z > Number(z)) {
         delete shotsAt[z];
@@ -285,6 +296,9 @@ try {
     await sleep(50);
     s = await state();
   }
+  const voyageSeconds = (Date.now() - sailStart) / 1000;
+  check("the voyage takes 100–200 s", voyageSeconds >= 100 && voyageSeconds <= 200, voyageSeconds.toFixed(1));
+  check("the boat turns: heading changes sign at least twice", signChanges >= 2, signChanges);
   await hold(new Set());
   collected = s.starfish;
   log(`course done with ${collected} starfish`);
