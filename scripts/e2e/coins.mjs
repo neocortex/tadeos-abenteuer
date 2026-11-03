@@ -1,8 +1,9 @@
 /**
- * E2E: gold coins reach every part of the bigger island. Checks that all 30 exist, that each outer region holds some
- * (with one close to the ruin, the windmill and the lagoon beach), that every coin can be reached on foot from the
+ * E2E: gold coins reach every part of the bigger island. Checks that all 50 exist, that each outer region holds about
+ * eight (with one close to the ruin, the windmill and the lagoon beach), that every coin can be reached on foot from the
  * landing beach while the story still blocks the bridge, and that a coin picked up with real key presses is counted and
- * remembered after a reload. Takes a picture of each secret corner.
+ * remembered after a reload. The coin bar shows the next outfit and the coin count it needs, and a save from the days of
+ * 30 coins keeps the outfits it had earned. Takes a picture of each secret corner.
  *
  * Usage: node scripts/e2e/coins.mjs [baseUrl]
  * Output: scripts/e2e/out/coins/{*.png, summary.json, console.log}
@@ -16,7 +17,7 @@ const OUT = "scripts/e2e/out/coins";
 const REGIONS = { lagoon: 0, jungle: 1, swamp: 2, hills: 3 };
 const LANDMARKS = { ruin: [-8, 110], windmill: [126, 2], lagoonBeach: [82, 98] };
 const NEAR = 15;
-const MIN_PER_REGION = 3;
+const MIN_PER_REGION = 7;
 /** Paths give the first 20 coins; the rest lie in the secret corners. */
 const PATH_COINS = 20;
 mkdirSync(OUT, { recursive: true });
@@ -153,14 +154,43 @@ await page.screenshot({ path: `${OUT}/picked-up.png` });
 await openGame();
 const remembered = await page.evaluate(() => window.game.coins.collected);
 
+// The coin bar names the next outfit and the coin count it needs, and shows none once all are found
+const goalAt = async (coins) => {
+  await page.goto(`${BASE}/?notitle&coins=${coins}`);
+  await page.waitForFunction(() => window.probe?.busy === false, null, { timeout: 90_000 });
+  return page.evaluate(() => {
+    const goal = document.querySelector(".hud-coins .goal");
+    return goal && { name: goal.querySelector(".name").textContent, at: goal.querySelector(".at").textContent, icon: !!goal.querySelector("img")?.src };
+  });
+};
+const goals = { 0: await goalAt(0), 17: await goalAt(17), 30: await goalAt(30), 40: await goalAt(40) };
+await page.screenshot({ path: `${OUT}/coin-bar.png`, clip: { x: 880, y: 90, width: 400, height: 120 } });
+goals[50] = await goalAt(50);
+const WANT_GOALS = { 0: ["Strohhut", "15"], 17: ["Piratenhut", "25"], 30: ["Federhut", "35"], 40: ["Coole Sonnenbrille", "50"] };
+
+// A save from the days of 30 coins: 12 coins had earned the straw hat at 10, and keep it although it now takes 15
+await page.evaluate(() => {
+  localStorage.setItem("schatzkarten_coins", JSON.stringify([...Array(12).keys()]));
+  localStorage.removeItem("schatzkarten_outfits");
+  localStorage.removeItem("schatzkarten_hat");
+});
+await openGame();
+const earlierSave = await page.evaluate(() => ({
+  wearing: [...window.game.wardrobe.worn.keys()],
+  goal: document.querySelector(".hud-coins .goal .name")?.textContent,
+}));
+
 const checks = {
-  thirtyCoins: survey.spots.length === 30,
+  fiftyCoins: survey.spots.length === 50,
   everyRegionHasCoins: Object.values(survey.byRegion).every((n) => n >= MIN_PER_REGION),
   coinsNearLandmarks: Object.values(survey.byLandmark).every((n) => n >= 1),
   allReachableOnFoot: survey.unreachable.length === 0,
   cornersNotCrowded: crowded === 0,
   pickedUpWithKeys: after === before + 1,
   rememberedAfterReload: remembered === after,
+  coinBarShowsNextOutfit: Object.entries(WANT_GOALS).every(([n, [name, at]]) => goals[n]?.name === name && goals[n].at === at && goals[n].icon),
+  coinBarEmptyWhenAllFound: goals[50] === null,
+  earlierSaveKeepsItsHat: earlierSave.wearing.includes("strawHat") && earlierSave.goal === "Piratenhut",
   noConsoleErrors: errors.length === 0,
 };
 
@@ -172,6 +202,8 @@ const summary = {
   byLandmark: survey.byLandmark,
   unreachable: survey.unreachable,
   corners,
+  goals,
+  earlierSave,
   errors,
 };
 writeFileSync(`${OUT}/summary.json`, JSON.stringify(summary, null, 2));

@@ -1,6 +1,6 @@
 /**
  * HUD: current quest card (top left), the four quest-item slots (top right),
- * control hints (bottom left), chapter banners and the off-screen objective arrow.
+ * the coin counter with the next outfit it unlocks, control hints (bottom left), chapter banners and the off-screen objective arrow.
  */
 
 import { QuestManager } from "../systems/QuestManager";
@@ -9,6 +9,13 @@ import { QUESTS } from "../data/quests";
 import { ItemKey } from "../world/models/items";
 
 const ITEM_ORDER: ItemKey[] = ["sword", "berry", "key", "hammer"];
+
+/** The next outfit the coins unlock: at how many coins, its name and picture. */
+export interface CoinGoal {
+  coins: number;
+  name: string;
+  icon?: string;
+}
 
 export class Hud {
   private quest: HTMLElement;
@@ -67,9 +74,13 @@ export class Hud {
     setTimeout(() => slot?.classList.remove("pop"), 600);
   }
 
-  /** Coin counter under the item slots; `pop` bounces it after a pickup. */
-  setCoins(count: number, total: number, pop: boolean): void {
-    this.coins.innerHTML = `<span class="coin"></span>${count} / ${total}`;
+  /** Coin counter under the item slots, with the next outfit to earn; `pop` bounces it after a pickup. */
+  setCoins(count: number, total: number, next: CoinGoal | null, pop: boolean): void {
+    const goal = next
+      ? `<div class="goal">${next.icon ? `<img src="${next.icon}" alt="">` : ""}<span class="name">${next.name}</span>` +
+        `<span class="at"><span class="coin"></span>${next.coins}</span></div>`
+      : "";
+    this.coins.innerHTML = `<div class="count"><span class="coin"></span>${count} / ${total}</div>${goal}`;
     if (!pop) return;
     this.coins.classList.remove("pop");
     void this.coins.offsetWidth;

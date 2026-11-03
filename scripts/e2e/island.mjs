@@ -303,7 +303,7 @@ await walkTo(coin[0], coin[1], 0.6, 8000);
 await wait(300);
 s = await state();
 check("walking through a coin collects it", s.coins === coinsBefore + 1, `${coinsBefore} → ${s.coins}`);
-check("HUD shows the coin count", (await page.textContent(".hud-coins"))?.includes(`${s.coins} / 30`) ?? false);
+check("HUD shows the coin count", (await page.textContent(".hud-coins"))?.includes(`${s.coins} / 50`) ?? false);
 await shot("05-coin");
 
 // ── 4. Quest 3: the elder tells the legend ──────────────────

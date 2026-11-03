@@ -1,6 +1,6 @@
 /**
  * Renders 3D characters and items into small PNG images (data URLs) once at
- * start-up, so the HTML UI can show real 3D portraits and item icons.
+ * start-up, so the HTML UI can show real 3D portraits, item icons and the coin outfits.
  */
 
 import * as THREE from "three";
@@ -10,6 +10,7 @@ import { createItem, ItemKey } from "../world/models/items";
 import { createChuletaModel } from "../characters/Chuleta";
 import { createMole } from "../characters/Mole";
 import { createHueter } from "../characters/Hueter";
+import { createOutfit, OutfitId } from "../characters/hats";
 
 const SIZE = 192;
 
@@ -36,6 +37,7 @@ function snapshot(
 export interface SnapshotSet {
   portraits: Record<string, string>;
   items: Record<ItemKey, string>;
+  outfits: Partial<Record<OutfitId, string>>;
 }
 
 /** Render every portrait and item icon the UI needs. */
@@ -84,7 +86,18 @@ export function renderSnapshots(): SnapshotSet {
     items[key] = snapshot(item, center.clone().add(new THREE.Vector3(0, 0, size * 2.1)), center, renderer);
   }
 
+  const outfits: Partial<Record<OutfitId, string>> = {};
+  for (const id of ["strawHat", "pirateHat", "featherHat", "sunglasses"] as OutfitId[]) {
+    const outfit = createOutfit(id);
+    // Reason: seen a little from the side and above, as on Tadeo's head; the feather hat turns to show its plume
+    outfit.rotation.y = id === "featherHat" ? 0.9 : id === "sunglasses" ? 0.35 : 0.5;
+    const box = new THREE.Box3().setFromObject(outfit);
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3()).length();
+    outfits[id] = snapshot(outfit, center.clone().add(new THREE.Vector3(0, size * 0.32, size * 1.15)), center, renderer);
+  }
+
   renderer.dispose();
   renderer.forceContextLoss();
-  return { portraits, items };
+  return { portraits, items, outfits };
 }

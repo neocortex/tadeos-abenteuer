@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fifty coins
+
+- 50 gold coins instead of 30: twenty more lie in secret corners, so every outer region holds about eight
+- The outfits take more coins: the straw hat 15, the pirate hat 25, a new feather hat 35 and the sunglasses all 50
+- The coin bar shows the next outfit, with its picture and the coin count that unlocks it
+- Outfits once earned stay: a save from the days of 30 coins keeps what it had
+
 ### Boat and docks
 
 - The boat no longer looks as if it has a hole: the sea stays out of the hull, at the dock and at sea alike, and the gap

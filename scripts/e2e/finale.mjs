@@ -439,7 +439,7 @@ try {
   check("side games are not locked at 12", canTalkToJonas, JSON.stringify(atJonas));
   // Reason: with every coin and two prize hats in hand, the end card further down has something to leave behind
   await page.evaluate(() => {
-    localStorage.setItem("schatzkarten_coins", JSON.stringify([...Array(30).keys()]));
+    localStorage.setItem("schatzkarten_coins", JSON.stringify([...Array(50).keys()]));
     localStorage.setItem("schatzkarten_prizes", JSON.stringify(["fishingHat", "crown"]));
     localStorage.setItem("schatzkarten_hat", JSON.stringify("fishingHat"));
   });
@@ -669,7 +669,7 @@ try {
   check("the party loops: fireworks are on", party.phase === "party" && party.fireworks === true, JSON.stringify(party));
   const card = await page.textContent(".endcard");
   check("end card says the island is saved", card.includes("Du hast die Insel gerettet!"), card.replace(/\s+/g, " ").trim());
-  check("the end card counts the coins he found", card.includes("Goldmünzen: 30 / 30"), card.match(/Goldmünzen: [^\s]+ \/ \d+/)?.[0]);
+  check("the end card counts the coins he found", card.includes("Goldmünzen: 50 / 50"), card.match(/Goldmünzen: [^\s]+ \/ \d+/)?.[0]);
   check("the end card promises the rocket and the mended boat", card.includes("Rakete") && card.includes("Boot"));
   check("save is gone after the end", await noSave());
   await sleep(2600);
@@ -697,7 +697,7 @@ try {
     const sizes = coins.spots.map((_, i) => Math.hypot(...coins.body.instanceMatrix.array.slice(i * 16, i * 16 + 3)));
     return { coins: coins.collected, findable: sizes.filter((s) => s > 0.5).length, of: coins.spots.length, hats: wardrobe.prizes.size, hat: wardrobe.hat, worn: wardrobe.worn.size };
   });
-  check("the next game starts with no coins, and all of them can be found", fresh.coins === 0 && fresh.findable === 30 && fresh.of === 30, JSON.stringify(fresh));
+  check("the next game starts with no coins, and all of them can be found", fresh.coins === 0 && fresh.findable === 50 && fresh.of === 50, JSON.stringify(fresh));
   check("the next game starts with no prize hats", fresh.hats === 0 && fresh.hat === null && fresh.worn === 0, JSON.stringify(fresh));
 
   // ── Space on the end card ─────────────────────────────────

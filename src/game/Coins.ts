@@ -11,7 +11,7 @@ import { PATHS, LANDMARKS, P2 } from "../world/layout";
 import { mulberry32 } from "../core/noise";
 import { audio } from "../audio/Audio";
 
-export const COIN_COUNT = 30;
+export const COIN_COUNT = 50;
 const STORAGE_KEY = "schatzkarten_coins";
 const PICK_RADIUS = 1.1;
 const SPARKS = 48;
@@ -32,6 +32,23 @@ const SECRET_CORNERS: P2[] = [
   [-76, 94], [-58, 110], [-74, 78],
   // Lagoon: behind the huts, at the end of the east beach
   [70, 98], [124, 92],
+];
+
+/**
+ * More quiet coins, so every region holds about eight. They come after the first ones because a save remembers coins by
+ * their place in the list.
+ */
+const MORE_CORNERS: P2[] = [
+  // Lagoon
+  [98, 60], [118, 70], [90, 86], [52, 88], [78, 60],
+  // Swamp
+  [-44, 76], [-66, 64], [-44, 102], [-54, 88], [-52, 64],
+  // Flower hills
+  [102, -42], [112, 30], [128, -42], [150, -12],
+  // Jungle
+  [-14, 70], [10, 134], [-32, 124],
+  // The old island: the west coast, the north-east and the cave's side
+  [-102, 2], [38, -66], [-68, -18],
 ];
 
 export class Coins {
@@ -166,7 +183,7 @@ export class Coins {
     this.sparks.instanceMatrix.needsUpdate = true;
   }
 
-  /** Deterministic placement: 20 coins along the paths, 10 in the secret corners. */
+  /** Deterministic placement: 20 coins along the paths, 30 in the secret corners. */
   private placeCoins(): void {
     const rand = mulberry32(77);
     const clear = (x: number, z: number) =>
@@ -198,7 +215,7 @@ export class Coins {
       const oz = z + (rand() - 0.5) * 2;
       if (ok(ox, oz)) add(ox, oz);
     }
-    for (const [x, z] of SECRET_CORNERS) if (clear(x, z)) add(x, z);
+    for (const [x, z] of [...SECRET_CORNERS, ...MORE_CORNERS]) if (clear(x, z)) add(x, z);
     // Reason: a corner that a later change blocks must not leave Tadeo one coin short of the sunglasses
     for (let tries = 0; this.spots.length < COIN_COUNT && tries < 5000; tries++) {
       const x = -95 + rand() * 190;

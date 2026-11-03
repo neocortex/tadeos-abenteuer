@@ -13,6 +13,7 @@ import { ITEMS } from "../data/items";
 import { Input } from "../core/Input";
 import { audio } from "../audio/Audio";
 import { ItemKey } from "../world/models/items";
+import { OutfitId } from "../characters/hats";
 
 export class GameUI {
   readonly layer: HTMLElement;
@@ -23,6 +24,8 @@ export class GameUI {
   readonly portraits: Record<string, string>;
   /** Icon (data URL) per quest item. */
   readonly icons: Record<ItemKey, string>;
+  /** Picture (data URL) of each outfit the coins unlock. */
+  readonly outfitIcons: Partial<Record<OutfitId, string>>;
   private statusEl: HTMLElement;
   /** Reason: reading innerHTML serialises the DOM, and scenes set the status every frame. */
   private statusHtml = "";
@@ -34,6 +37,7 @@ export class GameUI {
     const snaps = renderSnapshots();
     this.portraits = snaps.portraits;
     this.icons = snaps.items;
+    this.outfitIcons = snaps.outfits;
 
     this.hud = new Hud(this.layer);
     this.hud.setIcons(this.icons);

@@ -1,6 +1,6 @@
 /**
- * Outfit pieces Tadeo unlocks: a straw hat, a pirate hat and cool sunglasses
- * for gold coins, a fishing hat, a golden crown and a turtle hat as side-game
+ * Outfit pieces Tadeo unlocks: a straw hat, a pirate hat, a feather hat and cool
+ * sunglasses for gold coins, a fishing hat, a golden crown and a turtle hat as side-game
  * prizes. Each model is built to sit on the Humanoid head (head radius 0.36,
  * origin at the head centre).
  */
@@ -8,10 +8,10 @@
 import * as THREE from "three";
 import { mat, toonMesh } from "./parts";
 
-export type OutfitId = "strawHat" | "pirateHat" | "sunglasses" | "fishingHat" | "crown" | "shellHat";
+export type OutfitId = "strawHat" | "pirateHat" | "featherHat" | "sunglasses" | "fishingHat" | "crown" | "shellHat";
 
 /** How far the top of each hat sits above the head centre (Chuleta perches there). */
-export const HAT_TOP: Partial<Record<OutfitId, number>> = { strawHat: 0.62, pirateHat: 0.66, fishingHat: 0.58, crown: 0.64, shellHat: 0.56 };
+export const HAT_TOP: Partial<Record<OutfitId, number>> = { strawHat: 0.62, pirateHat: 0.66, featherHat: 0.58, fishingHat: 0.58, crown: 0.64, shellHat: 0.56 };
 
 function strawHat(): THREE.Group {
   const g = new THREE.Group();
@@ -87,6 +87,49 @@ function sunglasses(): THREE.Group {
   const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.022, 0.022), frame);
   bridge.position.set(0, 0.07, 0.37);
   g.add(bridge);
+  return g;
+}
+
+/** A wide musketeer hat with one huge curling feather, swept back on the left so Chuleta still has room on top. */
+function featherHat(): THREE.Group {
+  const g = new THREE.Group();
+  const felt = mat("#4a3a8c", 0.75);
+  const brimMat = new THREE.MeshStandardMaterial({ color: "#4a3a8c", roughness: 0.75, side: THREE.DoubleSide });
+  brimMat.emissive.set("#4a3a8c");
+  brimMat.emissiveIntensity = 0.16;
+  // Reason: a shallow open cone rising outwards reads as a brim with its edge turned up
+  const brim = toonMesh(new THREE.CylinderGeometry(0.72, 0.36, 0.1, 30, 1, true), brimMat);
+  brim.position.y = 0.33;
+  const crown = toonMesh(new THREE.CylinderGeometry(0.25, 0.32, 0.26, 24), felt);
+  crown.position.y = 0.42;
+  const band = toonMesh(new THREE.CylinderGeometry(0.325, 0.325, 0.07, 24), mat("#ffc83d", 0.3, 0.4), false);
+  band.position.y = 0.33;
+  g.add(brim, crown, band);
+
+  // The plume: a quill along a curve, with soft vanes that shrink towards the curling tip
+  const curve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.3, 0.38, 0.08),
+    new THREE.Vector3(-0.42, 0.62, -0.06),
+    new THREE.Vector3(-0.44, 0.86, -0.3),
+    new THREE.Vector3(-0.34, 0.98, -0.58),
+    new THREE.Vector3(-0.22, 0.92, -0.78),
+  ]);
+  g.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.012, 5), mat("#fff8ee", 0.5, 0.3)));
+  const colours = ["#e63946", "#ff6b3d", "#ff9f1c", "#ffd23f"];
+  const VANES = 18;
+  for (let i = 0; i < VANES; i++) {
+    const t = 0.06 + (i / (VANES - 1)) * 0.92;
+    const at = curve.getPointAt(t);
+    const along = curve.getTangentAt(t);
+    const width = 0.17 * (1 - t * 0.5);
+    const vane = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 8), mat(colours[Math.floor(t * colours.length * 0.999)], 0.6, 0.35));
+    vane.scale.set(width, 0.045, 0.12);
+    vane.position.copy(at);
+    vane.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), along);
+    vane.rotateZ(Math.PI / 2);
+    g.add(vane);
+  }
+  g.rotation.set(-0.1, 0, 0.08);
   return g;
 }
 
@@ -213,6 +256,8 @@ export function createOutfit(id: OutfitId): THREE.Group {
       return strawHat();
     case "pirateHat":
       return pirateHat();
+    case "featherHat":
+      return featherHat();
     case "sunglasses":
       return sunglasses();
     case "fishingHat":
