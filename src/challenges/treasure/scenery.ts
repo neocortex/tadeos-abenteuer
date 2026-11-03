@@ -10,7 +10,7 @@ import * as THREE from "three";
 import { merge } from "../../core/geo";
 import { mulberry32, Noise2D, smoothstep } from "../../core/noise";
 import { UNFLIPPED_NORMAL_GLSL } from "../../core/glsl";
-import { emptyModel, addModel, rockBlob, stoneFn, pointDir } from "../../world/models/shapes";
+import { emptyModel, addModel, rockBlob, stoneFn, pointDir, WATER_STOP } from "../../world/models/shapes";
 import { palmTree, bush } from "../../world/models/flora";
 import { shipwreck, sailboat } from "../../world/models/boats";
 import { barrel, crate } from "../../world/models/props";
@@ -255,6 +255,7 @@ export class Scenery {
     make(all.cloth, mats.cloth, true);
     make(all.glow, mats.glow, false);
     make(all.dark, mats.dark, false);
+    make(all.waterStop, WATER_STOP, false);
   }
 
   /**

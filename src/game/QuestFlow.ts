@@ -96,8 +96,8 @@ export class QuestFlow {
     this.arrive(m);
     director.ui.hud.setVisible(true);
     const goal = onBeach ? LANDMARKS.spawn : (this.goals()[0]?.at ?? LANDMARKS.spawn);
-    const { hf } = director.island.island;
-    const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => hf.isWalkable(x, z) && !story.behindHedge(x, z));
+    const { world } = director.island.player;
+    const spot = [[0, 5], [5, 0], [-5, 0], [0, -5]].map(([dx, dz]) => [goal[0] + dx, goal[1] + dz]).find(([x, z]) => world.canStand(x, z) && !story.behindHedge(x, z));
     const [x, z] = spot ?? LANDMARKS.spawn;
     director.place(x, z);
   }

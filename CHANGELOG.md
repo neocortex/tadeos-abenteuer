@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Boat and docks
+
+- The boat no longer looks as if it has a hole: the sea stays out of the hull, at the dock and at sea alike, and the gap
+  inside the rail is closed
+- In the opening Tadeo sits beside the sail instead of in it, so it no longer covers his face
+- Tadeo can no longer step off a dock into deep water
+
 ### Under the hood
 
 - One table holds every quest, and one place decides how a quest is reached, played and completed, whether the game

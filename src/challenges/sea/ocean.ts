@@ -3,7 +3,7 @@
  * on the GPU and in `seaHeight` for buoyancy), the island's depth colours
  * (turquoise shallows around islands and rocks, deep blue in the open),
  * whitecaps, animated shore foam, sun glints and sparkles, a fresnel sky
- * reflection, and a hole where the boat floats so no water shows inside it.
+ * reflection.
  */
 
 import * as THREE from "three";
@@ -70,8 +70,6 @@ export interface OceanUniforms {
   uIsles: { value: THREE.Vector4[] };
   /** How fast the seabed drops away from each shore (depth units per world unit). */
   uIsleSlope: { value: number[] };
-  /** Boat cut-out: x, z, yaw, enabled. */
-  uBoat: { value: THREE.Vector4 };
 }
 
 export function oceanUniforms(sunDir: THREE.Vector3): OceanUniforms {
@@ -80,7 +78,6 @@ export function oceanUniforms(sunDir: THREE.Vector3): OceanUniforms {
     uSunDir: { value: sunDir },
     uIsles: { value: Array.from({ length: MAX_ISLES }, () => new THREE.Vector4(0, 0, 0, 0)) },
     uIsleSlope: { value: new Array(MAX_ISLES).fill(0.3) },
-    uBoat: { value: new THREE.Vector4(0, 0, 0, 0) },
   };
 }
 
@@ -137,7 +134,6 @@ uniform vec3 uMid;
 uniform vec3 uDeep;
 uniform vec3 uSky;
 uniform vec3 uSunColor;
-uniform vec4 uBoat;
 varying vec3 vWPos;
 varying float vH;
 varying float vCalm;
@@ -154,18 +150,6 @@ float ripples(vec2 p, float t) {
 
 void main() {
   vec2 p = vWPos.xz;
-  // No water inside the boat's hull
-  if (uBoat.w > 0.5) {
-    vec2 d = p - uBoat.xy;
-    float c = cos(uBoat.z), s = sin(uBoat.z);
-    float lat = c * d.x - s * d.y;
-    float t = -(s * d.x + c * d.y) / 2.5;
-    // Reason: the hull's footprint at the waterline (pinched towards the bow, see world/models/boats.ts);
-    // a cut-out larger than the hull shows the sky through the sea behind the stern
-    float pinch = t > 0.0 ? 1.0 - 0.82 * smoothstep(0.25, 1.0, t) : 1.0 - 0.25 * smoothstep(0.5, 1.0, -t);
-    if (abs(lat) < sqrt(max(0.8 * 0.8 - t * t, 0.0)) * pinch) discard;
-  }
-
   vec2 info = shoreInfo(p);
   float shoreD = info.x;
   float depth = info.y;

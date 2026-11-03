@@ -14,7 +14,7 @@ import { Colliders, Circle } from "./Colliders";
 import { WorldUniforms } from "./Terrain";
 import { TabletRunes } from "./TabletRunes";
 import { merge } from "../core/geo";
-import { Model } from "./models/shapes";
+import { Model, WATER_STOP } from "./models/shapes";
 import { SignAtlas } from "./models/signs";
 import { createMaterials, flameGeometry, LandmarkMaterials } from "./models/effects";
 import { Site, Deck, LandmarkContext } from "./models/site";
@@ -145,12 +145,6 @@ export class Landmarks implements LandmarkContext {
 
   deck(d: Deck): void {
     this.decks.push(d);
-    // Reason: open the heightfield along the deck so deep water / river cells under it become walkable
-    for (let s = 0; s <= d.length; s += 0.4) {
-      const x = d.start.x + d.dir.x * s;
-      const z = d.start.y + d.dir.y * s;
-      this.hf.openDisc(x, z, Math.max(0.3, d.halfWidth(s) - 0.35));
-    }
   }
 
   boat(name: string, model: Model, x: number, z: number, rotY: number, blockers: [number, number, number][]): void {
@@ -206,6 +200,7 @@ export class Landmarks implements LandmarkContext {
     make(model.dark, mats.dark, "dark", false);
     make(model.text, this.atlas.material, "text", false);
     if (model.text.length) out[out.length - 1].receiveShadow = true;
+    make(model.waterStop, WATER_STOP, "waterStop", false);
     return out;
   }
 

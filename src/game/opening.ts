@@ -147,6 +147,8 @@ const CUT = HIT + 0.46;
 const SLOW_MOTION = 0.42;
 /** He sits turned towards the camera, smiling, while the fin comes up behind him. */
 const HERO_YAW = 2.05;
+/** Reason: the sail runs down the boat's middle and billows to starboard, so he sits out on the camera's side of it. */
+const HERO_STARBOARD = 0.6;
 /** The fin's curve relative to the boat, (ahead, starboard): cruising past far out, then turning in on the stern. */
 const FIN_FROM = new THREE.Vector2(-30, -34);
 const FIN_VIA = new THREE.Vector2(-12, -26);
@@ -243,6 +245,9 @@ class SeaShot {
     this.cut = new Promise((resolve) => (this.cutNow = resolve));
     this.group.name = "opening-sea";
     this.shark.root.name = "opening-shark";
+    this.hero.head.name = "opening-head";
+    this.hero.legL.name = "opening-leg";
+    this.hero.legR.name = "opening-leg";
     const { landmarks } = island.island;
     const model = new THREE.Group();
     landmarks.meshesFor(sailboat(landmarks.atlas, NORTH_DOCK_BOAT, "TADEO", 23), "opening-boat").forEach((m) => model.add(m));
@@ -250,8 +255,9 @@ class SeaShot {
     model.rotation.y = Math.PI / 2;
     this.tilt.add(model, this.hero.root);
     this.hero.pose = "sit";
-    this.hero.root.position.set(0, 0.2, 1.25);
-    this.hero.root.rotation.y = HERO_YAW;
+    this.hero.root.position.set(HERO_STARBOARD, 0.2, 1.25);
+    // Reason: his legs lie along the boat towards the bow, where the hull is wide enough for them; he only turns from the waist up
+    this.hero.root.rotation.y = Math.PI;
     this.boat.add(this.tilt);
     this.boat.rotation.y = Math.atan2(-HEADING.x, -HEADING.z);
     const time = island.island.uniforms.uTime;
@@ -353,6 +359,7 @@ class SeaShot {
 
     const h = this.hero;
     h.update(dt, { speed: 0, grounded: true, vy: 0 });
+    h.torso.rotation.y = HERO_YAW - Math.PI;
     if (this.hit) {
       // Tadeo flung up, arms in the air, eyes wide
       h.armL.rotation.set(0, 0, -2.7);

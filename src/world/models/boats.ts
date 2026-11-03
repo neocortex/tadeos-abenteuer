@@ -132,6 +132,36 @@ function hullPatches(m: Model, rand: () => number): void {
   nailedBoard(m, 0.56, 0.3, [-0.1, 0.085, 0.29], Math.PI / 2 + 0.14, raw());
 }
 
+/**
+ * The top of the gunwale, from the rim in over the inner hull's edge.
+ * Reason: the inner hull is narrower than the outer one, and the gap between them would show right through her.
+ */
+function gunwaleCap(): THREE.BufferGeometry {
+  const v: number[] = [];
+  const steps = 40;
+  const inside = (p: THREE.Vector3) => new THREE.Vector3(p.x * 0.88, p.y - 0.04, p.z * 0.84);
+  for (let i = 0; i < steps; i++) {
+    const p = rimPoint((i / steps) * Math.PI * 2);
+    const q = rimPoint(((i + 1) / steps) * Math.PI * 2);
+    const [a, b] = [inside(p), inside(q)];
+    v.push(p.x, p.y, p.z, q.x, q.y, q.z, a.x, a.y, a.z, a.x, a.y, a.z, q.x, q.y, q.z, b.x, b.y, b.z);
+  }
+  const g = triangles(v, PAL.woodDark);
+  return (g.attributes.normal as THREE.BufferAttribute).getY(0) < 0 ? flip(g) : g;
+}
+
+/** A lid across the open hull at the rim. Reason: the hull's floor lies below the waterline, and the water plane runs right through her. */
+function hullLid(): THREE.BufferGeometry {
+  const v: number[] = [];
+  const steps = 40;
+  for (let i = 0; i < steps; i++) {
+    const p = rimPoint((i / steps) * Math.PI * 2);
+    const q = rimPoint(((i + 1) / steps) * Math.PI * 2);
+    v.push(0, RIM, 0, p.x, p.y, p.z, q.x, q.y, q.z);
+  }
+  return triangles(v, "#000000");
+}
+
 /** Small sailboat with an optional name painted on both sides of the bow. */
 export function sailboat(atlas: SignAtlas, colors: BoatColors, name: string | null, seed: number): Model {
   const rand = mulberry32(seed + 51);
@@ -144,6 +174,8 @@ export function sailboat(atlas: SignAtlas, colors: BoatColors, name: string | nu
   inner.scale(0.94, 0.94, 0.9);
   inner.translate(0, RIM * 0.06, 0);
   m.solid.push(flip(part(inner, "#d9a56b")));
+  m.solid.push(gunwaleCap());
+  m.waterStop.push(hullLid());
   // Gunwale rail and floorboards
   const rim: THREE.Vector3[] = [];
   for (let i = 0; i < 40; i++) rim.push(rimPoint((i / 40) * Math.PI * 2));

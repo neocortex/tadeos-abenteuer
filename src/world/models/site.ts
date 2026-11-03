@@ -37,7 +37,7 @@ export interface LandmarkContext {
   readonly tablets: TabletRunes;
   /** Create a site whose model is merged into meshes once building is done. */
   site(name: string): Site;
-  /** Register a walkable deck (also opens the heightfield underneath). */
+  /** Register a walkable deck. */
   deck(d: Deck): void;
   /** Add a separately animated boat (bobbing on the water). */
   boat(name: string, model: Model, x: number, z: number, rotY: number, blockers: [number, number, number][]): void;

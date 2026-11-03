@@ -208,7 +208,6 @@ export class SeaChallenge implements Challenge {
     const yaw = this.boat.root.rotation.y;
     this.boat.update(sdt, t);
     if (!this.boat.aboard) this.boat.hero.update(sdt, this.heroMotion);
-    this.uniforms.uBoat.value.set(b.x, b.z, yaw, this.boat.aground > 0.5 ? 0 : 1);
     this.wake.update(sdt, b.x + Math.sin(yaw) * 2.3, b.z + Math.cos(yaw) * 2.3, -Math.sin(yaw), -Math.cos(yaw), this.boat.speed / CRUISE);
     this.gulls.update(sdt, b);
     this.shark.update(sdt);

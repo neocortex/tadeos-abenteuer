@@ -7,7 +7,7 @@
 
 import * as THREE from "three";
 import { merge } from "../../core/geo";
-import { Model } from "../../world/models/shapes";
+import { Model, WATER_STOP } from "../../world/models/shapes";
 
 // ── Easing ──────────────────────────────────────────────────
 
@@ -174,6 +174,7 @@ export function modelGroup(model: Model, mats: ModelMaterials, shadows = true): 
   add(model.cloth, mats.cloth, true);
   add(model.glow, mats.glow, false);
   add(model.pulse, mats.glow, false);
+  add(model.waterStop, WATER_STOP, false);
   return g;
 }
 

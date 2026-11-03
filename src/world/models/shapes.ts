@@ -29,15 +29,23 @@ export interface Model {
   dark: THREE.BufferGeometry[];
   /** Sign lettering quads with UVs into the sign atlas. */
   text: THREE.BufferGeometry[];
+  /** Invisible lids over open hulls, drawn with `WATER_STOP`. */
+  waterStop: THREE.BufferGeometry[];
   flames: THREE.Vector3[];
   chimneys: THREE.Vector3[];
 }
 
 export function emptyModel(): Model {
-  return { solid: [], glow: [], pulse: [], cloth: [], dark: [], text: [], flames: [], chimneys: [] };
+  return { solid: [], glow: [], pulse: [], cloth: [], dark: [], text: [], waterStop: [], flames: [], chimneys: [] };
 }
 
-const GEO_KEYS = ["solid", "glow", "pulse", "cloth", "dark", "text"] as const;
+/**
+ * Draws nothing but depth, after everything opaque and just before the water (renderOrder 1), so water that lies under
+ * a lid fails the depth test while whatever is already drawn in the hull stays.
+ */
+export const WATER_STOP = new THREE.MeshBasicMaterial({ name: "water-stop", colorWrite: false, transparent: true, side: THREE.DoubleSide });
+
+const GEO_KEYS = ["solid", "glow", "pulse", "cloth", "dark", "text", "waterStop"] as const;
 
 /** Transform every part and anchor of `m` by `matrix` (in place) and append them to `into`. */
 export function addModel(into: Model, m: Model, matrix: THREE.Matrix4 = new THREE.Matrix4()): Model {

@@ -93,11 +93,6 @@ export class Heightfield {
     return this.slopes[iz * HF_N + ix];
   }
 
-  /** Force a disc to be walkable (bridges, piers). */
-  openDisc(x: number, z: number, radius: number): void {
-    this.forEachCellInDisc(x, z, radius, (i) => (this.walkable[i] = 1));
-  }
-
   /** Remove grass/flowers inside a disc (under floors, around props). */
   clearGrass(x: number, z: number, radius: number): void {
     this.forEachCellInDisc(x, z, radius, (i) => (this.masks[i * 4 + 3] = 0));
