@@ -23,7 +23,7 @@ const OUT = new URL("./out/world/", import.meta.url).pathname;
 mkdirSync(OUT, { recursive: true });
 
 /** Terrain heights at the old quest spots, measured before the island grew. */
-const BASELINE = {"spawn":[-66,47,0.21],"sign":[-62.6,43.6,1.043],"volcanoGate":[-56,14,3.018],"tablet0":[-14,-9,3.755],"tablet1":[17,-9,3.33],"tablet2":[2,19,2.765],"cave":[-60,-18.5,2.127],"forestGate":[-12,26,3.763],"ogreGate":[38,0,2.571],"ogreBack":[53.5,0.5,2.651],"elder":[65,37,2.406],"plaza":[64,44,2.124],"mountainGate":[55.5,-13.5,2.927],"northDockEnd":[-36,-76,-15.4],"lake":[2,2,-2.6],"jonasBack":[61.9,42.8,2.175]};
+const BASELINE = {"spawn":[-66,47,0.21],"sign":[-62.6,43.6,1.043],"volcanoGate":[-56,14,3.018],"tablet0":[-14,-9,3.755],"tablet1":[17,-9,3.33],"tablet2":[2,19,2.765],"cave":[-60,-18.5,2.127],"forestGate":[-12,26,3.763],"ogreGate":[38,0,2.571],"ogreBack":[53.5,0.5,2.651],"elder":[65,37,2.406],"plaza":[64,44,2.124],"mountainGate":[55.5,-13.5,2.927],"northDockEnd":[-36,-76,-15.4],"lake":[2,2,-2.6],"freddyBack":[61.9,42.8,2.175]};
 /** Walkable cells on a 2-unit grid over ±175 before the island grew. */
 const OLD_WALKABLE = 3927;
 const REGIONS = ["lagoon", "jungle", "swamp", "hills"];

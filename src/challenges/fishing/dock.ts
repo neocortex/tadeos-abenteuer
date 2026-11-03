@@ -1,5 +1,5 @@
 /**
- * Fischer Jonas's jetty: the island's pier model running from the beach out
+ * Fischer Freddy's jetty: the island's pier model running from the beach out
  * over the lagoon, dressed with a lantern, a tall mooring post for Chuleta, a
  * life ring, crates, a tackle box and the bucket for the catch, plus the
  * little red rowboat tied up alongside and bobbing on the swell.

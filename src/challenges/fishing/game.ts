@@ -1,8 +1,8 @@
 /**
  * FishingGame — the live state of a fishing session and everything that runs
  * every frame: aiming with the arrow keys, where the bobber is (on the rod,
- * flying, floating, pulled under, carried by a catch), the bite window,
- * speech bubbles, the "!" alert, the HUD and the camera. The story itself
+ * flying, floating, pulled under, carried by a catch), Space presses on the
+ * catch ring, speech bubbles, the HUD and the camera. The story itself
  * (flow.ts) drives it step by step through small frame-based promises.
  */
 
@@ -24,15 +24,13 @@ import { FishingWorld } from "./world";
 
 export type Phase = "intro" | "aim" | "cast" | "wait" | "nibble" | "bite" | "reel" | "show" | "miss" | "ending" | "done";
 export type BobberMode = "rod" | "fly" | "float" | "under" | "carried";
-export type Speaker = "Fischer Jonas" | "Tadeo" | "Chuleta";
+export type Speaker = "Fischer Freddy" | "Tadeo" | "Chuleta";
 
 /** Where the aim marker may go (over the open sand). */
 const AIM = { x0: -4.6, x1: 4.6, z0: -11.2, z1: -3.6 };
 const AIM_SPEED = 4.2;
 /** How deep the hook hangs below the bobber. */
 export const HOOK_Y = -0.58;
-/** Seconds to press Space once a fish bites (generous: the player is seven). */
-export const BITE_WINDOW = 1.3;
 const BEST_KEY = "schatzkarten_fishing_best";
 
 interface Tween {
@@ -63,14 +61,15 @@ export class FishingGame {
   casts = 0;
   bites = 0;
   misses = 0;
-  /** Misses in a row (each one makes the next bite window a little longer). */
+  /** Misses in a row (each one makes the next catch ring a little easier). */
   missStreak = 0;
   /** The message bottle once it has been fished out. */
   bottle: THREE.Group | null = null;
-  /** Seconds left to strike while a fish is biting. */
-  windowLeft = 0;
+  /** How closed the catch ring is while a fish bites: 0 = wide open (it escapes), 1 = closed (caught). */
+  ring = 0;
+  /** Space presses on the catch ring since the story last counted them. */
+  presses = 0;
   castPressed = false;
-  struck = false;
   biter: Fish | null = null;
   biggest = 0;
   readonly best: number;
@@ -95,7 +94,7 @@ export class FishingGame {
     this.cam = new ShotCamera(camera);
     this.hud = new FishingHud(ui.layer, renderFishIcons());
     this.bucket = new Bucket(this.world.dock.bucket);
-    this.bubbles = { "Fischer Jonas": new SpeechBubble(ui.layer), Tadeo: new SpeechBubble(ui.layer), Chuleta: new SpeechBubble(ui.layer) };
+    this.bubbles = { "Fischer Freddy": new SpeechBubble(ui.layer), Tadeo: new SpeechBubble(ui.layer), Chuleta: new SpeechBubble(ui.layer) };
     let best = 0;
     try {
       best = Number(localStorage.getItem(BEST_KEY) ?? 0) || 0;
@@ -211,7 +210,6 @@ export class FishingGame {
     if (!engine) return;
     const input = engine.input;
     this.earlyCooldown = Math.max(0, this.earlyCooldown - dt);
-    if (this.phase === "bite") this.windowLeft -= dt;
     if (this.ui.dialogue.isOpen || engine.isSwitching) return;
     if (this.phase === "aim") {
       const a = input.axis();
@@ -219,9 +217,9 @@ export class FishingGame {
       this.aim.z = THREE.MathUtils.clamp(this.aim.z + a.y * AIM_SPEED * dt, AIM.z0, AIM.z1);
       if (input.consume("Space")) this.castPressed = true;
     } else if (this.phase === "bite") {
-      if (input.consume("Space")) this.struck = true;
+      if (input.consume("Space")) this.presses++;
     } else if ((this.phase === "wait" || this.phase === "nibble") && input.consume("Space") && this.earlyCooldown <= 0) {
-      this.say("Fischer Jonas", SAY.tooEarly, 2.6);
+      this.say("Fischer Freddy", SAY.tooEarly, 2.6);
       this.earlyCooldown = 6;
     }
   }
@@ -303,21 +301,21 @@ export class FishingGame {
     this.world.fx.sparks.emit(g.root.position, { count: 2, color: new THREE.Color(2.4, 1.9, 0.6), speed: [0.1, 0.4], up: 0.25, life: [0.5, 1.0], size: [0.05, 0.11], spread: 0.3 });
   }
 
-  /** Speech bubbles, the "!" alert, the strike prompt and the controls hint. */
+  /** Speech bubbles, the catch ring with its prompt and the controls hint. */
   private overlays(): void {
     const crew = this.crew;
     const head = (h: { head: THREE.Object3D }) => toScreen(this.camera, h.head.getWorldPosition(this.tmp).add(this.tmp2.set(0, 0.62, 0)));
     this.bubbles.Tadeo.place(head(crew.tadeo));
-    this.bubbles["Fischer Jonas"].place(head(crew.jonas));
+    this.bubbles["Fischer Freddy"].place(head(crew.freddy));
     this.bubbles.Chuleta.place(toScreen(this.camera, crew.chuleta.root.getWorldPosition(this.tmp).add(this.tmp2.set(0, 0.75, 0))));
     if (!this.ui.dialogue.isOpen) {
       const who = (Object.keys(this.bubbles) as Speaker[]).find((k) => this.bubbles[k].showing);
       crew.speaker = who ?? null;
     }
-    const biting = this.phase === "bite";
-    const bob = biting ? toScreen(this.camera, this.tmp.copy(this.tackle.bobber.position).setY(0.2)) : null;
-    this.hud.showAlert(bob);
-    this.ui.prompt.show(bob ? { x: bob.x, y: bob.y + 92 } : null, "Ziehen!");
+    // Reason: the ring stays put over the spot where the float went under, so it is easy to watch while mashing
+    const at = this.phase === "bite" ? toScreen(this.camera, this.tmp.copy(this.spot).setY(0.1)) : null;
+    this.hud.showRing(at, this.ring);
+    this.ui.prompt.show(at ? { x: at.x, y: at.y + 128 } : null, "ganz schnell drücken!");
     const key = (k: string) => `<span class="key">${k}</span>`;
     this.hud.showHint(this.phase === "aim" && !this.ui.dialogue.isOpen ? `${key("← ↑ → ↓")} zielen ${key("Leertaste")} auswerfen` : null);
   }
@@ -336,7 +334,7 @@ export class FishingGame {
       casts: this.casts,
       bites: this.bites,
       misses: this.misses,
-      windowLeft: this.windowLeft,
+      ring: this.ring,
       bottleDone: this.bottleDone,
       goldenArrived: this.goldenArrived,
       biter: this.biter?.kind ?? null,

@@ -35,7 +35,7 @@ const VILLAGERS: { at: P2; facing: number; name: string; lines: string[] }[] = [
   {
     at: [60, 40],
     facing: 0.6,
-    name: "Fischer Jonas",
+    name: "Fischer Freddy",
     lines: [
       "Hallo Tadeo! Heute beißen die Fische besonders gut.",
       "Hast du die Krabben am Strand gesehen? Die laufen immer seitwärts!",

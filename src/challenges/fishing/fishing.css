@@ -1,4 +1,4 @@
-/* Fishing minigame overlays: catch card, bite alert, controls hint and status pill slots. */
+/* Fishing minigame overlays: catch card, catch ring, controls hint and status pill slots. */
 
 .fish-hud {
   position: absolute;
@@ -103,35 +103,49 @@
   }
 }
 
-/* ── Bite alert "!" ───────────────────────────────────────── */
-.fish-alert {
+/* ── Catch ring ───────────────────────────────────────────── */
+.fish-ring {
   position: absolute;
-  width: 74px;
-  height: 74px;
-  margin: -112px 0 0 -37px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #fff7b0, var(--gold) 60%);
-  border: 5px solid var(--wood-dark);
-  box-shadow: 0 6px 0 var(--wood-dark), 0 0 30px rgba(255, 220, 90, 0.9);
+  width: 260px;
+  height: 260px;
+  margin: -130px 0 0 -130px;
   display: none;
-  place-items: center;
-  color: var(--red);
-  font-size: 54px;
-  font-weight: 600;
-  line-height: 1;
-  -webkit-text-stroke: 2px var(--wood-dark);
-  paint-order: stroke fill;
-  animation: fish-alert 0.32s ease-in-out infinite alternate;
 }
-.fish-alert.show {
-  display: grid;
+.fish-ring.show {
+  display: block;
 }
-@keyframes fish-alert {
-  from {
-    transform: scale(0.92) rotate(-8deg);
-  }
+.fish-ring svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.fish-ring .target {
+  fill: rgba(255, 255, 255, 0.18);
+  stroke: #fff;
+  stroke-width: 5;
+  stroke-dasharray: 10 7;
+  filter: drop-shadow(0 0 6px rgba(0, 0, 0, 0.45));
+  animation: fish-target 3s linear infinite;
+  /* Reason: spin the dashes around the circle's own centre, not the SVG's corner */
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@keyframes fish-target {
   to {
-    transform: scale(1.12) rotate(8deg);
+    transform: rotate(360deg);
+  }
+}
+.fish-ring .hoop {
+  fill: none;
+  stroke-width: 12;
+  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)) drop-shadow(0 3px 0 rgba(60, 30, 10, 0.55));
+}
+.fish-ring.hit svg {
+  animation: fish-tug 0.16s ease-out;
+}
+@keyframes fish-tug {
+  40% {
+    transform: scale(0.93);
   }
 }
 

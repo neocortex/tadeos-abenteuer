@@ -1,11 +1,15 @@
 /**
  * Fishing overlays on top of the shared game UI: the catch card (fish icon,
- * name, size and a badge), the bouncing "!" when a fish bites, a controls
+ * name, size and a badge), the catch ring over a biting fish, a controls
  * hint at the bottom and the fish slots for the status pill.
  */
 
 import "./fishing.css";
 import { IconKey } from "./icons";
+
+/** Catch ring sizes in screen pixels: the fixed target circle, and the ring when wide open. */
+const TARGET_R = 30;
+const OPEN_R = 120;
 
 export interface CardInfo {
   icon: IconKey;
@@ -18,7 +22,9 @@ export interface CardInfo {
 export class FishingHud {
   private root: HTMLElement;
   private card: HTMLElement;
-  private alert: HTMLElement;
+  private ring: HTMLElement;
+  private hoop: SVGCircleElement;
+  private lastClosed = 0;
   private hint: HTMLElement;
   private hintHtml = "";
 
@@ -29,11 +35,14 @@ export class FishingHud {
       <div class="fish-card"><div class="rays"></div><div class="box">
         <img class="icon" alt=""><div class="name"></div><div class="size"></div><div class="badge"></div>
       </div></div>
-      <div class="fish-alert">!</div>
+      <div class="fish-ring"><svg viewBox="-130 -130 260 260">
+        <circle class="target" r="${TARGET_R}"></circle><circle class="hoop" r="${OPEN_R}"></circle>
+      </svg></div>
       <div class="fish-hint"></div>`;
     layer.appendChild(this.root);
     this.card = this.root.querySelector(".fish-card")!;
-    this.alert = this.root.querySelector(".fish-alert")!;
+    this.ring = this.root.querySelector(".fish-ring")!;
+    this.hoop = this.root.querySelector(".fish-ring .hoop")!;
     this.hint = this.root.querySelector(".fish-hint")!;
   }
 
@@ -55,13 +64,26 @@ export class FishingHud {
     return this.card.classList.contains("show");
   }
 
-  /** The bouncing "!" above the bobber (screen pixels), or null to hide. */
-  showAlert(px: { x: number; y: number } | null): void {
-    this.alert.classList.toggle("show", !!px);
-    if (px) {
-      this.alert.style.left = `${px.x}px`;
-      this.alert.style.top = `${px.y}px`;
+  /**
+   * The catch ring at a screen point, or null to hide: a fixed target circle and
+   * a ring around it that shrinks onto it as `closed` goes from 0 to 1. Nearly
+   * open it fades away, and it turns from red through yellow to green.
+   */
+  showRing(px: { x: number; y: number } | null, closed: number): void {
+    this.ring.classList.toggle("show", !!px);
+    if (!px) return;
+    this.ring.style.left = `${px.x}px`;
+    this.ring.style.top = `${px.y}px`;
+    this.hoop.setAttribute("r", String(TARGET_R + (OPEN_R - TARGET_R) * (1 - closed)));
+    this.hoop.style.stroke = `hsl(${Math.round(closed * 120)}, 90%, 55%)`;
+    this.hoop.style.opacity = String(Math.min(1, closed / 0.25));
+    // Reason: a press closes the ring in a jump; restarting the pulse animation makes each press feel like a tug
+    if (closed > this.lastClosed + 0.02) {
+      this.ring.classList.remove("hit");
+      void this.ring.offsetWidth;
+      this.ring.classList.add("hit");
     }
+    this.lastClosed = closed;
   }
 
   /** Controls hint at the bottom (HTML), or null to hide. */

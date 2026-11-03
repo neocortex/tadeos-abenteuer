@@ -122,9 +122,34 @@ export function createPaco(): Humanoid {
   return h;
 }
 
-/** Villagers for the plaza, varied by index. Number 3 is Paco; only the crowd asks for higher numbers. */
+/** Fischer Freddy: an older fisherman with grey hair, a short round grey beard and a moustache, in his blue shirt. */
+export function createFreddy(): Humanoid {
+  const h = new Humanoid({ skin: "#e0a77a", hair: "#a7a49c", hairStyle: "short", shirt: "#3d8bfd", pants: "#6b4a2b", shoes: "#3a2a1a" });
+  const grey = mat("#bdbab2", 0.85);
+  const puff = (r: number, x: number, y: number, z: number) => {
+    const m = toonMesh(new THREE.SphereGeometry(r, 14, 10), grey);
+    m.position.set(x, y, z);
+    h.head.add(m);
+  };
+  // Reason: a short beard hugging the jaw and chin (not Paco's chest-long one or the elder's pointed one)
+  for (const a of [-1.0, -0.66, -0.33, 0, 0.33, 0.66, 1.0]) {
+    const front = Math.cos(a);
+    puff(0.075 + 0.04 * front, Math.sin(a) * 0.32, -0.1 - 0.2 * front, front * 0.29);
+  }
+  puff(0.1, 0, -0.36, 0.25);
+  for (const side of [-1, 1]) {
+    const tache = toonMesh(new THREE.CapsuleGeometry(0.038, 0.1, 4, 8), grey, false);
+    tache.position.set(side * 0.08, -0.1, 0.345);
+    tache.rotation.set(0, side * 0.3, Math.PI / 2 - side * 0.3);
+    h.head.add(tache);
+  }
+  return h;
+}
+
+/** Villagers for the plaza, varied by index. Number 0 is Freddy and 3 is Paco; only the crowd asks for higher numbers. */
 export function createVillager(i: number): Humanoid {
-  // Reason: Paco is one person, so the looks repeat for the crowd without cloning his hat and beard
+  // Reason: Freddy and Paco are one person each, so the looks repeat for the crowd without cloning their beards
+  if (i === 0) return createFreddy();
   if (i === 3) return createPaco();
   const looks = [
     { skin: "#e0a77a", hair: "#7a3e1d", hairStyle: "short", shirt: "#3d8bfd", pants: "#6b4a2b", shoes: "#3a2a1a" },

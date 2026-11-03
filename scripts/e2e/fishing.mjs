@@ -1,10 +1,13 @@
 /**
- * E2E: play the fishing side game ("Angeln mit Fischer Jonas") from start to
+ * E2E: play the fishing side game ("Angeln mit Fischer Freddy") from start to
  * finish with real key presses: aim with the arrow keys, cast with Space and
- * pull with Space when the float goes under. The first bite is missed on
- * purpose to prove a miss only means "try again". Verifies all five catches,
- * the message bottle, the golden fish, the saved record, and the return to
- * the island with the game free again.
+ * mash Space on the catch ring when the float goes under. The first bite is
+ * missed on purpose to prove a miss only means "try again". The first easy
+ * fish (Kugelfisch, Kofferfisch) and the golden fish are first pressed slowly:
+ * the easy one must still be caught, the golden one must get away, and then
+ * fast pressing catches it. Verifies all five catches, the message bottle, the
+ * golden fish, the saved record, and the return to the island with the game
+ * free again.
  *
  * The live state (phase, catches) is read from `window.engine.scene.state`;
  * every action is a real keyboard press.
@@ -51,6 +54,11 @@ let reloads = 0;
 let missedOnPurpose = false;
 let aimedForCast = -1;
 let biteSeenAt = 0;
+/** Milliseconds between Space presses: slow is about 3 presses a second, fast about 8. */
+const SLOW_MS = 300;
+const FAST_MS = 100;
+const EASY = ["puffer", "box"];
+const triedSlow = new Set();
 page.on("framenavigated", (f) => {
   if (f !== page.mainFrame() || Date.now() - started < 3000) return;
   // Reason: a dev-server reload restarts the game, so the deliberate miss has to happen again
@@ -58,6 +66,7 @@ page.on("framenavigated", (f) => {
   missedOnPurpose = false;
   aimedForCast = -1;
   biteSeenAt = 0;
+  triedSlow.clear();
 });
 
 const read = () =>
@@ -78,6 +87,8 @@ const read = () =>
         bottleDone: !!s?.bottleDone,
         goldenArrived: !!s?.goldenArrived,
         biggest: s?.biggest ?? 0,
+        ring: s?.ring ?? 0,
+        ringShown: !!document.querySelector(".fish-ring.show"),
         dialogue: !!document.querySelector(".dialogue.open"),
         dialogueText: document.querySelector(".dialogue.open .text")?.textContent ?? "",
         pill: document.querySelector(".status")?.textContent ?? "",
@@ -112,7 +123,7 @@ const measureFps = () =>
 let fpsWhileAiming = null;
 const phasesSeen = new Set();
 const aimChecks = [];
-const strikes = [];
+const attempts = [];
 let lastState = null;
 let result = null;
 // Reason: alternate aim directions so the casts land all over the lagoon
@@ -172,7 +183,7 @@ while (Date.now() - started < TIMEOUT_MS) {
       await shotOnce("04-nibble", 200);
       break;
     case "bite": {
-      // The very first bite is missed on purpose: Jonas cheers Tadeo up and he simply casts again
+      // The very first bite is missed on purpose: Freddy cheers Tadeo up and he simply casts again
       if (!missedOnPurpose) {
         await shotOnce("05-bite", 100);
         await page.waitForFunction(() => window.engine?.scene?.state?.phase !== "bite", null, { polling: 50, timeout: 10_000 });
@@ -182,8 +193,26 @@ while (Date.now() - started < TIMEOUT_MS) {
       }
       if (biteSeenAt === st.bites) break;
       biteSeenAt = st.bites;
-      await page.keyboard.press("Space");
-      strikes.push({ bite: st.bites, biter: st.biter ?? "bottle" });
+      const biter = st.biter ?? "bottle";
+      // Reason: test each difficulty once with slow presses (easy must still win, golden must escape)
+      const slow = (EASY.includes(biter) || biter === "gold") && !triedSlow.has(biter === "gold" ? "gold" : "easy");
+      if (slow) triedSlow.add(biter === "gold" ? "gold" : "easy");
+      const attempt = { bite: st.bites, biter, tempo: slow ? "slow" : "fast", ringShown: false, presses: 0, closest: st.ring };
+      const t0 = Date.now();
+      let now = st;
+      while (now?.phase === "bite" && Date.now() - t0 < 20_000) {
+        await page.keyboard.press("Space");
+        attempt.presses++;
+        if (attempt.presses === 3) await shotOnce(`05-ring-${biter}`, 0);
+        await page.waitForTimeout(slow ? SLOW_MS : FAST_MS);
+        now = await read();
+        attempt.ringShown ||= !!now?.ringShown;
+        attempt.closest = Math.max(attempt.closest, now?.ring ?? 0);
+      }
+      attempt.caught = now?.phase === "reel" || now?.phase === "show";
+      attempt.endPhase = now?.phase ?? "no read";
+      attempt.seconds = Math.round((Date.now() - t0) / 100) / 10;
+      attempts.push(attempt);
       break;
     }
     case "reel":
@@ -212,6 +241,13 @@ if (result) {
 }
 const best = await page.evaluate(() => Number(localStorage.getItem("schatzkarten_fishing_best") ?? 0));
 const final = lastState ?? {};
+const slowEasy = attempts.filter((a) => a.tempo === "slow" && EASY.includes(a.biter));
+const slowGold = attempts.filter((a) => a.tempo === "slow" && a.biter === "gold");
+const ringChecks = {
+  ringShownOnEveryBite: attempts.every((a) => a.ringShown),
+  slowPressesCatchAnEasyFish: slowEasy.length > 0 && slowEasy.every((a) => a.caught),
+  slowPressesLoseTheGoldenFish: slowGold.length > 0 && slowGold.every((a) => !a.caught),
+};
 
 const summary = {
   test: "fishing",
@@ -224,7 +260,8 @@ const summary = {
     final.bottleDone &&
     (final.kinds ?? []).includes("gold") &&
     best > 0 &&
-    aimChecks.every((a) => a.moved),
+    aimChecks.every((a) => a.moved) &&
+    Object.values(ringChecks).every(Boolean),
   backOnIsland: !!result,
   gameBusyAfterReturn: busyAfter,
   caught: final.caught,
@@ -236,7 +273,8 @@ const summary = {
   misses: final.misses,
   deliberateMissThenCaughtAgain: final.misses >= 1 && final.caught === 5,
   aimKeysMovedMarker: aimChecks,
-  strikes,
+  ringChecks,
+  attempts,
   savedBestCm: best,
   fpsWhileAiming,
   phasesSeen: [...phasesSeen],

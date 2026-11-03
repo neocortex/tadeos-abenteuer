@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Fishing with Fischer Freddy
+
+- The fisherman is now *Fischer Freddy*: same voice, but older, with grey hair, a round grey beard and a moustache
+- Catching a fish is a catch ring: when the float goes under, a ring appears over the spot. Pressing Space again and
+  again closes it, and the fish pulls it open again. Closed means caught; wide open means the fish gets away
+- Each fish pulls differently: Kugelfisch and Kofferfisch are easy, Clownfisch and Regenbogenfisch medium, the
+  Doktorfisch hard and the golden fish hardest. Every miss in a row makes the next fish pull a little weaker
+
 ### Fifty coins
 
 - 50 gold coins instead of 30: twenty more lie in secret corners, so every outer region holds about eight

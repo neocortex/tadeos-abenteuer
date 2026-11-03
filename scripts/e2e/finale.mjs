@@ -33,7 +33,7 @@ const STONE_LINE = "Da ist der alte Stein! Und das Loch wie ein Herz.";
 const CALM_LINE = "Das Licht läuft durch den ganzen Berg. Dann wird der Vulkan ganz still.";
 const OPENING_LAST = "Hoch lebe Tadeo! Er hat unsere Insel gerettet!";
 const TALK_FIRST = "Ich muss euch etwas sagen";
-const FESTIVAL_GUESTS = ["Oger", "Fuchs", "Käpt'n Paco", "Dorfältester", "Kleine Mia", "Fischer Jonas", "Bäckerin Lina", "Maulwurf", "Chuleta", "Tadeo"];
+const FESTIVAL_GUESTS = ["Oger", "Fuchs", "Käpt'n Paco", "Dorfältester", "Kleine Mia", "Fischer Freddy", "Bäckerin Lina", "Maulwurf", "Chuleta", "Tadeo"];
 const FORBIDDEN = ["die Alten", "Altar", "ewiges Eis", "besänftigen"];
 const MAX_WORDS = 14;
 /** In the wide shot: a part of the cone with the lava river on it and no sky, column or word in it. */
@@ -425,18 +425,18 @@ try {
   check("Continue at 12 goes to the volcano gate", at12.milestone === 12 && dist(at12.player, gate) < 6 && at12.prompt.includes("Los geht's"), JSON.stringify(at12));
   check("the strongest rumble greets him there", at12.rumble === 1, at12.rumble);
   await shot("05_continue_at_the_gate");
-  // Jonas stands far from the gate; the walk is not what is tested here
+  // Freddy stands far from the gate; the walk is not what is tested here
   await page.evaluate(() => {
     const g = window.game;
-    const jonas = g.npcs.get("villager0").position;
-    window.probe.place(jonas.x + 1.6, jonas.z + 0.6);
+    const freddy = g.npcs.get("villager0").position;
+    window.probe.place(freddy.x + 1.6, freddy.z + 0.6);
   });
   await sleep(700);
-  const atJonas = await island();
+  const atFreddy = await island();
   await page.keyboard.press("Space");
   await sleep(500);
-  const canTalkToJonas = atJonas.prompt.includes("Angeln") && (await dialogueOpen());
-  check("side games are not locked at 12", canTalkToJonas, JSON.stringify(atJonas));
+  const canTalkToFreddy = atFreddy.prompt.includes("Angeln") && (await dialogueOpen());
+  check("side games are not locked at 12", canTalkToFreddy, JSON.stringify(atFreddy));
   // Reason: with every coin and two prize hats in hand, the end card further down has something to leave behind
   await page.evaluate(() => {
     localStorage.setItem("schatzkarten_coins", JSON.stringify([...Array(50).keys()]));

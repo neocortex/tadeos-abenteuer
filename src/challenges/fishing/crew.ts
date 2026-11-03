@@ -1,6 +1,6 @@
 /**
  * The people on the jetty: Tadeo sitting at the edge with his rod (casting,
- * pulling, showing off a catch, cheering), Fischer Jonas beside him in his
+ * pulling, showing off a catch, cheering), Fischer Freddy beside him in his
  * old fishing hat with his own lazily bobbing float, and Chuleta sitting on the
  * mooring post, turning her head, clucking and flapping when it's exciting.
  * Poses are layered on top of the Humanoid's own idle animation each frame.
@@ -37,15 +37,15 @@ const POSES: Record<Action, { r: number; l: number; lz: number; lean: number }> 
 export const TADEO_AT = new THREE.Vector3(0.32, DECK - 0.02, DECK_END + 0.3);
 /** Where a fresh catch is held up for everyone to see: at head height, between Tadeo and Chuleta. */
 export const HOLD_AT = TADEO_AT.clone().add(new THREE.Vector3(0.6, 1.2, -0.5));
-const JONAS_AT = new THREE.Vector3(-0.85, DECK - 0.02, DECK_END + 0.3);
-/** Where Jonas's own float bobs. */
-const JONAS_FLOAT = new THREE.Vector3(-3.4, 0, -4.6);
+const FREDDY_AT = new THREE.Vector3(-0.85, DECK - 0.02, DECK_END + 0.3);
+/** Where Freddy's own float bobs. */
+const FREDDY_FLOAT = new THREE.Vector3(-3.4, 0, -4.6);
 
 
 export class Crew {
   readonly group = new THREE.Group();
   readonly tadeo = createTadeo();
-  readonly jonas = createVillager(0);
+  readonly freddy = createVillager(0);
   readonly chuleta = createChuletaModel();
   /** Who is talking right now (dialogue or bubble): their mouth/beak moves. */
   speaker: string | null = null;
@@ -59,10 +59,10 @@ export class Crew {
   private chuletaLookTarget = 0;
   private chuletaLookTimer = 1;
   private chuletaChatter = 0;
-  private jonasCheer = 0;
-  private jonasRodTip = new THREE.Object3D();
-  private jonasFloat: THREE.Group;
-  private jonasLine: THREE.Line;
+  private freddyCheer = 0;
+  private freddyRodTip = new THREE.Object3D();
+  private freddyFloat: THREE.Group;
+  private freddyLine: THREE.Line;
   private tmp = new THREE.Vector3();
 
   constructor(tackle: Tackle) {
@@ -73,36 +73,36 @@ export class Crew {
     t.handR.add(tackle.rod);
     tackle.rod.rotation.set(0.2, 0, 0);
 
-    const j = this.jonas;
+    const j = this.freddy;
     j.pose = "sit";
-    j.root.position.copy(JONAS_AT);
+    j.root.position.copy(FREDDY_AT);
     j.root.rotation.y = Math.PI + 0.3;
     const hat = createOutfit("fishingHat");
     j.head.add(hat);
-    // Jonas's bamboo rod with his own float out on the water
+    // Freddy's bamboo rod with his own float out on the water
     const rod = new THREE.Group();
     const blank = toonMesh(new THREE.CylinderGeometry(0.012, 0.03, 2.3, 6).rotateX(Math.PI / 2), mat("#c9a65a", 0.7));
     blank.position.z = 1.0;
-    this.jonasRodTip.position.z = 2.15;
-    rod.add(blank, this.jonasRodTip);
+    this.freddyRodTip.position.z = 2.15;
+    rod.add(blank, this.freddyRodTip);
     rod.rotation.x = 0.1;
     j.handR.add(rod);
-    this.jonasFloat = new THREE.Group();
+    this.freddyFloat = new THREE.Group();
     const cap = toonMesh(new THREE.SphereGeometry(0.08, 12, 8), mat("#ff8a1a", 0.4, 0.4));
     cap.scale.y = 1.3;
-    this.jonasFloat.add(cap);
-    this.jonasFloat.position.copy(JONAS_FLOAT);
-    this.jonasLine = new THREE.Line(
+    this.freddyFloat.add(cap);
+    this.freddyFloat.position.copy(FREDDY_FLOAT);
+    this.freddyLine = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints(Array.from({ length: 16 }, () => new THREE.Vector3())),
       new THREE.LineBasicMaterial({ color: 0xf0ece0, transparent: true, opacity: 0.75 }),
     );
-    this.jonasLine.frustumCulled = false;
+    this.freddyLine.frustumCulled = false;
 
     this.chuleta.root.scale.setScalar(0.7);
     this.chuleta.root.position.copy(CHULETA_POST);
     this.chuleta.root.rotation.y = Math.PI - 0.5;
 
-    this.group.add(t.root, j.root, this.chuleta.root, this.jonasFloat, this.jonasLine);
+    this.group.add(t.root, j.root, this.chuleta.root, this.freddyFloat, this.freddyLine);
   }
 
   /** Start a rod action (casting, pulling, showing a fish, cheering). */
@@ -117,9 +117,9 @@ export class Crew {
     this.chuletaFlap = seconds;
   }
 
-  /** Jonas throws his arms up for a moment. */
-  cheerJonas(seconds = 1.4): void {
-    this.jonasCheer = seconds;
+  /** Freddy throws his arms up for a moment. */
+  cheerFreddy(seconds = 1.4): void {
+    this.freddyCheer = seconds;
   }
 
   update(dt: number, time: number): void {
@@ -142,24 +142,24 @@ export class Crew {
     t.torso.rotation.x = this.cur.lean;
     this.lookTowards(t, this.lookAt, this.speaker === "Tadeo" ? Math.sin(time * 9) * 0.06 : 0);
 
-    const j = this.jonas;
-    this.jonasCheer = Math.max(0, this.jonasCheer - dt);
-    j.pose = this.speaker === "Fischer Jonas" ? "talk" : "sit";
+    const j = this.freddy;
+    this.freddyCheer = Math.max(0, this.freddyCheer - dt);
+    j.pose = this.speaker === "Fischer Freddy" ? "talk" : "sit";
     j.update(dt, { speed: 0, grounded: true, vy: 0 });
     this.sit(j);
-    if (this.jonasCheer > 0) {
+    if (this.freddyCheer > 0) {
       j.armR.rotation.set(-2.5 + Math.sin(time * 11) * 0.2, 0, 0.3);
       j.armL.rotation.set(-2.5 - Math.sin(time * 11) * 0.2, 0, -0.3);
       j.body.position.y = -0.3 + Math.abs(Math.sin(time * 8)) * 0.08;
     } else {
       j.armR.rotation.set(-0.8 + Math.sin(time * 0.7) * 0.04, 0, 0.1);
-      if (this.speaker !== "Fischer Jonas") j.armL.rotation.set(-0.5, 0, -0.15);
+      if (this.speaker !== "Fischer Freddy") j.armL.rotation.set(-0.5, 0, -0.15);
     }
-    // Jonas glances over to Tadeo while either of them talks, otherwise watches his float
-    const watch = this.speaker ? this.tmp.copy(this.tadeo.root.position).setY(DECK + 0.8) : JONAS_FLOAT;
-    this.lookTowards(j, watch, this.speaker === "Fischer Jonas" ? Math.sin(time * 9) * 0.06 : 0);
+    // Freddy glances over to Tadeo while either of them talks, otherwise watches his float
+    const watch = this.speaker ? this.tmp.copy(this.tadeo.root.position).setY(DECK + 0.8) : FREDDY_FLOAT;
+    this.lookTowards(j, watch, this.speaker === "Fischer Freddy" ? Math.sin(time * 9) * 0.06 : 0);
 
-    this.updateJonasFloat(time);
+    this.updateFreddyFloat(time);
     this.updateChuleta(dt, time);
   }
 
@@ -180,12 +180,12 @@ export class Crew {
     h.head.rotation.x = THREE.MathUtils.clamp(down * 0.6, -0.3, 0.45) + nod;
   }
 
-  private updateJonasFloat(time: number): void {
-    const f = this.jonasFloat.position;
+  private updateFreddyFloat(time: number): void {
+    const f = this.freddyFloat.position;
     f.y = swell(f.x, f.z, time) + Math.max(0, Math.sin(time * 0.9) - 0.96) * -1.2;
-    this.jonasRodTip.updateWorldMatrix(true, false);
-    const a = this.jonasRodTip.getWorldPosition(this.tmp);
-    const pos = this.jonasLine.geometry.attributes.position as THREE.BufferAttribute;
+    this.freddyRodTip.updateWorldMatrix(true, false);
+    const a = this.freddyRodTip.getWorldPosition(this.tmp);
+    const pos = this.freddyLine.geometry.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const k = i / (pos.count - 1);
       pos.setXYZ(i, a.x + (f.x - a.x) * k, a.y + (f.y + 0.08 - a.y) * k - Math.sin(k * Math.PI) * 0.35, a.z + (f.z - a.z) * k);

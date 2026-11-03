@@ -133,7 +133,7 @@ function featherHat(): THREE.Group {
   return g;
 }
 
-/** Fischer Jonas' prize: a floppy bucket hat with a red-white float and a little fish badge. */
+/** Fischer Freddy's prize: a floppy bucket hat with a red-white float and a little fish badge. */
 function fishingHat(): THREE.Group {
   const g = new THREE.Group();
   const cloth = mat("#8fa86a", 0.85);

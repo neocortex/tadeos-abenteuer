@@ -49,7 +49,7 @@ turns out to be Käpt'n Paco, who has been helping him all along.
 | 11 | Die Schatzinsel | Dig at the X, break the magic ice with the hammer, unlock the chest with the key: gold, a crown, Paco's note, a plan and the Feuerherz. Then the volcano erupts |
 | 12 | Das Herz des Vulkans | Sail back and climb the erupting volcano with the heart (the hardest rock rate), set it on the old stone, and the volcano sleeps. The island celebrates a night festival; Paco owns up. End card |
 
-**Side games** (any time, in the village): fishing with *Fischer Jonas* and catching *Kleine Mia's*
+**Side games** (any time, in the village): fishing with *Fischer Freddy* and catching *Kleine Mia's*
 runaway hens. The first win earns a prize hat (fishing hat, golden crown).
 
 **The turtle family** (any time, at the lagoon): *Frau Moos'* five babies have run off along the beach. Walk close

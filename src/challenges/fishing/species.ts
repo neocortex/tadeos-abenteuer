@@ -16,22 +16,41 @@ export type FishKind = "clown" | "tang" | "puffer" | "rainbow" | "box" | "gold";
 export interface Species {
   kind: FishKind;
   name: string;
-  /** What Fischer Jonas says when it is caught. */
+  /** What Fischer Freddy says when it is caught. */
   fact: string;
   cm: [number, number];
   /** Cruising speed (units/s). */
   speed: number;
   /** Number swimming in the lagoon. */
   count: number;
+  /** How hard it fights on the catch ring: it opens by `pull` per second, and each Space press closes it by `grip`. */
+  ring: Ring;
 }
 
+export interface Ring {
+  pull: number;
+  grip: number;
+}
+
+/**
+ * Catch ring difficulty, easy to hard (the bottle is medium). The ring holds
+ * still at about 1.5, 2.5, 3.5 and 4.5 presses a second; mashing at 6 a second
+ * (a seven-year-old's quick pace) closes it in about 1.5, 2, 2.5 and 3.5 seconds.
+ */
+export const RINGS = {
+  easy: { pull: 0.11, grip: 0.073 },
+  medium: { pull: 0.18, grip: 0.071 },
+  hard: { pull: 0.28, grip: 0.08 },
+  golden: { pull: 0.42, grip: 0.093 },
+} satisfies Record<string, Ring>;
+
 export const SPECIES: Record<FishKind, Species> = {
-  clown: { kind: "clown", name: "Clownfisch", fact: "Ein Clownfisch! Der wohnt in einer Seeanemone.", cm: [8, 12], speed: 0.9, count: 2 },
-  tang: { kind: "tang", name: "Doktorfisch", fact: "Ein Doktorfisch! So blau wie der Himmel.", cm: [18, 26], speed: 1.0, count: 2 },
-  puffer: { kind: "puffer", name: "Kugelfisch", fact: "Ein Kugelfisch! Wenn er sich erschreckt, wird er rund wie ein Ball.", cm: [15, 24], speed: 0.6, count: 2 },
-  rainbow: { kind: "rainbow", name: "Regenbogenfisch", fact: "Ein Regenbogenfisch! Seine Schuppen glitzern in allen Farben.", cm: [10, 16], speed: 0.95, count: 2 },
-  box: { kind: "box", name: "Kofferfisch", fact: "Ein Kofferfisch! Der sieht aus wie ein kleiner Koffer mit Punkten.", cm: [12, 20], speed: 0.65, count: 2 },
-  gold: { kind: "gold", name: "Goldfisch", fact: "Der goldene Glücksfisch! Den sieht man ganz, ganz selten!", cm: [30, 40], speed: 1.15, count: 0 },
+  clown: { kind: "clown", name: "Clownfisch", fact: "Ein Clownfisch! Der wohnt in einer Seeanemone.", cm: [8, 12], speed: 0.9, count: 2, ring: RINGS.medium },
+  tang: { kind: "tang", name: "Doktorfisch", fact: "Ein Doktorfisch! So blau wie der Himmel.", cm: [18, 26], speed: 1.0, count: 2, ring: RINGS.hard },
+  puffer: { kind: "puffer", name: "Kugelfisch", fact: "Ein Kugelfisch! Wenn er sich erschreckt, wird er rund wie ein Ball.", cm: [15, 24], speed: 0.6, count: 2, ring: RINGS.easy },
+  rainbow: { kind: "rainbow", name: "Regenbogenfisch", fact: "Ein Regenbogenfisch! Seine Schuppen glitzern in allen Farben.", cm: [10, 16], speed: 0.95, count: 2, ring: RINGS.medium },
+  box: { kind: "box", name: "Kofferfisch", fact: "Ein Kofferfisch! Der sieht aus wie ein kleiner Koffer mit Punkten.", cm: [12, 20], speed: 0.65, count: 2, ring: RINGS.easy },
+  gold: { kind: "gold", name: "Goldfisch", fact: "Der goldene Glücksfisch! Den sieht man ganz, ganz selten!", cm: [30, 40], speed: 1.15, count: 0, ring: RINGS.golden },
 };
 
 export const EVERYDAY: FishKind[] = ["clown", "tang", "puffer", "rainbow", "box"];

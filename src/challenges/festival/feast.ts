@@ -27,7 +27,7 @@ export interface Guest {
 }
 
 /** Crowd seats of the villagers who have a name; seat 3 wears Paco's looks, so he is Paco himself tonight. */
-const SEAT = { jonas: 0, lina: 1, mia: 2, paco: 3 };
+const SEAT = { freddy: 0, lina: 1, mia: 2, paco: 3 };
 
 /** Tadeo stands in the middle of the rug, so in the wide shot the fire burns above his head and not in him. */
 const TADEO_AT: [number, number] = [0, 3.4];
@@ -204,7 +204,7 @@ export class Feast {
       { name: "Weise Frau", object: c.sages.wiseWoman.avatar.root },
       { name: "Weiser Mann", object: c.sages.wiseMan.avatar.root },
       { name: "Kleine Mia", object: watcher(SEAT.mia).avatar.root },
-      { name: "Fischer Jonas", object: watcher(SEAT.jonas).avatar.root },
+      { name: "Fischer Freddy", object: watcher(SEAT.freddy).avatar.root },
       { name: "Bäckerin Lina", object: watcher(SEAT.lina).avatar.root },
       { name: "Oger", object: this.ogre.root },
       { name: "Fuchs", object: this.fox.root },

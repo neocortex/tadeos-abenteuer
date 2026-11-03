@@ -22,7 +22,7 @@ const SPEAKERS: Record<string, { portrait?: string; emoji?: string; color: strin
   "Weise Frau": { portrait: "wiseWoman", color: "#1fa38a" },
   "Weiser Mann": { portrait: "wiseMan", color: "#e07a10" },
   Oger: { emoji: "👹", color: "#4f7a28" },
-  "Fischer Jonas": { portrait: "villager0", color: "#2f7fb5" },
+  "Fischer Freddy": { portrait: "villager0", color: "#2f7fb5" },
   "Bäckerin Lina": { portrait: "villager1", color: "#c0603a" },
   "Kleine Mia": { portrait: "villager2", color: "#e0457b" },
   "Käpt'n Paco": { portrait: "villager3", color: PACO_COLOR },

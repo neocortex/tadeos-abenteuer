@@ -1,6 +1,6 @@
 /**
  * The story of one fishing session, step by step: the welcome on the jetty,
- * then rounds of aim → cast → nibbles → bite → catch (or a gentle miss)
+ * then rounds of aim → cast → nibbles → bite and catch ring → catch (or a gentle miss)
  * until five fish are in the bucket, with two surprises on the way (a message
  * bottle and the rare golden fish), and a happy ending where the fish are set
  * free again. Every step is a small promise driven by FishingGame's frames.
@@ -11,8 +11,9 @@ import { audio } from "../../audio/Audio";
 import { SHOTS } from "./camera";
 import { createBottle } from "./catch";
 import { HOLD_AT } from "./crew";
-import { BITE_WINDOW, FishingGame, HOOK_Y } from "./game";
+import { FishingGame, HOOK_Y } from "./game";
 import { BOTTLE, GOAL, INTRO, SAY, ending } from "./script";
+import { RINGS } from "./species";
 import { FISH_SCALE, Fish, ZONE, fishFigure } from "./swimmers";
 import { arcPoint } from "./tackle";
 import { rnd } from "../../world/ambient/spawn";
@@ -21,6 +22,10 @@ const pick = <T>(list: T[], i: number): T => list[i % list.length];
 const smooth = (k: number) => k * k * (3 - 2 * k);
 /** From the message bottle's centre up to its neck, where the hook holds it. */
 const BOTTLE_REACH = 0.1;
+/** How closed the catch ring starts. */
+const RING_START = 0.5;
+/** Seconds the ring can't open past its start, so a slow reaction doesn't lose the fish straight away. */
+const RING_GRACE = 0.6;
 
 export async function playFishing(g: FishingGame): Promise<void> {
   await intro(g);
@@ -36,7 +41,7 @@ async function intro(g: FishingGame): Promise<void> {
   g.crew.act("rest");
   // Hold the view out to sea for a moment, then crane over the crew round to their faces
   await g.wait(0.8);
-  void g.ui.hud.showBanner("Angeln mit", "Fischer Jonas", 2600);
+  void g.ui.hud.showBanner("Angeln mit", "Fischer Freddy", 2600);
   await g.wait(1.6);
   g.cam.fly(SHOTS.talk, 3.2, 2.0);
   await g.wait(3.0);
@@ -55,7 +60,7 @@ async function round(g: FishingGame): Promise<void> {
   const fish = bottle ? null : chooseFish(g);
   if (fish) await lure(g, fish);
   else await heavyTug(g);
-  if (!(await biteWindow(g, fish))) return miss(g, fish);
+  if (!(await catchRing(g, fish))) return miss(g, fish);
   if (fish) await landFish(g, fish);
   else await landBottle(g);
 }
@@ -69,7 +74,7 @@ async function aim(g: FishingGame): Promise<void> {
   g.castPressed = false;
   await g.until(() => g.castPressed, 14);
   if (!g.castPressed) {
-    g.say("Fischer Jonas", SAY.aimHelp, 3.4);
+    g.say("Fischer Freddy", SAY.aimHelp, 3.4);
     await g.until(() => g.castPressed);
   }
   g.tackle.showAim(false);
@@ -121,7 +126,7 @@ async function lure(g: FishingGame, fish: Fish): Promise<void> {
   // Reason: never leave a seven-year-old waiting; a fish that got stuck just glides in
   if (fish.state !== "nibble") fish.state = "nibble";
   g.phase = "nibble";
-  if (g.bites === 0) g.say("Fischer Jonas", SAY.firstNibble, 2.4);
+  if (g.bites === 0) g.say("Fischer Freddy", SAY.firstNibble, 2.4);
   const pecks = 2 + Math.floor(Math.random() * 2);
   for (let i = 0; i < pecks; i++) {
     await g.wait(rnd(0.55, 1.05));
@@ -141,8 +146,12 @@ async function heavyTug(g: FishingGame): Promise<void> {
   await g.wait(1.0);
 }
 
-/** The float goes under; resolves true if Space came in time. */
-async function biteWindow(g: FishingGame, fish: Fish | null): Promise<boolean> {
+/**
+ * The float goes under and the catch ring appears. Every Space press closes it
+ * a bit, and the fish pulls it open again: how hard depends on its kind.
+ * Resolves true once it is closed, false if it opened all the way.
+ */
+async function catchRing(g: FishingGame, fish: Fish | null): Promise<boolean> {
   g.phase = "bite";
   g.bites++;
   if (fish) fish.state = "bite";
@@ -151,12 +160,29 @@ async function biteWindow(g: FishingGame, fish: Fish | null): Promise<boolean> {
   g.cam.addShake(0.25);
   audio.playSfx("sfx_wave", 1, 1.25);
   audio.playSfx("sfx_menu_confirm", 0.8);
-  g.struck = false;
-  // Reason: every miss in a row makes the next bite window a little longer, so nobody gets stuck
-  g.windowLeft = BITE_WINDOW + Math.min(g.missStreak, 2) * 0.4;
-  await g.until(() => g.struck || g.windowLeft <= 0);
-  g.windowLeft = 0;
-  return g.struck;
+  g.crew.act("pull");
+  if (g.bites === 1) g.say("Fischer Freddy", SAY.nowPull, 3);
+  const { pull, grip } = fish ? fish.spec.ring : RINGS.medium;
+  // Reason: every miss in a row makes the fish pull a little weaker, so nobody gets stuck
+  const ease = 1 - Math.min(g.missStreak, 2) * 0.2;
+  g.ring = RING_START;
+  g.presses = 0;
+  let grace = RING_GRACE;
+  const stop = g.every((dt) => {
+    if (g.presses > 0) audio.playSfx("sfx_dialogue_advance", 0.6, 0.8 + g.ring * 0.7);
+    grace -= dt;
+    g.ring += g.presses * grip - pull * ease * dt;
+    g.ring = THREE.MathUtils.clamp(g.ring, grace > 0 ? RING_START : 0, 1);
+    g.presses = 0;
+    g.tackle.bend = 0.3 + g.ring * 0.6;
+  });
+  await g.until(() => g.ring >= 1 || g.ring <= 0);
+  stop();
+  // Reason: the loop may run once more after the ring hit an end (a frame's pull), so ask which end it is near
+  const caught = g.ring > 0.5;
+  g.ring = 0;
+  if (!caught) g.tackle.bend = 0;
+  return caught;
 }
 
 async function miss(g: FishingGame, fish: Fish | null): Promise<void> {
@@ -170,7 +196,7 @@ async function miss(g: FishingGame, fish: Fish | null): Promise<void> {
   fish?.scare(g.spot);
   g.biter = null;
   await g.wait(0.5);
-  g.say("Fischer Jonas", pick(SAY.misses, g.misses - 1), 3.6);
+  g.say("Fischer Freddy", pick(SAY.misses, g.misses - 1), 3.6);
   await g.wait(2.6);
   await reelIn(g);
 }
@@ -245,7 +271,7 @@ async function landFish(g: FishingGame, fish: Fish): Promise<void> {
   g.cam.cut(SHOTS.show);
   g.crew.act("show");
   g.crew.exciteChuleta(2.2);
-  g.crew.cheerJonas(1.6);
+  g.crew.cheerFreddy(1.6);
   const record = g.record(cm);
   g.hud.showCard({ icon: fish.kind, name: spec.name, size: `${cm} cm`, badge: golden ? "Ganz selten!" : record ? "Neuer Rekord!" : "", rare: golden });
   audio.playSfx(golden ? "sfx_special" : "sfx_item_get", golden ? 0.8 : 1);
@@ -260,7 +286,7 @@ async function landFish(g: FishingGame, fish: Fish): Promise<void> {
     g.tackle.bend = 0.35 + Math.sin(time * 7) * 0.05;
   });
   await g.wait(0.9);
-  g.say("Fischer Jonas", spec.fact, 4.2);
+  g.say("Fischer Freddy", spec.fact, 4.2);
   await g.wait(3.7);
   stop();
   g.hud.hideCard();
@@ -381,7 +407,7 @@ async function finale(g: FishingGame): Promise<void> {
   audio.playSfx("sfx_victory_fanfare");
   audio.playMusic("music_victory");
   g.crew.act("cheer");
-  g.crew.cheerJonas(3);
+  g.crew.cheerFreddy(3);
   g.crew.exciteChuleta(3);
   g.cam.fly(SHOTS.talk, 2.2, 2.5);
   void g.ui.hud.showBanner("Super gemacht!", "5 Fische gefangen!", 2800);

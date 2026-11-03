@@ -667,7 +667,7 @@ await waitUntilFree();
 await page.evaluate(() => window.probe.place(60, 42.4, Math.PI));
 await wait(600);
 s = await state();
-check("Fischer Jonas offers the fishing side game", s.prompt?.includes("Angeln") ?? false, s.prompt ?? "no prompt");
+check("Fischer Freddy offers the fishing side game", s.prompt?.includes("Angeln") ?? false, s.prompt ?? "no prompt");
 
 const fps = await page.evaluate(
   () =>

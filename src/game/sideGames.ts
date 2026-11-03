@@ -1,6 +1,6 @@
 /**
  * Side games villagers offer at any time, next to the main quest: fishing
- * with Fischer Jonas and catching Kleine Mia's runaway hens. The first win
+ * with Fischer Freddy and catching Kleine Mia's runaway hens. The first win
  * earns a prize hat; after that they can be played again just for fun.
  */
 
@@ -27,7 +27,7 @@ export interface SideGame {
   cheer: string;
 }
 
-const jonas = (text: string) => ({ speaker: "Fischer Jonas", portrait: "villager0", text });
+const freddy = (text: string) => ({ speaker: "Fischer Freddy", portrait: "villager0", text });
 const mia = (text: string) => ({ speaker: "Kleine Mia", portrait: "villager2", text });
 const tadeo = (text: string) => ({ speaker: "Tadeo", portrait: "", text });
 
@@ -38,13 +38,13 @@ export const SIDE_GAMES: SideGame[] = [
     back: [61.9, 42.8],
     verb: "Angeln",
     invite: [
-      jonas("Hallo Tadeo! Heute beißen die Fische besonders gut."),
-      // Reason: Jonas always opens this invitation instead of a chat, so the player only hears the boat line here
-      jonas("Mit meinem kleinen Boot bleibe ich am Ufer. Wegen dem Hai."),
-      jonas("Kommst du mit auf den Steg? Wer fünf Fische fängt, bekommt meinen alten Anglerhut!"),
+      freddy("Hallo Tadeo! Heute beißen die Fische besonders gut."),
+      // Reason: Freddy always opens this invitation instead of a chat, so the player only hears the boat line here
+      freddy("Mit meinem kleinen Boot bleibe ich am Ufer. Wegen dem Hai."),
+      freddy("Kommst du mit auf den Steg? Wer fünf Fische fängt, bekommt meinen alten Anglerhut!"),
       tadeo("Au ja, ich komme mit!"),
     ],
-    again: [jonas("Na, Meisterangler? Noch eine Runde auf dem Steg?"), tadeo("Klar!")],
+    again: [freddy("Na, Meisterangler? Noch eine Runde auf dem Steg?"), tadeo("Klar!")],
     prize: "fishingHat",
     prizeName: "Anglerhut",
     cheer: "Gack! Mit dem Anglerhut fängst du jeden Fisch, Tadeo!",

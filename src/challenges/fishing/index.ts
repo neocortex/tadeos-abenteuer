@@ -1,5 +1,5 @@
 /**
- * Side game "Angeln mit Fischer Jonas": Tadeo sits at the end of Jonas' jetty
+ * Side game "Angeln mit Fischer Freddy": Tadeo sits at the end of Freddy's jetty
  * in the golden late-afternoon light and fishes in a clear turquoise lagoon.
  * Arrow keys aim, Space casts and, when the float goes under, Space pulls.
  * Five fish win (there is no way to lose). Loaded lazily by the registry.

@@ -38,7 +38,7 @@ const CAST = {
   "Weise Frau": { voice: "yL6cMfg79EwETG98xIR2", model: V4 }, // Laura Mondschein
   "Weiser Mann": { voice: "2baru8J0e15nxuG3bzXy", model: V4 }, // Cornelius
   "Bäckerin Lina": { voice: "1iF3vHdwHKuVKSPDK23Z", model: V4 }, // Louisa
-  "Fischer Jonas": { voice: "Cx9eG8CNCDtCPeLiemtm", model: V4 }, // Holger
+  "Fischer Freddy": { voice: "Cx9eG8CNCDtCPeLiemtm", model: V4 }, // Holger
   Hüter: { voice: "XSqtBhCcfQ9Pn4yLIHsk", model: V4 }, // Fritz
   "Frau Moos": { voice: "mlDV16PgT63p9bCPQh7X", model: V4 }, // Nadine
 };

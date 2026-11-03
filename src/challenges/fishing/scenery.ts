@@ -2,7 +2,7 @@
  * Everything around the fishing spot: the golden late-afternoon sky with
  * warm clouds, distant island silhouettes (one with a little lighthouse), a
  * sailboat drifting along the horizon, bobbing buoys, circling seagulls and
- * the beach behind the jetty with palms and Jonas's fishing hut.
+ * the beach behind the jetty with palms and Freddy's fishing hut.
  */
 
 import * as THREE from "three";
@@ -118,7 +118,7 @@ export class Scenery {
     addModel(m, lh.model, placeAt(118, 2.5, -310, 0.6, 1.4));
   }
 
-  /** The beach behind the jetty: palms, bushes and Jonas's little fishing hut. */
+  /** The beach behind the jetty: palms, bushes and Freddy's little fishing hut. */
   private beach(m: Model, plants: THREE.BufferGeometry[]): void {
     const rand = mulberry32(5);
     const palms: [number, number][] = [[-4.5, 15.5], [-8.5, 17], [-12, 14.5], [4.8, 15], [9, 16.5], [13.5, 15.2], [-16, 18], [17, 18.5]];
