@@ -13,6 +13,7 @@ import { sailboat, NORTH_DOCK_BOAT } from "../../world/models/boats";
 import { SignAtlas } from "../../world/models/signs";
 import { ModelMaterials, modelGroup, clamp01, ease, lerp } from "../ogre/kit";
 import { Fx } from "../ogre/fx";
+import { mat, toonMesh } from "../../characters/parts";
 import { seaHeight } from "./ocean";
 
 export type SailorPose = "sit" | "stand" | "throw" | "cheer" | "duck";
@@ -49,6 +50,9 @@ export class Boat {
   private t = 0;
   private lastBow = 0;
   private turn = 0;
+  /** Planks knocked off, flying until they splash into the sea. */
+  private flying: { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3 }[] = [];
+  private plankGeo = new THREE.BoxGeometry(1.1, 0.07, 0.24);
 
   constructor(
     atlas: SignAtlas,
@@ -85,6 +89,27 @@ export class Boat {
     this.kickV += amount * 6;
   }
 
+  /** Back level and still after a retry. */
+  settle(): void {
+    this.kick = 0;
+    this.kickV = 0;
+    this.vx = 0;
+    this.turn = 0;
+    this.tilt.rotation.set(0, 0, 0);
+  }
+
+  /** A plank flies off the hull, tumbling, and splashes into the sea. */
+  losePlank(): void {
+    const parent = this.root.parent;
+    if (!parent) return;
+    const mesh = toonMesh(this.plankGeo, mat("#b7834f", 0.8));
+    const side = Math.random() < 0.5 ? -1 : 1;
+    mesh.position.copy(this.tilt.localToWorld(new THREE.Vector3(side * 0.8, 0.5, -0.6)));
+    parent.add(mesh);
+    const out = new THREE.Vector3(side * 3.2, 6.5, 1.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.root.rotation.y);
+    this.flying.push({ mesh, v: out, spin: new THREE.Vector3(9 * Math.random() - 4.5, 6, 11 * side) });
+  }
+
   /** World position of the bow tip. */
   bowPos(target = new THREE.Vector3()): THREE.Vector3 {
     return this.tilt.localToWorld(target.set(0, 0.6, -2.6));
@@ -117,7 +142,22 @@ export class Boat {
       this.fx.puff.emit({ at, count: 3, speed: [2, 4], dir: new THREE.Vector3(Math.sign(Math.random() - 0.5) * 0.8, 1, 0.3), spread: 0.35, gravity: 9, drag: 0.6, jitter: 0.3, life: [0.4, 0.7], size: [0.22, 0.08], color: ["#ffffff", "#d9f6ff"], alpha: 0.9 });
     }
     this.lastBow = bow;
+    this.updatePlanks(dt, time);
     if (this.aboard) this.updateSailor(dt);
+  }
+
+  private updatePlanks(dt: number, time: number): void {
+    this.flying = this.flying.filter((f) => {
+      f.v.y -= 18 * dt;
+      f.mesh.position.addScaledVector(f.v, dt);
+      f.mesh.rotation.x += f.spin.x * dt;
+      f.mesh.rotation.y += f.spin.y * dt;
+      f.mesh.rotation.z += f.spin.z * dt;
+      if (f.v.y > 0 || f.mesh.position.y > seaHeight(f.mesh.position.x, f.mesh.position.z, time)) return true;
+      this.fx.splash(f.mesh.position.clone(), 0.5);
+      f.mesh.removeFromParent();
+      return false;
+    });
   }
 
   private updateSailor(dt: number): void {

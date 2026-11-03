@@ -15,17 +15,18 @@ import { DIALOGUES } from "../../data/dialogues";
 import { createSkyDome, Clouds, DAY_SKY } from "../../world/Sky";
 import { SignAtlas } from "../../world/models/signs";
 import { Challenge, ChallengeContext } from "../types";
-import { Bin, Timeline, until, modelMaterials, ModelMaterials, lerp, ease, hump } from "../ogre/kit";
+import { Bin, Timeline, until, modelMaterials, ModelMaterials, ease, hump } from "../ogre/kit";
 import { Fx } from "../ogre/fx";
 import { Director } from "../ogre/director";
 import { Popups } from "../ogre/popups";
 import { Ocean, oceanUniforms, OceanUniforms, MAX_ISLES } from "./ocean";
 import { Wake } from "./wake";
-import { Course, CourseHit } from "./course";
+import { Course } from "./course";
 import { COURSE_END, SECTIONS, routeX, sectionAt, trailX } from "./route";
 import { SpeechBubble, toScreen } from "../shared/speech";
 import { NarrationManager } from "../../systems/NarrationManager";
-import { Helm, CRUISE } from "./helm";
+import { CRUISE } from "./helm";
+import { Voyage } from "./voyage";
 import { Scenery, LANDING_Z } from "./scenery";
 import { Boat } from "./boat";
 import { Gulls } from "./gulls";
@@ -49,7 +50,6 @@ export class SeaChallenge implements Challenge {
   };
   readonly finished: Promise<void>;
   phase: SeaPhase = "intro";
-  starfish = 0;
 
   private resolve!: () => void;
   private engine!: Engine;
@@ -81,19 +81,9 @@ export class SeaChallenge implements Challenge {
   private timeScale = 1;
   private slowLeft = 0;
   private hitStopLeft = 0;
-  /** Target forward speed and (when not steered by the player) target x. */
-  private cruise = 0;
-  private autoX: number | null = null;
   private chase = false;
-  private helm = new Helm();
-  /** Sideways shove from a hit (m/s, decays). */
-  private shove = 0;
-  /** Out past the channel's edge, and when Chuleta last said so. */
-  private offCourse = false;
-  private offRemarkAt = -1e9;
   private bubble: SpeechBubble;
-  /** Everything the boat bumped into so far (for the E2E test). */
-  private hits = 0;
+  readonly voyage: Voyage;
   /** Tadeo's walk state once he is ashore. */
   private heroMotion = { speed: 0, grounded: true, vy: 0 };
 
@@ -166,6 +156,21 @@ export class SeaChallenge implements Challenge {
       this.bin,
       scene,
     );
+    this.voyage = new Voyage({
+      ctx,
+      boat: this.boat,
+      course: this.course,
+      things: [],
+      ui: this.seaUI,
+      fx: this.fx,
+      cam: this.cam,
+      popups: this.popups,
+      input: () => this.engine?.input,
+      remark: (speaker, text) => {
+        this.bubble.say(text, 3800);
+        NarrationManager.getInstance().speakLine(text, speaker);
+      },
+    });
     this.cam.drift = 0.12;
     this.cam.cut(new THREE.Vector3(-7, 3.0, -12), new THREE.Vector3(0.5, 2.2, 4));
   }
@@ -177,19 +182,25 @@ export class SeaChallenge implements Challenge {
       phase: this.phase,
       x: this.boat.x,
       z: this.boat.z,
-      heading: this.helm.heading,
+      heading: this.voyage.helm.heading,
       next: [trailX(this.boat.z - 14), this.boat.z - 14],
       leaping: this.fight.leaping,
       ringNow: this.fight.ringNow,
       throws: this.fight.throws,
       mood: this.shark.mood,
-      starfish: this.starfish,
-      offCourse: this.offCourse,
+      starfish: this.voyage.starfish,
+      offCourse: this.voyage.offCourse,
       routeOff: this.boat.x - routeX(this.boat.z),
       section: sectionAt(this.boat.z),
-      speed: this.helm.speed,
+      speed: this.voyage.helm.speed,
       islet: this.course.nearestIslet(this.boat.x, this.boat.z),
-      hits: this.hits,
+      rock: this.course.rockAhead(this.boat.z),
+      ahead: this.course.rockAhead(this.boat.z, true),
+      hits: this.voyage.hits,
+      planks: this.voyage.planks.count,
+      retries: this.voyage.retries,
+      retrying: this.voyage.retrying,
+      checkpoint: this.voyage.checkpoint,
     };
   }
 
@@ -222,7 +233,7 @@ export class SeaChallenge implements Challenge {
     this.uniforms.uTime.value = t;
     this.mats.time.value = t;
     this.tl.update(sdt);
-    this.sail(sdt);
+    this.voyage.update(sdt, t, this.phase === "sail");
 
     const b = this.boat.root.position;
     const yaw = this.boat.root.rotation.y;
@@ -240,7 +251,7 @@ export class SeaChallenge implements Challenge {
     this.bubble.place(toScreen(this.camera, this.boat.hero.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 2.4, 0))));
     if (this.chase) {
       // Behind the stern, looking where the bow points (a little softer than the bow, so turns don't swing the view)
-      const h = this.helm.heading * 0.75;
+      const h = this.voyage.helm.heading * 0.75;
       const fx = -Math.sin(h);
       const fz = -Math.cos(h);
       this.cam.move(new THREE.Vector3(b.x - fx * 12.5, 6.0, b.z - fz * 12.5), new THREE.Vector3(b.x + fx * 10, 0.6, b.z + fz * 10), 0.3);
@@ -254,67 +265,6 @@ export class SeaChallenge implements Challenge {
     this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 70);
   }
 
-  /** Forward motion, steering, the obstacle course and the starfish trail. */
-  private sail(dt: number): void {
-    const { boat, helm } = this;
-    const p = boat.root.position;
-    const input = this.engine?.input;
-    const before = helm.heading;
-    if (this.phase === "sail") {
-      const key = (code: string) => (input && !this.ctx.ui.dialogue.isOpen && input.isDown(code) ? 1 : 0);
-      helm.steer(dt, (key("ArrowLeft") - key("ArrowRight")) as -1 | 0 | 1, (key("ArrowUp") - key("ArrowDown")) as -1 | 0 | 1, false);
-    } else {
-      // Outside the sail phase the boat steers itself: towards `autoX`, or straight ahead
-      helm.speed += (this.cruise - helm.speed) * Math.min(dt * 1.2, 1);
-      const want = this.autoX === null ? 0 : THREE.MathUtils.clamp((p.x - this.autoX) * 0.08, -0.5, 0.5);
-      helm.heading = lerp(helm.heading, want, Math.min(dt * 2, 1));
-    }
-    boat.speed = helm.speed;
-    p.x += -Math.sin(helm.heading) * helm.speed * dt + this.shove * dt;
-    p.z -= Math.cos(helm.heading) * helm.speed * dt;
-    this.shove *= Math.max(0, 1 - dt * 3);
-    // Reason: `vx` is what the boat leans by; turning right (heading falling) leans it like the old sideways slide did
-    boat.vx = lerp(boat.vx, dt > 0 ? ((before - helm.heading) / dt) * 5.4 : 0, Math.min(dt * 6, 1));
-    boat.root.rotation.y = helm.heading;
-    if (this.phase === "sail") this.current(dt, p);
-    this.course.keepOut(p);
-    const res = this.course.update(dt, this.sceneTime, p.x, p.z, this.phase === "sail");
-    if (this.phase !== "sail") return;
-    for (const hit of res.hits) this.onHit(hit);
-    for (const at of res.starfish) {
-      this.starfish++;
-      this.fx.stars(at, 8);
-      this.fx.glow.emit({ at, count: 1, speed: [0, 0], life: [0.25, 0.25], size: [1.2, 2.4], color: "#ffb070", intensity: 2 });
-      audio.playSfx("sfx_berry_collect", 0.55, 1 + (this.starfish % 5) * 0.06);
-    }
-    this.seaUI.setVoyage(-p.z / -LANDING_Z, this.starfish);
-  }
-
-  /** Past the channel's edge the current carries the boat back, and Chuleta says so (at most every 10 s). */
-  private current(dt: number, p: THREE.Vector3): void {
-    const pull = this.helm.pull(dt, p.x, p.z);
-    p.x += pull.drift;
-    this.offCourse = pull.offCourse;
-    if (!pull.offCourse || this.sceneTime - this.offRemarkAt < 10) return;
-    this.offRemarkAt = this.sceneTime;
-    const text = DIALOGUES.sea_offcourse[0].text;
-    this.bubble.say(text, 3800);
-    NarrationManager.getInstance().speakLine(text, "Chuleta");
-  }
-
-  private onHit(hit: CourseHit): void {
-    const boat = this.boat;
-    this.hits++;
-    this.fx.splash(hit.at, hit.kind === "wave" ? 2.0 : 1.3);
-    boat.bump(hit.kind === "wave" ? 1.0 : 0.6);
-    this.shove = hit.push * 6;
-    this.helm.speed *= 0.45;
-    this.cam.shake(0.6);
-    audio.playSfx(hit.kind === "wave" ? "sfx_wave" : "sfx_hit_damage", 0.7);
-    const head = boat.hero.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 2.2, 0));
-    this.popups.show(hit.kind === "wave" ? "Platsch!" : "Bumm!", head, { color: "#7fdcff", size: 64 });
-  }
-
   private async run(): Promise<void> {
     const ui = this.ctx.ui;
     const { tl, boat, cam, fight, seaUI } = this;
@@ -325,14 +275,15 @@ export class SeaChallenge implements Challenge {
       // Reason: a debug start (`&section=N`) sails straight off from that section's buoy, without the talk at the pier
       const z = SECTIONS[from].startZ;
       boat.root.position.set(trailX(z), 0, z);
-      this.helm.speed = CRUISE;
+      this.voyage.helm.speed = CRUISE;
     } else {
       cam.move(new THREE.Vector3(-9, 4.2, -15.5), new THREE.Vector3(0.5, 3.2, 6), 7);
       await tl.wait(1.6);
       await ui.say(DIALOGUES.sea_crossing);
     }
     this.chase = true;
-    this.cruise = CRUISE;
+    this.voyage.cruise = CRUISE;
+    this.voyage.save(from ?? 0, from !== undefined);
     seaUI.showVoyage();
     seaUI.showHint(`<span class="key">←</span><span class="key">→</span> lenken · <span class="key">↑</span><span class="key">↓</span> Tempo · folge den Seesternen <span class="sea-hint-fish">${STARFISH_ICON}</span>`);
     this.phase = "sail";
@@ -343,7 +294,7 @@ export class SeaChallenge implements Challenge {
 
     // The giant shark
     this.phase = "shark";
-    this.cruise = 0;
+    this.voyage.cruise = 0;
     this.chase = false;
     audio.playMusic("music_combat");
     const b = boat.root.position;
@@ -394,23 +345,23 @@ export class SeaChallenge implements Challenge {
     this.seaUI.showVoyage();
     this.chase = true;
     // Land a little east of the X so the boat frames the beach shot instead of blocking it
-    this.autoX = 6;
-    this.cruise = 7.5;
+    this.voyage.autoX = 6;
+    this.voyage.cruise = 7.5;
     await until(tl, () => {
-      this.seaUI.setVoyage(-boat.z / -LANDING_Z, this.starfish);
+      this.seaUI.setVoyage(-boat.z / -LANDING_Z, this.voyage.starfish);
       return boat.z < LANDING_Z + 26;
     });
     this.chase = false;
     cam.move(new THREE.Vector3(boat.x + 10, 3.6, LANDING_Z - 8), new THREE.Vector3(boat.x - 1, 1.6, LANDING_Z + 6), 2.2);
     await until(tl, () => {
-      this.cruise = Math.max(1.2, (boat.z - LANDING_Z) * 0.45);
-      this.seaUI.setVoyage(-boat.z / -LANDING_Z, this.starfish);
+      this.voyage.cruise = Math.max(1.2, (boat.z - LANDING_Z) * 0.45);
+      this.seaUI.setVoyage(-boat.z / -LANDING_Z, this.voyage.starfish);
       return boat.z <= LANDING_Z;
     });
     // Scrape onto the sand
-    this.cruise = 0;
+    this.voyage.cruise = 0;
     boat.speed = 0;
-    this.autoX = null;
+    this.voyage.autoX = null;
     audio.playSfx("sfx_dig");
     fx.dust(boat.bowPos().setY(0.6), 1.2, 16, "#f2dc9b");
     cam.shake(0.3);

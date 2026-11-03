@@ -66,7 +66,8 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
 
 - **Every quest tells before, when something happens, and after.** At most 14 words per line; a moment runs 3 to 8
   lines and a big scene 10 to 30. Say "Wesen", never "Monster". Nobody says what they can't know.
-- **Never a game over.** Mistakes restart the current attempt with a kind line.
+- **No "Game Over".** Mistakes cost something; too many fade back to the last checkpoint with a kind line
+  (`challenges/shared/retry.ts`). Never a scary sound or a "Game Over" text.
 - **Text is German, for a 7-year-old:** short sentences, simple words, warm and funny.
 - **Every speaker needs a face and a voice:** add new speakers to `SPEAKERS` in `ui/Dialogue.ts`
   (portrait or emoji, colour) and to `CAST` in `scripts/voice/generate.mjs`.

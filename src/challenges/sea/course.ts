@@ -227,6 +227,17 @@ export class Course {
     this.waves.push({ mesh, x0, x1, zMeet, z: zMeet - 400, hit: false });
   }
 
+  /** A retry from the checkpoint at `z`: the starfish from there on float again, and every rock and wave can hit again. */
+  reset(z: number): void {
+    for (const s of this.starfish) {
+      if (s.z >= z) continue;
+      s.taken = false;
+      s.pop = 0;
+    }
+    for (const r of this.rocks) r.hitAt = -1e9;
+    for (const w of this.waves) w.hit = false;
+  }
+
   /** Push the boat's centre out of every rock and islet: they are solid, the boat never sails through them. */
   keepOut(p: THREE.Vector3): void {
     for (const r of this.rocks) {
@@ -238,6 +249,12 @@ export class Course {
       p.x = r.x + (dx / d) * min;
       p.z = r.z + (dz / d) * min;
     }
+  }
+
+  /** The nearest sea stack ahead of z, or with `islets` any rock or islet (for the E2E test). */
+  rockAhead(z: number, islets = false): [number, number] | null {
+    const r = this.rocks.filter((k) => (islets || k.what === "rock") && k.z < z - 2).sort((a, b) => b.z - a.z)[0];
+    return r ? [r.x, r.z] : null;
   }
 
   /** Nearest islet to (x, z): x, z and its shore radius (for the E2E test). */

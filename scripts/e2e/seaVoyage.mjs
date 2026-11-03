@@ -64,6 +64,56 @@ async function sail(ms, keys) {
   return seen;
 }
 
+const dialogueOpen = () => page.evaluate(() => !!document.querySelector(".dialogue.open"));
+
+/** Note every dialogue line said from now on in `window.said`. */
+async function recordLines() {
+  await page.evaluate(() => {
+    window.said = [];
+    const box = Object.getPrototypeOf(window.game.ui.dialogue);
+    const begin = box.showLine;
+    box.showLine = function () {
+      begin.call(this);
+      window.said.push(`${this.script[this.index].speaker}: ${this.script[this.index].text}`);
+    };
+  });
+}
+
+/** Steer into each rock or islet ahead in turn until `done(state)`; Space closes any dialogue. Resolves with the states seen. */
+async function ramAhead(done, timeout = 90000) {
+  const seen = [];
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    const s = await state();
+    seen.push({ ...s, fade: await page.evaluate(() => Number(getComputedStyle(document.getElementById("fade")).opacity)) });
+    if (done(s)) break;
+    if (await dialogueOpen()) {
+      await hold([]);
+      await page.keyboard.press("Space");
+      await sleep(250);
+      continue;
+    }
+    await hold(s.retrying || !s.ahead ? [] : steerTo(s, s.ahead[0], s.ahead[1]));
+    await sleep(50);
+  }
+  await hold([]);
+  return seen;
+}
+
+/** Follow the starfish trail until `done(state)`. */
+async function followTrail(done, timeout = 40000) {
+  const end = Date.now() + timeout;
+  while (Date.now() < end) {
+    const s = await state();
+    if (done(s)) return s;
+    if (await dialogueOpen()) await page.keyboard.press("Space");
+    await hold(steerTo(s, s.next[0], s.next[1]));
+    await sleep(50);
+  }
+  await hold([]);
+  return null;
+}
+
 const CASES = {
   async "sailing far off course is turned back"() {
     await open(1);
@@ -95,6 +145,55 @@ const CASES = {
     await shot("islet");
     const hits = seen.at(-1).hits - hits0;
     check("an islet is not passable", hits > 0 && closest >= shore, `hits ${hits}, closest ${closest.toFixed(2)} m, shore ${shore.toFixed(2)} m`);
+  },
+
+  async "a rock hit costs one plank"() {
+    await open(1);
+    const [rx, rz] = (await state()).rock;
+    const hits0 = (await state()).hits;
+    const seen = await sail(14000, (s) => (s.hits > hits0 ? [] : steerTo(s, rx, rz)));
+    const after = seen.find((s) => s.hits > hits0);
+    await shot("rock_hit");
+    check("a rock hit costs one plank", after && after.planks === 3, after ? `planks ${after.planks}` : "no hit");
+    const icons = await page.evaluate(() => [...document.querySelectorAll(".sea-planks span")].map((e) => e.classList.contains("lost")));
+    check("the voyage bar shows the lost plank", icons.length === 4 && icons.filter(Boolean).length === 1, JSON.stringify(icons));
+
+    // ── 10 starfish mend it again
+    const mended = await followTrail((s) => s.planks === 4);
+    check("10 starfish mend a plank", mended && mended.starfish % 10 === 0, mended ? `planks 4 at ${mended.starfish} starfish` : "never mended");
+  },
+
+  async "out of planks fades and restarts at the last buoy with 4 planks"() {
+    await open(2);
+    await recordLines();
+    const cp = (await state()).checkpoint;
+    const seen = await ramAhead((s) => s.retries >= 1 && !s.retrying);
+    const last = seen.at(-1);
+    await sleep(400);
+    await shot("after_retry");
+    const lines = await page.evaluate(() => window.said);
+    check("running out of planks starts one retry", last.retries === 1, last.retries);
+    check("the screen was black in between", seen.some((s) => s.fade > 0.95));
+    check("an Erzähler line was said over black", lines.some((l) => l.startsWith("Erzähler: ")), lines.join(" | "));
+    check("out of planks restarts at the last buoy with 4 planks", Math.abs(last.z - cp.z) < 15 && last.planks === 4, `z ${last.z.toFixed(1)} vs buoy ${cp.z}, planks ${last.planks}`);
+    check("the starfish count is the one from the buoy", last.starfish === cp.starfish, `${last.starfish} vs ${cp.starfish}`);
+    check("planks never go below 0", seen.every((s) => s.planks >= 0));
+  },
+
+  async "double hit on the last plank retries once"() {
+    await open(2);
+    await ramAhead((s) => s.planks === 1);
+    const r = await page.evaluate(() => {
+      const sc = window.engine.scene;
+      const at = sc.boat.root.position.clone();
+      const before = sc.voyage.retries;
+      // Reason: a rock and a jellyfish touching the boat in the same frame, through the same handler the voyage uses
+      sc.voyage.hit({ kind: "hit", at, push: 1, what: "rock" });
+      sc.voyage.hit({ kind: "hit", at, push: -1, what: "jelly" });
+      return { retries: sc.voyage.retries - before, planks: sc.voyage.planks.count };
+    });
+    const seen = await ramAhead((s) => !s.retrying, 20000);
+    check("double hit on the last plank retries once", r.retries === 1 && r.planks === 0 && seen.every((s) => s.planks >= 0 && s.retries === seen[0].retries), JSON.stringify(r));
   },
 };
 
