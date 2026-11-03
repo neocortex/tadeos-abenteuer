@@ -333,7 +333,8 @@ try {
   await shot("08a_splash");
   const throwsAfterMiss = (await state()).throws;
   check("a press outside the green window doesn't count", throwsAfterMiss === throwsBeforeMiss && !beforeRing.ringNow, `${throwsBeforeMiss} then ${throwsAfterMiss}`);
-  check("a miss is no game over: the fight goes on", (await state()).phase === "shark");
+  const afterMiss = await state();
+  check("a miss costs one plank, and the fight goes on", afterMiss.phase === "shark" && afterMiss.planks === beforeRing.planks - 1, `planks ${beforeRing.planks} → ${afterMiss.planks}`);
   const sharkOpening = (await page.evaluate(() => window.said)).filter((l) => l === "Erzähler: Plötzlich erscheint eine riesige Flosse im Wasser...");
   check("a missed throw doesn't replay the talk", sharkOpening.length === 1, sharkOpening.length);
   await page.keyboard.press("Space");

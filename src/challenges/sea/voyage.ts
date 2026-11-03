@@ -266,6 +266,29 @@ export class Voyage {
     if (last) void this.retry();
   }
 
+  /**
+   * The shark bumped the boat in the fight: a plank flies off. With the last one the screen fades, the boat is mended
+   * where it lies (the fight's start is its checkpoint) and `restart` puts the fight back to its beginning.
+   * Resolves true when that happened.
+   */
+  async fightMiss(restart: () => void): Promise<boolean> {
+    const { boat, ui } = this.d;
+    audio.playSfx("sfx_hit_damage", 0.7);
+    const last = this.planks.hit();
+    boat.losePlank();
+    ui.setPlanks(this.planks.count);
+    if (!last) return false;
+    this.retrying = true;
+    this.retries++;
+    await retryFromCheckpoint(this.d.ctx, RETRY_LINES, () => {
+      this.planks.refill();
+      ui.setPlanks(this.planks.count);
+      restart();
+    });
+    this.retrying = false;
+    return true;
+  }
+
   private async retry(): Promise<void> {
     this.retrying = true;
     this.retries++;

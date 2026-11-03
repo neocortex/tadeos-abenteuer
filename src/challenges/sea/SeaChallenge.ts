@@ -178,6 +178,7 @@ export class SeaChallenge implements Challenge {
         },
         hitStop: (s) => (this.hitStopLeft = Math.max(this.hitStopLeft, s)),
         onFeed: (n) => this.seaUI.showFeeds(n),
+        onMiss: () => this.voyage.fightMiss(() => this.fight.restart()),
       },
       this.bin,
       scene,

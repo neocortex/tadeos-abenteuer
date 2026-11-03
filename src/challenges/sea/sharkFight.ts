@@ -3,9 +3,10 @@
  * shark dives (bubbles and a dark shadow show where), leaps out of the sea
  * towards Tadeo and hangs in the air in slow motion with its mouth wide open
  * while a timing ring closes on it. Space in the green window throws a magic
- * berry in — MAMPF! Too early throws nothing (and you can try again); missing
- * only gets Tadeo splashed. Three berries and the shark is lieb again: it waves,
- * flips its tail and swims away happy.
+ * berry in — MAMPF! Too early throws nothing (and you can try again); a miss
+ * lets the shark bump the boat, which costs a plank, and with the last plank the
+ * fight starts over. Three berries and the shark is lieb again: it waves, flips
+ * its tail and swims away happy.
  */
 
 import * as THREE from "three";
@@ -36,6 +37,8 @@ export interface FightStage {
   slowmo(scale: number, seconds: number): void;
   hitStop(seconds: number): void;
   onFeed(count: number): void;
+  /** A missed leap bumped the boat: costs a plank. Resolves true when the last one went and the fight restarted. */
+  onMiss(): Promise<boolean>;
 }
 
 /** Fin height: the body stays just under the surface, the dorsal fin cuts the water. */
@@ -322,7 +325,7 @@ export class SharkFight {
 
   private async splashBoat(side: number, yaw: number): Promise<void> {
     const { shark, boat, fx, tl, cam, pop } = this.s;
-    // Belly flop right beside the boat: Tadeo gets soaked, nothing worse
+    // Belly flop right against the boat: Tadeo gets soaked and a plank flies off
     const from = shark.root.position.clone();
     // Reason: on the far side from the camera, so the splash drops behind the boat and not over the whole picture
     const to = new THREE.Vector3(this.boatPos.x + side * 2.2, -2.8, this.boatPos.z - 2.4);
@@ -337,14 +340,22 @@ export class SharkFight {
     boat.bump(0.9);
     boat.pose = "duck";
     cam.shake(0.6);
-    pop.show("Platsch!", new THREE.Vector3(to.x, 2.4, to.z), { color: "#7fdcff", size: 72 });
+    pop.show("Rumms!", new THREE.Vector3(to.x, 2.4, to.z), { color: "#7fdcff", size: 72 });
+    const restarted = await this.s.onMiss();
     await tl.wait(0.9);
-    pop.show("Nochmal! Warte auf den grünen Ring!", boat.hero.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 2.6, 0)), { size: 28, bubble: true, life: 2.2, rise: 0.3 });
+    if (!restarted) pop.show("Nochmal! Warte auf den grünen Ring!", boat.hero.root.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, 2.6, 0)), { size: 28, bubble: true, life: 2.2, rise: 0.3 });
     boat.pose = "stand";
     shark.root.rotation.set(0, yaw, 0);
     const b = this.boatPos;
     this.angle = Math.atan2(to.z - b.z, to.x - b.x);
     await tl.wait(0.4);
+  }
+
+  /** Back to the fight's start after the planks ran out: no berries eaten, the shark angry again. */
+  restart(): void {
+    this.throws = 0;
+    this.s.shark.mood = "angry";
+    this.s.onFeed(0);
   }
 
   /** Won over: the happy shark comes up beside the boat, wiggles and waves, flips its tail and swims off into the distance. */

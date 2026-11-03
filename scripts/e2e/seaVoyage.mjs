@@ -370,7 +370,86 @@ const CASES = {
     await shot("after_spin_retry");
     check("retry during a spin lands level", seen.at(-1).retries === 1 && Math.abs(s.yaw) < 0.05 && Math.abs(s.heading) < 0.05 && !s.airborne && !s.spinning, `yaw ${s.yaw.toFixed(3)}, heading ${s.heading.toFixed(3)}, airborne ${s.airborne}, spinning ${s.spinning}`);
   },
+
+  async "a miss in the fight costs a plank, a too-early press costs nothing"() {
+    await toShark();
+    const p0 = (await state()).planks;
+    // First leap: one press too early, then one in the green window
+    await waitFor(async () => (await state()).leaping, "the first leap", 15000);
+    await page.keyboard.press("Space");
+    await waitFor(async () => (await state()).ringNow, "the green window", 5000);
+    await waitFor(async () => (await state()).throws === 1 || (await page.keyboard.press("Space"), false), "the berry in", 3000);
+    await waitFor(async () => !(await state()).leaping, "the first leap to pass", 10000);
+    check("a too-early press costs nothing", (await state()).planks === p0, `planks ${p0} → ${(await state()).planks}`);
+    // Second leap: no press at all
+    await waitFor(async () => (await state()).leaping, "the second leap", 20000);
+    await waitFor(async () => !(await state()).leaping, "the second leap to pass", 10000);
+    const s = await waitFor(async () => ((await state()).planks < p0 ? state() : null), "the bump", 5000).catch(() => state());
+    await shot("fight_miss");
+    check("a miss costs a plank", s.planks === p0 - 1 && s.throws === 1 && s.phase === "shark", `planks ${p0} → ${s.planks}, throws ${s.throws}`);
+  },
+
+  async "out of planks in the fight restarts only the fight"() {
+    await toShark();
+    const s0 = await state();
+    // One berry in first, so the restart has something to undo
+    await waitFor(async () => (await state()).ringNow, "the green window", 20000);
+    await waitFor(async () => (await state()).throws === 1 || (await page.keyboard.press("Space"), false), "the berry in", 3000);
+    // Then never press: every leap misses until the planks are gone
+    const seen = [];
+    await waitFor(async () => {
+      const s = await state();
+      seen.push(s);
+      // Reason: the line over black waits for Space; a press there never lands in a leap
+      if (s.retrying && (await dialogueOpen())) await page.keyboard.press("Space");
+      return s.retries > s0.retries && !s.retrying;
+    }, "the fight to restart", 90000);
+    await sleep(300);
+    const s = await state();
+    await shot("fight_retry");
+    check(
+      "out of planks in the fight restarts only the fight",
+      s.retries === s0.retries + 1 && s.phase === "shark" && s.throws === 0 && Math.abs(s.z - s0.z) < 1 && s.planks === 4 && seen.every((k) => k.planks >= 0),
+      `retries ${s0.retries} → ${s.retries}, phase ${s.phase}, throws ${s.throws}, z ${s0.z.toFixed(1)} → ${s.z.toFixed(1)}, planks ${s.planks}`,
+    );
+    check("the shark is angry again", s.mood === "angry", s.mood);
+  },
+
+  async "the fight's retry waits for an open dialogue"() {
+    await toShark();
+    await recordLines();
+    await knock((await state()).planks - 1);
+    // A line opens and stays open while the next leap misses the last plank away
+    await page.evaluate(() => void window.game.ui.say([{ speaker: "Tadeo", portrait: "", text: "Gleich kommt er wieder!" }]));
+    const samples = [];
+    await waitFor(async () => {
+      const s = await state();
+      const open = await dialogueOpen();
+      const fade = await page.evaluate(() => Number(getComputedStyle(document.getElementById("fade")).opacity));
+      samples.push({ retrying: s.retrying, open, fade });
+      return s.retrying && samples.filter((k) => k.retrying && k.open).length > 20;
+    }, "the last plank to go while the line is open", 30000);
+    const black = samples.filter((k) => k.retrying && k.open).every((k) => k.fade < 0.05);
+    await page.keyboard.press("Space");
+    await waitFor(async () => !(await state()).retrying || ((await dialogueOpen()) && (await page.keyboard.press("Space"), false)), "the retry to end", 20000);
+    const said = await page.evaluate(() => window.said);
+    const line = said.findIndex((l) => l.startsWith("Tadeo: Gleich kommt"));
+    const retry = said.findIndex((l) => l.startsWith("Erzähler:"));
+    check("the fight's retry waits for an open dialogue", black && line >= 0 && retry > line, `${black ? "no fade while open" : "faded while open"}; ${JSON.stringify(said)}`);
+  },
 };
+
+/** Sail from the last section to the shark and skip its talk; resolves when the fight is on. */
+async function toShark() {
+  await open(5);
+  await followTrail((s) => s.phase === "shark", 60000);
+  await hold([]);
+  // Reason: Space only while a line is open, so no press lands in a leap
+  await waitFor(async () => {
+    if (await dialogueOpen()) await page.keyboard.press("Space");
+    return (await state()).leaping || ((await state()).phase === "shark" && !(await dialogueOpen()) && (await page.evaluate(() => !!document.querySelector(".sea-berries"))));
+  }, "the fight to start", 40000);
+}
 
 try {
   for (const [name, run] of Object.entries(CASES)) {
