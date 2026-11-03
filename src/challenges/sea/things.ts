@@ -33,3 +33,14 @@ export interface SeaThing {
   /** Put everything from section `index` on back to its start (a retry from that section's buoy). */
   reset(index: number): void;
 }
+
+/** Half the boat's length: the hull reaches this far ahead of and behind its centre. */
+const HALF_LENGTH = 2;
+
+/** Distance from (x, z) to the boat's centre line, bow to stern (so a bump on the bow counts as much as one amidships). */
+export function hullDistance(boat: BoatState, x: number, z: number): number {
+  const fx = -Math.sin(boat.heading);
+  const fz = -Math.cos(boat.heading);
+  const along = Math.max(-HALF_LENGTH, Math.min(HALF_LENGTH, (x - boat.x) * fx + (z - boat.z) * fz));
+  return Math.hypot(x - (boat.x + fx * along), z - (boat.z + fz * along));
+}

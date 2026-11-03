@@ -28,6 +28,10 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
   ],
   // A remark while sailing, when the boat leaves the channel
   sea_offcourse: [line("Chuleta", "Gack! Zu weit raus! Zurück zu den Seesternen!")],
+  // Tadeo fishes the message in a bottle out of the sea
+  sea_bottle: [line("Tadeo", "Eine Flaschenpost! Da steht: Gute Fahrt, kleiner Kapitän!")],
+  // Thrown out of the whirlpool
+  sea_whirlpool: [line("Tadeo", "Huiii! Mir ist ganz schwindelig!")],
   // Said over black when the last plank is gone, before the boat sails on from the last buoy (one of them)
   retry_sea_1: [line("Erzähler", "Schade! Das Boot braucht eine kleine Pause. Versuch es gleich noch mal!")],
   retry_sea_2: [line("Erzähler", "Hoppla! Das Boot ist wieder heil. Auf ein Neues, Tadeo!")],

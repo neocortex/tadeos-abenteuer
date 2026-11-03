@@ -34,6 +34,8 @@ interface Rock {
   hitAt: number;
 }
 
+/** Radius of an arch's stacks. */
+const ARCH_STACK = 1.5;
 /** Seconds before the same rock or islet can cost the boat again. */
 const HIT_COOLDOWN = 2.5;
 
@@ -83,6 +85,7 @@ export class Course {
           this.addRock(routeX(z) + dx, z, r, rand, mats);
         }
       }
+      for (const [dx, z, gap] of sec.arches ?? []) this.addArch(routeX(z) + dx, z, gap, rand, mats);
     }
     // Reason: islets are solid like the rocks; their beach reaches out to the radius, and the boat is 2 m from mid to bow
     for (const [x, z, r] of ISLETS) this.rocks.push({ x, z, r, what: "islet", solid: r + 2.2, touch: r + 2.5, hitAt: -1e9 });
@@ -112,6 +115,26 @@ export class Course {
     this.rocks.push({ x, z, r, what: "rock", solid: r * 0.8 + 0.6, touch: r * 0.8 + 0.85, hitAt: -1e9 });
   }
 
+  /** A rock arch to thread: two tall sea stacks `gap` apart with a rock lintel across their tops. */
+  private addArch(x: number, z: number, gap: number, rand: () => number, mats: ModelMaterials): void {
+    const m = emptyModel();
+    const stone = stoneFn("#9d9184", 0.4, rand);
+    const off = gap / 2 + ARCH_STACK;
+    const height = 6.5 + rand() * 1.5;
+    for (const sx of [-1, 1]) {
+      m.solid.push(rockBlob(Math.round(rand() * 1000), [ARCH_STACK, height / 2, ARCH_STACK * 0.95], stone, 2).translate(sx * off, height / 2 - 1, 0));
+      m.solid.push(rockBlob(Math.round(rand() * 1000), [ARCH_STACK * 1.3, 0.9, ARCH_STACK * 1.2], stone, 1).translate(sx * off, -0.3, 0));
+    }
+    m.solid.push(rockBlob(Math.round(rand() * 1000), [off + ARCH_STACK * 0.9, 1.0, ARCH_STACK * 0.85], stone, 2).translate(0, height - 1.1, 0));
+    const g = modelGroup(m, mats);
+    g.position.set(x, -0.9, z);
+    this.group.add(g);
+    for (const sx of [-1, 1]) {
+      const r = ARCH_STACK;
+      this.rocks.push({ x: x + sx * off, z, r, what: "rock", solid: r * 0.8 + 0.6, touch: r * 0.8 + 0.85, hitAt: -1e9 });
+    }
+  }
+
   /** A retry from the checkpoint at `z`: the starfish from there on float again, and every rock can hit again. */
   reset(z: number): void {
     for (const s of this.starfish) {
@@ -133,6 +156,14 @@ export class Course {
       p.x = r.x + (dx / d) * min;
       p.z = r.z + (dz / d) * min;
     }
+  }
+
+  /** The `n` sea stacks nearest to (x, z), for the ocean's shallows (which only has room for some). */
+  nearestRocks(x: number, z: number, n: number): Rock[] {
+    return this.rocks
+      .filter((r) => r.what === "rock")
+      .sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))
+      .slice(0, n);
   }
 
   /** The nearest sea stack ahead of z, or with `islets` any rock or islet (for the E2E test). */

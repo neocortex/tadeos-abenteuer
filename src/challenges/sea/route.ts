@@ -95,7 +95,7 @@ export const SECTIONS: SectionSpec[] = [
     barrels: [
       [-16, -275, 3],
       [16, -350, -3.5],
-      [-17, -405, 4],
+      [-17, -405, 4.5],
     ],
   },
   {
@@ -116,22 +116,22 @@ export const SECTIONS: SectionSpec[] = [
   {
     name: "jellies",
     startZ: -635,
-    rows: [
-      { z: -650, safe: 0 },
-      { z: -820, safe: 0 },
-    ],
+    // Reason: the trail eases between its turning points; close ones keep it on the channel's centre through the bend
+    rows: [-650, -682, -702, -720, -735, -750, -766, -784, -808, -830].map((z) => ({ z, safe: 0 })),
+    // Reason: each circle stays 2.5 m clear of the trail (the centre here), so the starfish always show a safe way
     jellies: [
-      [-5, -665, 1.2],
+      [-5.8, -665, 1.2],
       [6, -675, 1.5],
-      [2.5, -695, 2.4],
+      [6.4, -695, 1.8],
       [-6, -710, 1.4],
-      [-2.5, -728, 2.2],
+      [-5.9, -728, 1.8],
       [6, -740, 1.4],
-      [3, -760, 2.5],
+      [6.1, -760, 2],
       [-5.5, -772, 1.5],
-      [-2, -792, 2.4],
+      [-5.9, -792, 1.8],
       [5.5, -800, 1.3],
-      [0, -812, 3],
+      [6.2, -815, 2.2],
+      [-5, -825, 1.6],
     ],
     fin: [14, -720],
   },

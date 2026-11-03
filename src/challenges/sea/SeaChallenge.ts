@@ -28,6 +28,14 @@ import { NarrationManager } from "../../systems/NarrationManager";
 import { CRUISE } from "./helm";
 import { Voyage } from "./voyage";
 import { Swells } from "./swells";
+import { Buoys } from "./buoys";
+import { Dolphins } from "./dolphins";
+import { Jellyfish } from "./jellyfish";
+import { Drift } from "./drift";
+import { Whirlpool } from "./whirlpool";
+import { Whales } from "./whale";
+import { Fin } from "./fin";
+import { SeaThing } from "./things";
 import { Scenery, LANDING_Z } from "./scenery";
 import { Boat } from "./boat";
 import { Gulls } from "./gulls";
@@ -72,6 +80,17 @@ export class SeaChallenge implements Challenge {
   private scenery: Scenery;
   private course: Course;
   private swells: Swells;
+  private buoys = new Buoys();
+  private dolphins = new Dolphins(this.fx);
+  private jellies = new Jellyfish();
+  private drift = new Drift(this.fx);
+  private whirlpool!: Whirlpool;
+  private whales = new Whales(this.fx);
+  private fin = new Fin(this.fx);
+  private things: SeaThing[];
+  /** Ocean shallows slots taken by the islands; the rest go to the sea stacks nearest the boat. */
+  private fixedIsles = 0;
+  private shallowsTimer = 0;
   private boat: Boat;
   private gulls = new Gulls(6);
   private shark: Shark = createShark();
@@ -130,14 +149,16 @@ export class SeaChallenge implements Challenge {
       this.isles++;
     };
     this.scenery = new Scenery(this.bin, this.mats, this.fx, addIsle);
+    this.fixedIsles = this.isles;
     this.course = new Course(this.bin, this.mats, this.swells.highSpots);
     this.course.swellHeight = (x, z) => this.swells.height(x, z);
-    for (const r of this.course.rocks) if (r.what === "rock") addIsle(r.x, r.z, r.r * 0.95, r.r * 0.9, 0.6);
+    this.whirlpool = new Whirlpool(this.uniforms.uTime);
+    this.things = [this.swells, this.buoys, this.dolphins, this.jellies, this.drift, this.whirlpool, this.whales, this.fin];
     this.atlas.draw();
     this.boat = new Boat(this.atlas, this.mats, this.fx);
     this.boat.swell = (x, z) => this.swells.height(x, z);
     this.shark.root.visible = false;
-    scene.add(this.ocean.mesh, this.wake.mesh, this.scenery.group, this.course.group, this.swells.group, this.boat.root, this.gulls.group, this.shark.root, this.hearts.group, this.fx.group);
+    scene.add(this.ocean.mesh, this.wake.mesh, this.scenery.group, this.course.group, ...this.things.map((th) => th.group), this.boat.root, this.gulls.group, this.shark.root, this.hearts.group, this.fx.group);
 
     this.fight = new SharkFight(
       {
@@ -165,7 +186,7 @@ export class SeaChallenge implements Challenge {
       ctx,
       boat: this.boat,
       course: this.course,
-      things: [this.swells],
+      things: this.things,
       ui: this.seaUI,
       fx: this.fx,
       cam: this.cam,
@@ -207,6 +228,19 @@ export class SeaChallenge implements Challenge {
       airborne: this.boat.airborne,
       boatY: this.boat.root.position.y,
       swellUnder: this.swells.height(this.boat.x, this.boat.z),
+      boost: this.voyage.boostLeft,
+      spinning: !!this.voyage.spin,
+      spun: this.voyage.spun,
+      yaw: this.boat.root.rotation.y,
+      remarks: this.voyage.remarks,
+      buoy: this.buoys.lastPassed,
+      finSeen: [...this.fin.seen],
+      dolphin: this.dolphins.leader(this.boat.z),
+      jelly: this.jellies.ahead(this.boat.z),
+      barrel: this.drift.barrelAhead(this.boat.z),
+      bottle: this.drift.bottleAt,
+      whirlpool: this.whirlpool.nearest(this.boat.z),
+      whale: this.whales.nearest(this.boat.z),
       planks: this.voyage.planks.count,
       retries: this.voyage.retries,
       retrying: this.voyage.retrying,
@@ -244,6 +278,7 @@ export class SeaChallenge implements Challenge {
     this.mats.time.value = t;
     this.tl.update(sdt);
     this.voyage.update(sdt, t, this.phase === "sail");
+    this.feedShallows(sdt);
 
     const b = this.boat.root.position;
     const yaw = this.boat.root.rotation.y;
@@ -277,6 +312,22 @@ export class SeaChallenge implements Challenge {
     this.sun.position.copy(this.sun.target.position).addScaledVector(this.sunDir, 70);
   }
 
+  /** Every half second the sea stacks nearest the boat get the ocean's free shallows slots (foam rings, turquoise water). */
+  private feedShallows(dt: number): void {
+    this.shallowsTimer -= dt;
+    if (this.shallowsTimer > 0) return;
+    this.shallowsTimer = 0.5;
+    const free = MAX_ISLES - this.fixedIsles;
+    const near = this.course.nearestRocks(this.boat.x, this.boat.z, free);
+    for (let i = 0; i < free; i++) {
+      const r = near[i];
+      const slot = this.fixedIsles + i;
+      if (r) this.uniforms.uIsles.value[slot].set(r.x, r.z, r.r * 0.95, r.r * 0.9);
+      else this.uniforms.uIsles.value[slot].set(0, 0, 0, 0);
+      this.uniforms.uIsleSlope.value[slot] = 0.6;
+    }
+  }
+
   private async run(): Promise<void> {
     const ui = this.ctx.ui;
     const { tl, boat, cam, fight, seaUI } = this;
@@ -288,6 +339,8 @@ export class SeaChallenge implements Challenge {
       const z = SECTIONS[from].startZ;
       boat.root.position.set(trailX(z), 0, z);
       this.voyage.helm.speed = CRUISE;
+      // Reason: everything before the start counts as passed, so earlier buoys don't save on the first frame
+      for (const th of this.things) th.reset(from);
     } else {
       cam.move(new THREE.Vector3(-9, 4.2, -15.5), new THREE.Vector3(0.5, 3.2, 6), 7);
       await tl.wait(1.6);

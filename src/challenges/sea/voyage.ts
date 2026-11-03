@@ -2,7 +2,8 @@
  * Sailing the voyage: reads the helm keys, moves the boat where its bow
  * points, lets the current bring it back into the channel, and routes what
  * the course and the things along it report — a hit costs a plank, starfish
- * mend them, and when the last plank goes the boat fades back to the last
+ * mend them, dolphins give a boost, the whirlpool spins the boat round, the
+ * whale's spout lifts it, a buoy saves the checkpoint, and when the last plank goes the boat fades back to the last
  * checkpoint (`shared/retry.ts`). Outside the sail phase the boat steers
  * itself (towards `autoX`, at `cruise`).
  */
@@ -49,6 +50,10 @@ export interface Checkpoint {
   starfish: number;
 }
 
+/** How long the whirlpool spins the boat, and how high the whale's spout lifts it. */
+const SPIN_TIME = 1.6;
+const LIFT = 1.5;
+
 const RETRY_LINES = ["retry_sea_1", "retry_sea_2", "retry_sea_3"].map((k) => DIALOGUES[k]);
 
 export class Voyage {
@@ -64,6 +69,13 @@ export class Voyage {
   hitsBy: Record<string, number> = {};
   jumps = 0;
   offCourse = false;
+  /** Seconds of dolphin boost left. */
+  boostLeft = 0;
+  /** The whirlpool's hold on the boat, and how far round the last spin turned it (radians). */
+  spin: { t: number; cx: number; cz: number; r: number; a0: number; dir: number; yaw0: number } | null = null;
+  spun = 0;
+  /** Lines said in bubbles while sailing (for the E2E test). */
+  readonly remarks: string[] = [];
   /** Target speed and (when not steered by the player) target x. */
   cruise = 0;
   autoX: number | null = null;
@@ -91,10 +103,12 @@ export class Voyage {
       return;
     }
     const before = helm.heading;
-    if (active) {
+    this.boostLeft = Math.max(0, this.boostLeft - dt);
+    if (this.spin) this.whirl(dt, p);
+    else if (active) {
       const input = this.d.input();
       const key = (code: string) => (input && !this.d.ctx.ui.dialogue.isOpen && input.isDown(code) ? 1 : 0);
-      helm.steer(dt, (key("ArrowLeft") - key("ArrowRight")) as -1 | 0 | 1, (key("ArrowUp") - key("ArrowDown")) as -1 | 0 | 1, false);
+      helm.steer(dt, (key("ArrowLeft") - key("ArrowRight")) as -1 | 0 | 1, (key("ArrowUp") - key("ArrowDown")) as -1 | 0 | 1, this.boostLeft > 0);
     } else {
       // Outside the sail phase the boat steers itself: towards `autoX`, or straight ahead
       helm.speed += (this.cruise - helm.speed) * Math.min(dt * 1.2, 1);
@@ -102,12 +116,14 @@ export class Voyage {
       helm.heading = lerp(helm.heading, want, Math.min(dt * 2, 1));
     }
     boat.speed = helm.speed;
-    p.x += -Math.sin(helm.heading) * helm.speed * dt + this.shove * dt;
-    p.z -= Math.cos(helm.heading) * helm.speed * dt;
+    if (!this.spin) {
+      p.x += -Math.sin(helm.heading) * helm.speed * dt + this.shove * dt;
+      p.z -= Math.cos(helm.heading) * helm.speed * dt;
+      // Reason: `vx` is what the boat leans by; turning right (heading falling) leans it like the old sideways slide did
+      boat.vx = lerp(boat.vx, dt > 0 ? ((before - helm.heading) / dt) * 5.4 : 0, Math.min(dt * 6, 1));
+      boat.root.rotation.y = helm.heading;
+    }
     this.shove *= Math.max(0, 1 - dt * 3);
-    // Reason: `vx` is what the boat leans by; turning right (heading falling) leans it like the old sideways slide did
-    boat.vx = lerp(boat.vx, dt > 0 ? ((before - helm.heading) / dt) * 5.4 : 0, Math.min(dt * 6, 1));
-    boat.root.rotation.y = helm.heading;
     if (active) this.current(dt, t, p);
     course.keepOut(p);
 
@@ -133,7 +149,7 @@ export class Voyage {
     this.offCourse = pull.offCourse;
     if (!pull.offCourse || t - this.offRemarkAt < 10) return;
     this.offRemarkAt = t;
-    this.d.remark("Chuleta", DIALOGUES.sea_offcourse[0].text);
+    this.say("Chuleta", DIALOGUES.sea_offcourse[0].text);
   }
 
   private catchStarfish(at: THREE.Vector3): void {
@@ -152,8 +168,72 @@ export class Voyage {
 
   /** What a thing along the route did to the boat. */
   private route(e: SeaEvent): void {
-    if (e.kind === "hit") this.hit(e);
-    else if (e.kind === "jump") this.jump(e.height);
+    const { boat, popups, fx } = this.d;
+    switch (e.kind) {
+      case "hit":
+        return this.hit(e);
+      case "jump":
+        return this.jump(e.height);
+      case "boost":
+        if (this.boostLeft <= 0) popups.show("Delfin-Turbo!", this.headPos(), { color: "#7fdcff", size: 56 });
+        this.boostLeft = Math.max(this.boostLeft, e.seconds);
+        return;
+      case "spin":
+        return this.startSpin(e.center);
+      case "lift":
+        boat.leap(LIFT);
+        fx.splash(boat.root.position.clone(), 1.6);
+        popups.show("Wuuusch!", this.headPos(), { color: "#ffffff", size: 60 });
+        return;
+      case "find":
+        this.say("Tadeo", DIALOGUES.sea_bottle[0].text);
+        return;
+      case "checkpoint":
+        if (e.index <= this.checkpoint.index) return;
+        this.save(e.index);
+        fx.stars(boat.root.position.clone().add(new THREE.Vector3(5, 2.5, 0)), 12);
+        popups.show("Boje! Hier geht's weiter.", this.headPos(), { color: "#ffd23f", size: 44 });
+        return;
+    }
+  }
+
+  /** A bubble over the boat, noted for the test. */
+  private say(speaker: string, text: string): void {
+    this.remarks.push(text);
+    this.d.remark(speaker, text);
+  }
+
+  /** Caught by the whirlpool: carried half way round its eye while spinning once around, then thrown out. */
+  private startSpin(center: THREE.Vector3): void {
+    const p = this.d.boat.root.position;
+    const r = Math.max(2.5, Math.hypot(p.x - center.x, p.z - center.z));
+    // Reason: round the side that carries the boat on ahead, never back towards where it came from
+    const a0 = Math.atan2(p.z - center.z, p.x - center.x);
+    const dir = Math.sin(a0) > 0 ? (Math.cos(a0) > 0 ? -1 : 1) : Math.cos(a0) > 0 ? 1 : -1;
+    this.spin = { t: 0, cx: center.x, cz: center.z, r, a0, dir, yaw0: this.d.boat.root.rotation.y };
+    this.spun = 0;
+    this.helm.speed *= 0.5;
+  }
+
+  private whirl(dt: number, p: THREE.Vector3): void {
+    const sp = this.spin!;
+    const boat = this.d.boat;
+    sp.t += dt;
+    const k = Math.min(sp.t / SPIN_TIME, 1);
+    const e = k * k * (3 - 2 * k);
+    const a = sp.a0 + e * Math.PI * sp.dir;
+    p.x = sp.cx + Math.cos(a) * sp.r * (1 + e * 0.3);
+    p.z = sp.cz + Math.sin(a) * sp.r * (1 + e * 0.3);
+    this.spun = e * Math.PI * 2;
+    boat.root.rotation.y = sp.yaw0 + this.spun * sp.dir;
+    boat.vx = sp.dir * 6;
+    if (k < 1) return;
+    // Thrown out, bow straight ahead again, and shoved off towards the channel's middle
+    this.spin = null;
+    this.helm.heading = 0;
+    boat.root.rotation.y = 0;
+    this.shove = Math.sign(trailX(p.z) - p.x) * 7;
+    this.say("Tadeo", DIALOGUES.sea_whirlpool[0].text);
   }
 
   /** Bow-first over a crest: up and away. */
@@ -203,6 +283,8 @@ export class Voyage {
     this.helm.heading = 0;
     this.helm.speed = CRUISE;
     this.shove = 0;
+    this.spin = null;
+    this.boostLeft = 0;
     this.planks.refill();
     this.starfish = c.starfish;
     course.reset(c.z);
