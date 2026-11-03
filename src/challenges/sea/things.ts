@@ -32,6 +32,8 @@ export interface SeaThing {
   update(dt: number, t: number, boat: BoatState, active: boolean): SeaEvent[];
   /** Put everything from section `index` on back to its start (a retry from that section's buoy). */
   reset(index: number): void;
+  /** Push the boat's position `p` out of anything solid (optional: most things are touched, not bumped into). */
+  keepOut?(p: THREE.Vector3): void;
 }
 
 /** Half the boat's length: the hull reaches this far ahead of and behind its centre. */

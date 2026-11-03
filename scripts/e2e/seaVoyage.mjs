@@ -371,6 +371,44 @@ const CASES = {
     check("retry during a spin lands level", seen.at(-1).retries === 1 && Math.abs(s.yaw) < 0.05 && Math.abs(s.heading) < 0.05 && !s.airborne && !s.spinning, `yaw ${s.yaw.toFixed(3)}, heading ${s.heading.toFixed(3)}, airborne ${s.airborne}, spinning ${s.spinning}`);
   },
 
+  async "the boat can't sail through the whale"() {
+    await open(4);
+    const w0 = await waitFor(async () => (await state()).whale, "the whale", 5000);
+    // Reason: the body lies out from the blowhole away from the trail (towards -x here); aim at its middle
+    const seen = await chase(() => [w0[0] - 4, w0[1]], (s) => s.z < w0[1] - 8, 40000);
+    // Reason: once it has dived the boat may sail over it; only count while it lies at the surface
+    const inside = seen.filter((s) => s.whale[2] && s.x < w0[0] && s.x > w0[0] - 7.5 && Math.abs(s.z - w0[1]) < 2.0);
+    const pressed = seen.filter((s) => s.whale[2] && s.x < w0[0] && s.x > w0[0] - 7.5 && Math.abs(s.z - w0[1]) < 4.6).length;
+    await shot("whale_solid");
+    check("the boat can't sail through the whale", pressed > 0 && inside.length === 0, inside.length ? `inside at ${inside[0].x.toFixed(1)}, ${inside[0].z.toFixed(1)}` : `stayed outside, ${pressed} samples against its flank`);
+  },
+
+  async "every high starfish over the big swells is caught"() {
+    await open(5);
+    await followTrail((s) => s.phase === "shark", 60000);
+    const high = (await state()).high.filter(([z]) => z < -1035);
+    check("every high starfish over the big swells is caught", high.length > 0 && high.every(([, taken]) => taken), JSON.stringify(high));
+  },
+
+  async "a retry right at the course's end finishes before the shark"() {
+    await open(5);
+    await followTrail((s) => s.z < -1240, 60000);
+    await hold([]);
+    // Reason: the last plank goes in the very frame the boat crosses the end of the course
+    await page.evaluate(() => {
+      const sc = window.engine.scene;
+      sc.boat.root.position.z = -1250.5;
+      for (let i = sc.voyage.planks.count; i > 0; i--) sc.voyage.hit({ kind: "hit", at: sc.boat.root.position.clone(), push: 1, what: "rock" });
+    });
+    // Space closes the line over black; then follow the trail to the shark again
+    const seen = await chase((s) => s.next, (s) => s.phase === "shark" && !s.retrying, 60000);
+    const s = seen.at(-1);
+    const fade = await page.evaluate(() => Number(getComputedStyle(document.getElementById("fade")).opacity));
+    await sleep(1500);
+    const z = (await state()).z;
+    check("a retry right at the course's end finishes before the shark", s.phase === "shark" && !s.retrying && s.retries === 1 && fade < 0.05 && z < -1250, `phase ${s.phase}, retrying ${s.retrying}, retries ${s.retries}, fade ${fade}, boat at z ${z.toFixed(1)}`);
+  },
+
   async "a miss in the fight costs a plank, a too-early press costs nothing"() {
     await toShark();
     const p0 = (await state()).planks;

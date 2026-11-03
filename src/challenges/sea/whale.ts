@@ -17,6 +17,11 @@ const RISE_AT = 40;
 const SPOUT_AT = 6;
 /** How far out from its spot beside the trail the whale's head lies. */
 const HEAD_OUT = 2.8;
+/** The body's spine, measured from the head along the body, and how close the boat's centre may come to it. */
+const BODY_FROM = 0.5;
+const BODY_TO = 9.5;
+const NOSE_ROOM = 3.1;
+const FLANK_ROOM = 4.1;
 
 interface Whale {
   section: number;
@@ -120,15 +125,39 @@ export class Whales implements SeaThing {
     this.fx.puff.emit({ at, count: Math.round(10 * power), speed: [1, 3], dir: new THREE.Vector3(0, 0.6, 0), spread: 1, gravity: 1, drag: 1.5, life: [0.8, 1.3], size: [0.9, 2.4], color: "#ffffff", alpha: 0.6 });
   }
 
+  /**
+   * The whale's body is solid while it lies at the surface: the boat slides along it, costing nothing.
+   * `u` runs along the body from the head (away from the trail), `v` across it.
+   */
+  keepOut(p: THREE.Vector3): void {
+    for (const w of this.whales) {
+      if (!this.up(w)) continue;
+      const head = w.x + w.side * HEAD_OUT;
+      const u = (p.x - head) * w.side;
+      const v = p.z - w.z;
+      const du = u - Math.max(BODY_FROM, Math.min(BODY_TO, u));
+      // Reason: the boat is 2 m from mid to bow, so it needs more room where its bow meets the flank than beside the nose
+      const d = Math.hypot(du / NOSE_ROOM, v / FLANK_ROOM);
+      if (d >= 1 || d < 1e-6) continue;
+      p.x = head + w.side * (u - du + du / d);
+      p.z = w.z + v / d;
+    }
+  }
+
   /** The blowhole, on top of the head just behind the eyes. */
   private blowX(w: Whale): number {
     return w.x + w.side * (HEAD_OUT + 1.2);
   }
 
-  /** The nearest whale's blowhole (for the E2E test). */
-  nearest(z: number): [number, number] | null {
+  /** Risen and not yet sunk away: until it has dived half way its back still reaches the surface. */
+  private up(w: Whale): boolean {
+    return w.age >= 2 && w.age < 13.5;
+  }
+
+  /** The nearest whale's blowhole, and whether it is up and solid (for the E2E test). */
+  nearest(z: number): [number, number, boolean] | null {
     const w = [...this.whales].sort((a, b) => Math.abs(a.z - z) - Math.abs(b.z - z))[0];
-    return w ? [this.blowX(w), w.z] : null;
+    return w ? [this.blowX(w), w.z, this.up(w)] : null;
   }
 
   reset(index: number): void {

@@ -242,6 +242,7 @@ export class SeaChallenge implements Challenge {
       bottle: this.drift.bottleAt,
       whirlpool: this.whirlpool.nearest(this.boat.z),
       whale: this.whales.nearest(this.boat.z),
+      high: this.course.highStarfish,
       planks: this.voyage.planks.count,
       retries: this.voyage.retries,
       retrying: this.voyage.retrying,
@@ -356,7 +357,8 @@ export class SeaChallenge implements Challenge {
     await ui.hud.showBanner("Ahoi!", "Auf zur Schatzinsel!", 1800);
     await tl.wait(5);
     seaUI.showHint(null);
-    await until(tl, () => boat.z < COURSE_END);
+    // Reason: a retry started on the last stretch first takes the boat back to its buoy, so the shark waits for it
+    await until(tl, () => boat.z < COURSE_END && !this.voyage.retrying);
 
     // The giant shark
     this.phase = "shark";

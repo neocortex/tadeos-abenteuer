@@ -50,6 +50,8 @@ interface Starfish {
 
 /** How high a high starfish hangs over the water. */
 const HIGH = 2.6;
+/** How far past a swell's meeting point its high starfish hangs (the boat flies about 9 m from the crest). */
+const HIGH_PAST = 4;
 
 export interface CourseHit {
   kind: "rock" | "islet";
@@ -91,10 +93,8 @@ export class Course {
     for (const [x, z, r] of ISLETS) this.rocks.push({ x, z, r, what: "islet", solid: r + 2.2, touch: r + 2.5, hitAt: -1e9 });
     // Starfish trail: from the dock along the safe way to the end of the voyage
     for (let z = -12; z > COURSE_END; z -= 7) this.starfish.push({ x: trailX(z), z, taken: false, pop: 0, high: false });
-    for (const z of highSpots) {
-      const near = this.starfish.reduce((a, b) => (Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a));
-      near.high = true;
-    }
+    // Reason: the jump starts as the crest passes the boat, so a high starfish hangs a little past it, mid-flight
+    for (const z of highSpots) this.starfish.push({ x: trailX(z - HIGH_PAST), z: z - HIGH_PAST, taken: false, pop: 0, high: true });
     this.trail = createStarfishTrail(this.starfish.length, bin);
     this.group.add(this.trail.fish, this.trail.glow);
   }
@@ -156,6 +156,11 @@ export class Course {
       p.x = r.x + (dx / d) * min;
       p.z = r.z + (dz / d) * min;
     }
+  }
+
+  /** Every high starfish as [z, taken] (for the E2E test). */
+  get highStarfish(): [number, boolean][] {
+    return this.starfish.filter((s) => s.high).map((s) => [s.z, s.taken]);
   }
 
   /** The `n` sea stacks nearest to (x, z), for the ocean's shallows (which only has room for some). */

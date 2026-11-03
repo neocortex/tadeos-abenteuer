@@ -126,6 +126,7 @@ export class Voyage {
     this.shove *= Math.max(0, 1 - dt * 3);
     if (active) this.current(dt, t, p);
     course.keepOut(p);
+    for (const th of things) th.keepOut?.(p);
 
     const res = course.update(dt, t, p.x, p.z, active, boat.airborne);
     const s = this.boatState;
