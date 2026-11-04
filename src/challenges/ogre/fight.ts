@@ -6,14 +6,15 @@
  * swing can be blocked by raising the shield in time (Space at the right
  * moment); a blocked slam turns into a "boing" bouncing back on the ogre.
  * Attacks and blocks charge the special.
- * Nobody ever loses: at zero health the berries revive Tadeo.
+ * Tadeo has to block or heal now and then to win. At zero health the fight
+ * starts over (`reset`), never a "Game Over".
  */
 
 export type HeroAction = "attack" | "heal" | "special";
 export type OgreMove = "swipe" | "windup" | "slam";
 
 export const HERO_MAX = 30;
-export const OGRE_MAX = 60;
+export const OGRE_MAX = 80;
 export const CHARGE_NEEDED = 3;
 
 const roll = (a: number, b: number): number => a + Math.floor(Math.random() * (b - a + 1));
@@ -24,8 +25,8 @@ export interface OgreResult {
   blocked: boolean;
   /** Damage the ogre takes himself when his slam bounces off Tadeo's shield. */
   bounce: number;
-  /** Tadeo ran out of health and the berries revived him. */
-  revived: boolean;
+  /** Tadeo ran out of health: the fight starts over. */
+  knockedOut: boolean;
 }
 
 export class FightRules {
@@ -33,6 +34,14 @@ export class FightRules {
   ogreHp = OGRE_MAX;
   charge = 0;
   private ogreTurns = 0;
+
+  /** Both back at full health, as at the start of the fight. */
+  reset(): void {
+    this.heroHp = HERO_MAX;
+    this.ogreHp = OGRE_MAX;
+    this.charge = 0;
+    this.ogreTurns = 0;
+  }
 
   get won(): boolean {
     return this.ogreHp <= 0;
@@ -71,20 +80,17 @@ export class FightRules {
   ogre(blocked: boolean): OgreResult {
     const move = this.nextOgreMove;
     this.ogreTurns++;
-    const res: OgreResult = { move, damage: 0, blocked: false, bounce: 0, revived: false };
+    const res: OgreResult = { move, damage: 0, blocked: false, bounce: 0, knockedOut: false };
     if (move === "windup") return res;
     res.blocked = blocked;
     if (blocked) this.charge = Math.min(this.charge + 1, CHARGE_NEEDED);
-    if (move === "swipe") res.damage = blocked ? 0 : roll(5, 7);
+    if (move === "swipe") res.damage = blocked ? 0 : roll(6, 8);
     else {
-      res.damage = blocked ? 0 : roll(11, 13);
+      res.damage = blocked ? 0 : roll(13, 15);
       if (blocked) res.bounce = this.hurtOgre(6);
     }
-    this.heroHp -= res.damage;
-    if (this.heroHp <= 0) {
-      this.heroHp = HERO_MAX;
-      res.revived = true;
-    }
+    this.heroHp = Math.max(0, this.heroHp - res.damage);
+    res.knockedOut = this.heroHp === 0;
     return res;
   }
 

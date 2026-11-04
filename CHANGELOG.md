@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Forest and ogre can be lost (kindly)
+
+- The forest has three hearts: every thorn bush costs one, and the third fades to black, the Erzähler says a kind
+  line and the hunt starts over at the forest's edge with all five berries back on their bushes
+- The Erzähler warns about this before the hunt, and the status shows the hearts next to the berries
+- The ogre is tougher: 80 health instead of 60, and his swipe and slam hit a little harder
+- At zero health Tadeo no longer refills by himself: the screen fades, a kind line plays and the fight starts over
+
 ### Sea voyage
 
 - The trip to the treasure island is a real voyage now: the boat steers with a heading, and a current pulls it back

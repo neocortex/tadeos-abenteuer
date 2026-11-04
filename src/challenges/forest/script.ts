@@ -16,6 +16,7 @@ export const MEET_FOX: DialogueScript = [
   fox("Das Schwert vom Hüter! Nur vor seinem Licht haben die Dornen Angst."),
   tadeo("Ich brauche Zauberbeeren. Der Hüter sagt, sie machen böse Wesen wieder lieb."),
   fox("Das stimmt. Aber die Büsche hier drin sind nur wilde Dornen. Lauf einfach drumherum."),
+  { speaker: "Erzähler", portrait: "", text: "Vorsicht! Nach drei Dornen beginnt die Suche ganz von vorne." },
   fox("Fünf Zauberbeeren leuchten im Wald. Folge mir!"),
 ];
 

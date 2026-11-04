@@ -27,6 +27,10 @@ export const VILLAGE_OGRE_MOUNTAIN: Record<string, DialogueScript> = {
     line("Oger", "Du bist mein Freund, Tadeo. Wie kann ich dir helfen?"),
     line("Tadeo", "Komm mit zum Berg! Da liegt etwas sehr Schweres im Weg."),
   ],
+  // Said over black when Tadeo has no strength left, before the fight starts over (one of them)
+  retry_ogre_1: [line("Erzähler", "Uff! Der Oger war zu stark. Tadeo ruht sich kurz aus. Noch mal!")],
+  retry_ogre_2: [line("Erzähler", "Hoppla! Tadeo hat neue Kraft. Denk an dein Schild, wenn der Oger haut!")],
+  retry_ogre_3: [line("Erzähler", "Kein Problem! Auch Helden brauchen zwei Versuche. Und Heilen hilft!")],
   // At the foot of the boulder, back on the island
   ogre_boulder: [
     line("Tadeo", "Das ist der Riesenfels! Kannst du ihn wegheben?"),

@@ -10,7 +10,9 @@
  * (`window.engine.scene.e2e`) and the glade's walkability grid, plans a path
  * (BFS) to the nearest berry and holds arrow keys to walk there. On the way
  * it walks into a thorn bush on purpose to prove the gentle "Autsch!" bounce.
- * Passes when all five berries are collected, the reward plays, the hedge
+ * After the first berry it walks into thorns twice more: the third one fades to
+ * black, a kind line plays and the hunt starts over at the forest's edge with
+ * every berry back on its bush. Passes when all five berries are collected, the reward plays, the hedge
  * stays open on the island and no page errors occurred.
  *
  * Run:  node scripts/e2e/forest.mjs [baseUrl]
@@ -559,19 +561,28 @@ try {
   log(`fps ${fps.toFixed(1)}`);
   await shot("04_fox_leads");
 
-  // Bump into the first thorn bush on purpose: Tadeo must bounce back, nothing else happens
+  /** Walk into thorn bush `i` until `done(state)` holds. */
+  const bumpThorn = async (i, done) => {
+    const end = Date.now() + 8000;
+    let st = await state();
+    while (Date.now() < end && !done(st)) {
+      await hold(keysToward(st.thorns[i].x - st.player[0], st.thorns[i].z - st.player[1]));
+      await sleep(40);
+      st = await state();
+    }
+    await hold(new Set());
+    return st;
+  };
+  const hearts = () => page.evaluate(() => [...(document.querySelector(".status")?.textContent ?? "")].filter((c) => c === "💚").length);
+  check("the status shows three hearts at the start", (await hearts()) === 3, String(await hearts()));
+
+  // Bump into the first thorn bush on purpose: Tadeo must bounce back and loses one heart
   let s = await state();
   const thorn = s.thorns[0];
   const before = Math.hypot(s.player[0] - thorn.x, s.player[1] - thorn.z);
-  const end = Date.now() + 8000;
-  while (Date.now() < end && (await state()).ouches === 0) {
-    s = await state();
-    await hold(keysToward(thorn.x - s.player[0], thorn.z - s.player[1]));
-    await sleep(40);
-  }
-  await hold(new Set());
-  s = await state();
+  s = await bumpThorn(0, (st) => st.ouches >= 1);
   if (s.ouches < 1) throw new Error("walking into a thorn bush did not bounce Tadeo");
+  check("one thorn costs one heart", (await hearts()) === 2, String(await hearts()));
   const touch = Math.hypot(s.player[0] - thorn.x, s.player[1] - thorn.z);
   await sleep(250);
   await shot("05_autsch");
@@ -582,8 +593,8 @@ try {
   log(`thorn bounce: touched at ${touch.toFixed(2)}, bounced back to ${after.toFixed(2)}`);
   if (after < touch + 0.6) throw new Error("Tadeo was not bounced away from the thorns");
 
-  // Collect the berries, always the nearest one (where the fox leads)
-  for (let n = 1; n <= 5; n++) {
+  /** Walk to the nearest berry still on its bush (where the fox leads) and pick it. */
+  const pickBerry = async (n) => {
     s = await state();
     const left = s.berries.filter((b) => !b.collected);
     left.sort((a, b) => Math.hypot(a.x - s.player[0], a.z - s.player[1]) - Math.hypot(b.x - s.player[0], b.z - s.player[1]));
@@ -592,6 +603,36 @@ try {
     await walkTo(berry.x, berry.z, `berry ${berry.name}`, 0.3, (st) => st.found >= n);
     s = await waitState((st) => st.found >= n, `berry ${n} collected`, 5000);
     log(`berries: ${s.found} / 5`);
+    return berry;
+  };
+
+  // One berry, then two more thorns: the third one starts the forest over, berries and hearts included
+  await pickBerry(1);
+  s = await state();
+  const nearest = s.thorns.map((t, i) => [Math.hypot(t.x - s.player[0], t.z - s.player[1]), i]).sort((a, b) => a[0] - b[0])[0][1];
+  s = await bumpThorn(nearest, (st) => st.ouches >= 2);
+  check("a second thorn is only a bounce", s.ouches === 2 && s.retries === 0 && s.found === 1, JSON.stringify({ ouches: s.ouches, retries: s.retries, found: s.found }));
+  await sleep(1300);
+  s = await bumpThorn(nearest, (st) => st.ouches >= 3 || st.retries >= 1);
+  await waitFor(dialogueOpen, "the retry line over black", 8000);
+  await sleep(300);
+  await shot("05b_retry_over_black");
+  const retryLine = (await said()).at(-1) ?? "";
+  check("the retry line is a kind one from the Erzähler", retryLine.startsWith("Erzähler: ") && /Dornen|Beeren/.test(retryLine), retryLine);
+  await skipDialogues();
+  s = await waitState((st) => st.retries === 1 && !st.busy, "the hunt to start over", 10000);
+  check(
+    "after the third thorn every berry is back and Tadeo stands at the forest's edge",
+    s.found === 0 && s.ouches === 0 && s.berries.every((b) => !b.collected) && Math.hypot(s.player[0] - 0, s.player[1] - 14.5) < 1,
+    JSON.stringify({ found: s.found, ouches: s.ouches, player: s.player }),
+  );
+  check("the hearts are full again", (await hearts()) === 3, String(await hearts()));
+  await sleep(800);
+  await shot("05c_started_over");
+
+  // Collect the berries, always the nearest one (where the fox leads)
+  for (let n = 1; n <= 5; n++) {
+    const berry = await pickBerry(n);
     if (n < 5) {
       await sleep(350);
       await shot(`0${5 + n}_berry_${n}_${berry.name}`);
@@ -614,6 +655,7 @@ try {
   const lines = await said();
   check("Flocke explains the hedge", lines.some((l) => l.startsWith("Fuchs: ") && l.includes("Nur vor seinem Licht")));
   check("Flocke calls the other bushes wild thorns", lines.some((l) => l.startsWith("Fuchs: ") && l.includes("wilde Dornen")));
+  check("before the hunt it is said that three thorns start it over", lines.some((l) => l.includes("Nach drei Dornen")));
   check("the berries' card says Wesen", await page.evaluate(async () => (await import("/src/data/items.ts")).ITEMS.berry.description.includes("Wesen")));
   check("the berries' job is said", lines.some((l) => l.startsWith("Tadeo: ") && l.includes("wieder lieb")));
   const at = (text) => lines.findIndex((l) => l.includes(text));

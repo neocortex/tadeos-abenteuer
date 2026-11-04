@@ -26,6 +26,7 @@ export class Berry {
   readonly beam: THREE.Mesh;
   private pop = -1;
   private phase = Math.random() * 10;
+  private beamStrength: number;
 
   constructor(
     readonly at: THREE.Vector3,
@@ -53,6 +54,7 @@ export class Berry {
     this.light.position.set(0, 2.2, 0);
     this.group.add(this.light);
     this.beam = beam;
+    this.beamStrength = (beam.material as THREE.ShaderMaterial).uniforms.uStrength.value;
   }
 
   /** Where the sprig is (for sparkles and the fox). */
@@ -63,6 +65,15 @@ export class Berry {
   collect(): void {
     this.collected = true;
     this.pop = 0;
+  }
+
+  /** Back on its bush, glowing in its beam as at the start (a retry). */
+  reset(): void {
+    this.collected = false;
+    this.pop = -1;
+    this.sprig.visible = true;
+    this.halo.visible = true;
+    (this.beam.material as THREE.ShaderMaterial).uniforms.uStrength.value = this.beamStrength;
   }
 
   update(dt: number, time: number, sparks: Bursts): void {

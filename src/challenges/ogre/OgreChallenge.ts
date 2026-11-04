@@ -4,7 +4,7 @@
  * answers with club swipes and a telegraphed slam. Each swing can be blocked
  * with Space at the right moment (a ring closes over Tadeo and turns green).
  * Lots of juice (hit-stop, slow motion, shake, sparks, numbers) and no game
- * over: the magic berries revive Tadeo. In the end the ogre sits down, gets a
+ * over: at zero health the fight starts over (`shared/retry.ts`). In the end the ogre sits down, gets a
  * berry, becomes friendly and lets Tadeo cross.
  */
 
@@ -12,6 +12,8 @@ import * as THREE from "three";
 import { Engine, PostSettings } from "../../core/Engine";
 import { audio } from "../../audio/Audio";
 import { Challenge, ChallengeContext } from "../types";
+import { DIALOGUES } from "../../data/dialogues";
+import { retryFromCheckpoint } from "../shared/retry";
 import { Bin, Timeline, contactShadow } from "./kit";
 import { Fx } from "./fx";
 import { Director } from "./director";
@@ -24,13 +26,14 @@ import { BlockPrompt } from "./blockPrompt";
 import { FightRules, HeroAction, HERO_MAX, OGRE_MAX } from "./fight";
 import { ogrePortrait } from "./portrait";
 import { deckAt } from "./gorgeShape";
-import { Stage, setX, shots, heroAttack, heroHeal, heroSpecial, heroRevive, raiseShield, ogreTurn, ogreDefeat } from "./moves";
+import { Stage, setX, shots, heroAttack, heroHeal, heroSpecial, raiseShield, ogreTurn, ogreDefeat } from "./moves";
 import { intro, outro } from "./story";
 
 export type OgrePhase = "intro" | "menu" | "act" | "outro" | "done";
 
 const HERO_HOME = -3.9;
 const OGRE_HOME = 3.9;
+const RETRY_LINES = ["retry_ogre_1", "retry_ogre_2", "retry_ogre_3"].map((k) => DIALOGUES[k]);
 
 export class OgreChallenge implements Challenge {
   readonly scene = new THREE.Scene();
@@ -51,6 +54,8 @@ export class OgreChallenge implements Challenge {
   readonly menu: FightUI;
   /** The shield timing ring (its `now` is read by the E2E test). */
   readonly blocker: BlockPrompt;
+  /** Fights started over after Tadeo ran out of health (read by the E2E test). */
+  retries = 0;
 
   private resolve!: () => void;
   private bin = new Bin();
@@ -68,8 +73,6 @@ export class OgreChallenge implements Challenge {
   private timeScale = 1;
   private slowLeft = 0;
   private hitStopLeft = 0;
-  /** Keep Tadeo's bar at zero until the berry revival plays. */
-  private holdHeroZero = false;
 
   constructor(private ctx: ChallengeContext) {
     this.finished = new Promise((r) => (this.resolve = r));
@@ -194,18 +197,29 @@ export class OgreChallenge implements Challenge {
       this.phase = "act";
       await this.heroTurn(action);
       if (r.won) break;
-      const res = await ogreTurn(s, r.nextOgreMove, (blocked) => {
-        const result = r.ogre(blocked);
-        this.holdHeroZero = result.revived;
-        return result;
-      });
+      const res = await ogreTurn(s, r.nextOgreMove, (blocked) => r.ogre(blocked));
       this.hero.setShield(false);
       this.menu.setCharge(r.charge);
-      if (res.revived) {
-        this.holdHeroZero = false;
-        await heroRevive(s);
-      }
+      if (res.knockedOut) await this.retry();
     }
+  }
+
+  /** Tadeo has no strength left: fade to black, a kind line, and the fight starts over with both at full health. */
+  private async retry(): Promise<void> {
+    this.retries++;
+    await this.tl.wait(0.6);
+    await retryFromCheckpoint(this.ctx, RETRY_LINES, () => {
+      this.rules.reset();
+      this.showHealth();
+      this.menu.setCharge(0);
+      this.popups.clear();
+      setX(this.hero.root, HERO_HOME);
+      setX(this.ogre.root, OGRE_HOME);
+      this.hero.pose = "stance";
+      this.ogre.setPose("idle", 4);
+      this.ogre.mood = "grumpy";
+      shots.wide(this.stage);
+    });
   }
 
   private async heroTurn(action: HeroAction): Promise<void> {
@@ -218,7 +232,7 @@ export class OgreChallenge implements Challenge {
   }
 
   private showHealth(): void {
-    this.menu.setHealth("hero", this.holdHeroZero ? 0 : this.rules.heroHp, HERO_MAX);
+    this.menu.setHealth("hero", this.rules.heroHp, HERO_MAX);
     this.menu.setHealth("ogre", this.rules.ogreHp, OGRE_MAX);
   }
 }

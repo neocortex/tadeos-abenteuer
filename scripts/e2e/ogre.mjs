@@ -7,7 +7,9 @@
  * battle with real key presses on the card menu (← → to pick, Space to go).
  * It reads the live state (`window.engine.scene.phase / rules / menu /
  * blocker`) only to decide what to press: try the locked special once
- * (gentle hint), heal once after taking damage, use the special when charged,
+ * (gentle hint), then only attack and let every swing land until Tadeo has no
+ * strength left: the screen fades, a kind line plays and the fight starts over
+ * at full health. From then on: heal once after taking damage, use the special when charged,
  * otherwise attack. During the ogre's swings it presses Space when the shield
  * ring turns green. On the first swing it presses too early once ("Zu früh!")
  * and then lets the swing hit on purpose; every later swing is blocked,
@@ -73,6 +75,7 @@ const state = () =>
       highlighted: s.menu.highlighted,
       ring: !!document.querySelector(".og-block.show"),
       blockNow: s.blocker.now,
+      retries: s.retries,
       dialogue: !!document.querySelector(".dialogue.open"),
     };
   });
@@ -277,6 +280,11 @@ let passed = false;
 let fps = 0;
 const used = { attack: 0, heal: 0, special: 0 };
 const swings = { seen: 0, blocked: 0, missed: 0, boing: false, early: false };
+/** Until the first retry Tadeo lets every swing land, to prove running out of strength starts the fight over. */
+let losing = true;
+/** The first swing after the retry lands as well, so healing has something to do. */
+let missAfterRetry = false;
+let knockout = null;
 let turns = 0;
 let lockedHint = false;
 const taken = new Set();
@@ -297,10 +305,11 @@ async function handleSwing() {
     swings.early = true;
     log("too early → hint, try again");
   }
-  if (n === 1) {
-    // Failure case: no proper press — Tadeo gets hit, nothing else happens
+  if (n === 1 || losing || missAfterRetry) {
+    missAfterRetry = false;
+    // Failure case: no proper press — Tadeo gets hit
     swings.missed++;
-    log("swing 1: no second press (takes the hit)");
+    log(`swing ${n}: no second press (takes the hit)`);
   } else {
     await waitFor(async () => (await state())?.blockNow, "green window", 5000);
     await sleep(80);
@@ -375,6 +384,21 @@ try {
     const s = await state();
     if (!s || s.onIsland) break;
     if (s.phase === "outro" || s.phase === "done") break;
+    if (losing && s.dialogue && s.retries === 1) {
+      // The kind line over black, said while the fight is put back to its start
+      await sleep(300);
+      await shot("11b_retry_over_black");
+      const line = (await page.evaluate(() => window.said ?? [])).at(-1) ?? "";
+      await skipDialogues();
+      await waitFor(async () => (await state())?.choosing, "the fight menu after the retry", 15000);
+      const after = await state();
+      knockout = { line, heroHp: after.heroHp, ogreHp: after.ogreHp, charge: after.charge, next: after.next, turns };
+      log(`knocked out after ${turns} turns, fight starts over: ${JSON.stringify(knockout)}`);
+      await shot("11c_fight_starts_over");
+      losing = false;
+      missAfterRetry = true;
+      continue;
+    }
     if (s.dialogue) {
       await skipDialogues();
       continue;
@@ -388,8 +412,8 @@ try {
       continue;
     }
     let action = "attack";
-    if (used.heal === 0 && s.heroHp <= 25) action = "heal";
-    else if (s.specialReady) action = "special";
+    if (!losing && used.heal === 0 && s.heroHp <= 25) action = "heal";
+    else if (!losing && s.specialReady) action = "special";
     turns++;
     used[action]++;
     log(`turn ${turns}: hero ${s.heroHp} ogre ${s.ogreHp} charge ${s.charge} next ${s.next} → ${action}`);
@@ -413,6 +437,8 @@ try {
   log(`fight won in ${turns} turns: ${JSON.stringify(used)}, swings ${JSON.stringify(swings)}`);
   if (used.special < 1 || used.heal < 1 || used.attack < 1) throw new Error("not every action was used");
   if (!swings.early || swings.blocked < 1 || swings.missed < 1 || !swings.boing) throw new Error("shield timing not fully exercised");
+  check("running out of strength starts the fight over, never a Game Over", knockout !== null && knockout.heroHp === 30 && knockout.ogreHp === 80 && knockout.charge === 0 && knockout.next === "swipe", JSON.stringify(knockout));
+  check("the retry line is a kind one from the Erzähler", /^Erzähler: .*(Oger|Kraft|Versuch)/.test(knockout?.line ?? ""), knockout?.line);
 
   await waitFor(dialogueOpen, "ogre_defeat dialogue", 20000);
   await sleep(600);

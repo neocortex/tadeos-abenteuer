@@ -2,8 +2,9 @@
  * Forest challenge (quest 6): the enchanted forest. Tadeo collects five
  * glowing magic berries in a twilight glade full of fireflies, light shafts
  * and glowing mushrooms. Flocke the fox trots ahead and shows the way to the
- * next berry. Thorn bushes only bounce Tadeo back with an "Autsch!" — there
- * is nothing to lose. With all five berries he holds them up high.
+ * next berry. A thorn bush bounces Tadeo back with an "Autsch!"; the third
+ * one fades back to the forest's edge, where all five berries hang on their
+ * bushes again (`shared/retry.ts`). With all five he holds them up high.
  */
 
 import * as THREE from "three";
@@ -16,6 +17,7 @@ import { GameUI } from "../../ui/GameUI";
 import { createBerries } from "../../world/models/items";
 import { xrayUniforms } from "../../world/xray";
 import { Challenge, ChallengeContext, ChallengeFactory } from "../types";
+import { retryFromCheckpoint } from "../shared/retry";
 import { SpeechBubble, toNdc, toScreen } from "../shared/speech";
 import { Berry } from "./berries";
 import { Fox } from "./fox";
@@ -27,6 +29,9 @@ import { wait } from "../../core/wait";
 const PICK_RADIUS = 1.3;
 /** Seconds without finding a berry before the compass arrow helps out. */
 const HINT_AFTER = 25;
+/** Thorn bushes Tadeo may touch; the last of them starts the forest over. */
+const THORNS_ALLOWED = 3;
+const RETRY_LINES = ["retry_forest_1", "retry_forest_2", "retry_forest_3"].map((k) => DIALOGUES[k]);
 
 type Phase = "intro" | "hunt" | "done";
 
@@ -59,14 +64,16 @@ class ForestChallenge implements Challenge {
   /** Seconds left of the thorn bounce (no control) and of the short grace period after it. */
   private stun = 0;
   private grace = 0;
+  /** Thorns touched since the last start. */
   private ouches = 0;
+  private retries = 0;
   private idle = 0;
   private told = new Set<string>();
   private reward: THREE.Group | null = null;
   private tmp = new THREE.Vector3();
   private islandXray = 1.15;
 
-  constructor(ctx: ChallengeContext) {
+  constructor(private ctx: ChallengeContext) {
     this.ui = ctx.ui;
     this.scene = this.world.scene;
     this.finished = new Promise((r) => (this.resolveFinished = r));
@@ -146,7 +153,7 @@ class ForestChallenge implements Challenge {
   }
 
   private updateStatus(): void {
-    this.ui.status(`🫐 ${this.found} / 5`);
+    this.ui.status(`🫐 ${this.found} / 5 · ${"💚".repeat(THORNS_ALLOWED - this.ouches)}`);
   }
 
   private collect(i: number): void {
@@ -179,6 +186,8 @@ class ForestChallenge implements Challenge {
     this.bubble.say(OUCH_LINES[this.ouches % OUCH_LINES.length], 1500, true);
     if (this.ouches === 0) this.foxBubble.say(FOX_LINES.firstOuch, 2200);
     this.ouches++;
+    this.updateStatus();
+    if (this.ouches >= THORNS_ALLOWED) void this.retry();
     audio.playSfx("sfx_hit_damage", 0.7);
     this.rig.addShake(0.3);
     this.world.leaves.emit(new THREE.Vector3(t.x + away.x * t.r * 0.6, 0.8, t.z + away.z * t.r * 0.6), {
@@ -198,6 +207,29 @@ class ForestChallenge implements Challenge {
       size: [0.08, 0.14],
       flat: true,
     });
+  }
+
+  /** The last thorn: fade to black, a kind line, and the hunt starts over at the forest's edge. */
+  private async retry(): Promise<void> {
+    this.busy = true;
+    this.retries++;
+    await wait(900);
+    await retryFromCheckpoint(this.ctx, RETRY_LINES, () => {
+      for (const b of this.world.berries) b.reset();
+      this.found = 0;
+      this.ouches = 0;
+      this.idle = 0;
+      this.stun = 0;
+      this.grace = 0;
+      this.player.teleport(START[0], START[1], Math.PI);
+      this.player.avatar.pose = "normal";
+      this.fox.teleport(FOX_START[0], FOX_START[1], -2.4);
+      this.rig.follow(this.player.position, this.player.velocity);
+      this.rig.snap();
+      this.updateStatus();
+    });
+    this.busy = false;
+    this.foxBubble.say(FOX_LINES.follow, 2200);
   }
 
   /** All five berries: Tadeo holds them up high, the fox dances. */
@@ -328,6 +360,7 @@ class ForestChallenge implements Challenge {
       busy: this.busy,
       found: this.found,
       ouches: this.ouches,
+      retries: this.retries,
       player: [this.player.position.x, this.player.position.z],
       fox: [this.fox.position.x, this.fox.position.z, this.fox.mode],
       berries: w.berries.map((b, i) => ({ name: BERRIES[i].name, x: b.at.x, z: b.at.z, collected: b.collected })),

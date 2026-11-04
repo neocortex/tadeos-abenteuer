@@ -238,27 +238,6 @@ export async function heroHeal(s: Stage, amount: number): Promise<void> {
   await tl.wait(0.3);
 }
 
-/** Tadeo ran out of health: the magic berries glow and patch him up. */
-export async function heroRevive(s: Stage): Promise<void> {
-  const { hero, fx, tl } = s;
-  shots.hero(s);
-  hero.berries.visible = true;
-  hero.pose = "eat";
-  s.pop.show("Zauberbeeren!", chest(hero.root, 2.1), { color: "#d7a6ff", size: 56, life: 1.8 });
-  audio.playSfx("sfx_heal");
-  for (let i = 0; i < 5; i++) {
-    fx.heal(chest(hero.root, 0.4 + i * 0.3));
-    fx.glow.emit({ at: chest(hero.root, 0), count: 10, speed: [2, 4], dir: new THREE.Vector3(0, 1, 0), spread: 0.15, life: [0.6, 1.0], size: [0.5, 0.1], color: ["#c58bff", "#ffffff"], intensity: 2.5 });
-    await tl.wait(0.22);
-  }
-  s.onHealth();
-  hero.berries.visible = false;
-  hero.pose = "cheer";
-  await tl.wait(0.9);
-  hero.pose = "stance";
-  shots.wide(s);
-}
-
 // ── The ogre ────────────────────────────────────────────────
 
 /** Stomp along the deck to x (forwards or backwards) with dust on every step. */

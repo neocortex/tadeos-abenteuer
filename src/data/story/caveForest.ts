@@ -53,4 +53,8 @@ export const CAVE_FOREST: Record<string, DialogueScript> = {
     line("Tadeo", "Das mache ich! Danke, Flocke."),
     line("Tadeo", "Der Hüter hat gesagt, der Schlüssel ist im Dorf. Ich frage dort nach!"),
   ],
+  // Said over black after the third thorn bush, before the hunt starts over at the forest's edge (one of them)
+  retry_forest_1: [line("Erzähler", "Aua, zu viele Dornen! Die Beeren hängen wieder an ihren Büschen.")],
+  retry_forest_2: [line("Erzähler", "Die Dornen haben gepiekst. Flocke wartet am Waldrand. Versuch es noch mal!")],
+  retry_forest_3: [line("Erzähler", "Kein Problem! Die Zauberbeeren wachsen nach. Diesmal läufst du um die Dornen herum.")],
 };
