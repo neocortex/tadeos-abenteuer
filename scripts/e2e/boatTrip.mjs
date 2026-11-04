@@ -14,16 +14,18 @@ export function boatTrip({ page, check, shot, log, waitFor, dialogueOpen, holdKe
   async function playSea() {
     await waitFor(async () => (await seaState())?.phase === "sail" || (await dialogueOpen()), "the sea to start", 40000);
     let s = await seaState();
-    const end = Date.now() + 200000;
+    const end = Date.now() + 260000;
     while (s?.phase !== "shark") {
       if (Date.now() > end) throw new Error("course not finished in time");
       if (await dialogueOpen()) {
         await holdKeys([]);
         await page.keyboard.press("Space");
         await sleep(240);
-      } else if (s?.phase === "sail") {
-        const dx = s.safe - s.x;
-        await holdKeys(Math.abs(dx) < 0.5 ? [] : [dx > 0 ? "ArrowRight" : "ArrowLeft"]);
+      } else if (s?.phase === "sail" && !s.retrying) {
+        // Turn the bow towards the trail a little way ahead, as sea.mjs does.
+        // Reason: heading 0 sails towards -z and grows to the left, so the bearing of (dx, dz) is atan2(-dx, -dz)
+        const turn = Math.atan2(-(s.next[0] - s.x), -(s.next[1] - s.z)) - s.heading;
+        await holdKeys(Math.abs(turn) < 0.08 ? [] : [turn > 0 ? "ArrowLeft" : "ArrowRight"]);
         await sleep(50);
       } else {
         await sleep(80);
