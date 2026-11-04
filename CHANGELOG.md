@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Sea voyage
+
+- The trip to the treasure island is a real voyage now: the boat steers with a heading, and a current pulls it back
+  into the channel when it strays, with a "Gack!" from Chuleta
+- Six stretches along the way: a dolphin to ride behind for a boost, rock arches to sail through, a field of glowing
+  jellyfish, a whirlpool that spins the boat round, a whale whose spout lifts it, and big rolling swells to jump
+- Swells taken bow-first make the boat hop; taken sideways, or where they break white, they cost a plank
+- The boat has four planks: every bump costs one, ten starfish mend one. With the last one the screen fades, the
+  Erzähler says a kind line and the boat sails on from the last buoy it passed
+- A message in a bottle, drifting barrels and the shark's fin cutting the water ahead
+- In the shark fight a miss lets the shark bump the boat and costs a plank; without planks only the fight starts over
+- New sounds for planks, the whirlpool, the whale, the dolphin and the buoys
+- `?challenge=sea&section=N` sails straight off from a section's buoy
+
 ### Fishing with Fischer Freddy
 
 - The fisherman is now *Fischer Freddy*: same voice, but older, with grey hair, a round grey beard and a moustache

@@ -16,16 +16,30 @@ import { mat } from "../../characters/parts";
 import { Bin, ModelMaterials, modelGroup } from "../ogre/kit";
 import { swayMaterial, scatter, placement } from "../ogre/plants";
 import { Fx } from "../ogre/fx";
+import { COURSE_END, routeX } from "./route";
 
 /** Where things are on the crossing (the boat sails from the pier towards -z). */
 export const HOME = { x: 0, z: 200, rx: 230, rz: 175 };
-export const TREASURE = { x: 0, z: -520, r: 27 };
+export const TREASURE = { x: 0, z: COURSE_END - 110, r: 27 };
 /** Where the boat runs aground on the treasure island's beach (its shore lies at r * 0.9). */
 export const LANDING_Z = TREASURE.z + TREASURE.r * 0.9 + 2.2;
-const ISLETS: [number, number, number][] = [
+/**
+ * Palm islets: x, z, radius. The first ones sit just outside the channel's edge (never within `CHANNEL_HALF` of the
+ * route), so the boat can bump into them; the rest stand far out on the horizon.
+ */
+export const ISLETS: [number, number, number][] = [
+  ...([
+    [-37, -300, 9],
+    [37, -560, 10],
+    [-37, -880, 9],
+    [37, -1120, 8],
+  ] as const).map(([dx, z, r]): [number, number, number] => [routeX(z) + dx, z, r]),
   [-130, -210, 11],
   [150, -330, 14],
-  [-170, -440, 9],
+  [-170, -560, 9],
+  [160, -780, 12],
+  [-150, -1000, 13],
+  [140, -1260, 10],
 ];
 
 type Isle = (x: number, z: number, rx: number, rz: number, slope: number) => void;
@@ -212,7 +226,7 @@ export class Scenery {
       if (i % 2) plant("bush", () => bush(4, "#ff6f91"), placement(x + 1.5, ground(x + 1.5, z) - 0.1, z, 1 + rand() * 0.5));
     }
 
-    // Palm islets on the horizon
+    // Palm islets beside the channel and on the horizon
     for (const [x, z, r] of ISLETS) {
       const spec: IslandSpec = { cx: x, cz: z, rx: r, rz: r * 0.8, hill: 1.5, seed: Math.abs(x) };
       const islet = new THREE.Mesh(islandGeometry(spec, x - r * 2, z - r * 2, r * 4, r * 4, 2), terrainMat);

@@ -1,6 +1,6 @@
 /**
  * HTML overlay for the sea crossing: the voyage tracker (dock → boat →
- * treasure island) with the starfish counter, the three berry slots for the
+ * treasure island) with the boat's planks and the starfish counter, the three berry slots for the
  * shark, big key hints, and the timing ring that shrinks onto the shark's open
  * mouth — it turns green with "JETZT!" when Space will throw the berry in.
  */
@@ -23,6 +23,10 @@ const CSS = /* css */ `
 .sea-berries span { opacity: 0.25; filter: grayscale(1); transition: all 0.3s cubic-bezier(0.2, 1.8, 0.4, 1); }
 .sea-berries span.on { opacity: 1; filter: none; transform: scale(1.15); }
 .sea-berries svg { display: block; width: 38px; height: 38px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
+.sea-planks { display: flex; gap: 4px; }
+.sea-planks span { display: block; transition: all 0.35s cubic-bezier(0.2, 1.8, 0.4, 1); }
+.sea-planks span.lost { opacity: 0.25; filter: grayscale(1); transform: translateY(6px) rotate(-18deg) scale(0.85); }
+.sea-planks svg { display: block; width: 22px; height: 40px; filter: drop-shadow(0 2px 0 rgba(0,0,0,0.25)); }
 .sea-hint { position: absolute; left: 50%; bottom: 7%; transform: translateX(-50%); padding: 12px 26px; border-radius: 22px;
   background: #fff8e8; border: 4px solid #3b2414; box-shadow: 0 6px 0 #3b2414; font: 600 28px "Fredoka", system-ui, sans-serif; color: #3b2414;
   opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
@@ -59,6 +63,12 @@ export const STARFISH_ICON =
   `<svg viewBox="-12 -12 24 24"><polygon points="${STARFISH_POINTS}" fill="#ff6f3f" stroke="#ff6f3f" stroke-width="3.6" stroke-linejoin="round"/>` +
   `<circle r="1.5" fill="#ffe9c4"/><circle cy="-5" r="1" fill="#ffe9c4"/><circle cx="4.8" cy="-1.5" r="1" fill="#ffe9c4"/><circle cx="-4.8" cy="-1.5" r="1" fill="#ffe9c4"/><circle cx="3" cy="4" r="1" fill="#ffe9c4"/><circle cx="-3" cy="4" r="1" fill="#ffe9c4"/></svg>`;
 
+/** A wooden plank with two nails, upright (one per plank the boat has left). */
+const PLANK_ICON =
+  `<svg viewBox="0 0 22 40"><rect x="3" y="2" width="16" height="36" rx="4" fill="#c98f55" stroke="#3b2414" stroke-width="2.5"/>` +
+  `<path d="M8 7v12M14 15v15M9 24v9" stroke="#8f5c2e" stroke-width="1.6" stroke-linecap="round"/>` +
+  `<circle cx="11" cy="7" r="1.6" fill="#4a3a30"/><circle cx="11" cy="33" r="1.6" fill="#4a3a30"/></svg>`;
+
 export class SeaUI {
   private hint: HTMLElement;
   private ring: HTMLElement;
@@ -67,6 +77,7 @@ export class SeaUI {
   private voyageShown = "";
   private v = new THREE.Vector3();
   private starfishShown = 0;
+  private planksShown = 4;
 
   constructor(
     private ui: GameUI,
@@ -88,8 +99,19 @@ export class SeaUI {
     this.voyageShown = "";
     this.ui.status(
       `<div class="sea-hud"><div class="sea-track">⚓<div class="sea-line"><div class="sea-fill"></div><span class="sea-boat">⛵</span></div>🏝️</div>` +
-        `<div class="sea-starfish">${STARFISH_ICON} <b>${this.starfishShown}</b></div></div>`,
+        `${this.planksHtml()}<div class="sea-starfish">${STARFISH_ICON} <b>${this.starfishShown}</b></div></div>`,
     );
+  }
+
+  private planksHtml(): string {
+    const icons = [0, 1, 2, 3].map((i) => `<span class="${i < this.planksShown ? "" : "lost"}">${PLANK_ICON}</span>`).join("");
+    return `<div class="sea-planks">${icons}</div>`;
+  }
+
+  /** The boat's planks beside the voyage bar: a lost one is greyed out. */
+  setPlanks(n: number): void {
+    this.planksShown = n;
+    document.querySelectorAll<HTMLElement>(".sea-planks span").forEach((el, i) => el.classList.toggle("lost", i >= n));
   }
 
   setVoyage(progress: number, starfish: number): void {
@@ -117,7 +139,7 @@ export class SeaUI {
   /** Berry slots for the shark: one lights up for each berry it has eaten. */
   showFeeds(n: number): void {
     const slots = [0, 1, 2].map((i) => `<span class="${i < n ? "on" : ""}">${BERRY_ICON}</span>`).join("");
-    this.ui.status(`<div class="sea-hud"><div class="sea-berries">${slots}</div><div class="sea-starfish">${STARFISH_ICON} <b>${this.starfishShown}</b></div></div>`);
+    this.ui.status(`<div class="sea-hud"><div class="sea-berries">${slots}</div>${this.planksHtml()}<div class="sea-starfish">${STARFISH_ICON} <b>${this.starfishShown}</b></div></div>`);
   }
 
   /** Big hint bubble at the bottom (null hides it). */

@@ -53,6 +53,8 @@ export class QuestFlow {
   private remarkCooldown = 0;
   /** The places of later quests Tadeo has already remarked on during this quest. */
   private remarked = new Set<P2>();
+  /** Debug start for the next challenge (`&section=N`), handed to it once. */
+  startSection: number | undefined;
 
   constructor(private d: QuestFlowDeps) {}
 
@@ -231,7 +233,9 @@ export class QuestFlow {
     ui.hud.updateCompass(null);
     director.hideTadeoRemark();
     audio.setAmbience(false);
-    const challenge = factory({ engine, ui });
+    const challenge = factory({ engine, ui, startSection: this.startSection });
+    // Reason: a debug section start is for the first challenge only, not the ones after it
+    this.startSection = undefined;
     await engine.setScene(challenge, 700);
     await challenge.finished;
     ui.status(null);

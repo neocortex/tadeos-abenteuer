@@ -17,7 +17,7 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
   prompts are `SOUNDS` in `scripts/audio/generate.mjs`, and deleting an MP3 renders a new take of it
 - `npx tsc --noEmit -p .` — type-check (must be clean)
 - E2E: start `npx vite --port 5199`, then `node scripts/e2e/<name>.mjs` (questTable, title, world, island, volcano, cave, forest,
-  ogre, village, talk, mountain, sea, treasure, finale, fishing, hens, coins, turtles, ponds, boat, menu, menuJump, jumpIn, voices,
+  ogre, village, talk, mountain, sea, seaVoyage, treasure, finale, fishing, hens, coins, turtles, ponds, boat, menu, menuJump, jumpIn, voices,
   storyLines, music, fps). Proof goes to `scripts/e2e/out/<name>/`. Restart the server after editing source: once a
   module changed, Vite serves it with a `?t=` stamp, so a test's `import("/src/...")` gets a second copy of it and
   fails falsely.
@@ -66,7 +66,8 @@ Graphics quality ("wow") and joy matter more than anything else. It is live at h
 
 - **Every quest tells before, when something happens, and after.** At most 14 words per line; a moment runs 3 to 8
   lines and a big scene 10 to 30. Say "Wesen", never "Monster". Nobody says what they can't know.
-- **Never a game over.** Mistakes restart the current attempt with a kind line.
+- **No "Game Over".** Mistakes cost something; too many fade back to the last checkpoint with a kind line
+  (`challenges/shared/retry.ts`). Never a scary sound or a "Game Over" text.
 - **Text is German, for a 7-year-old:** short sentences, simple words, warm and funny.
 - **Every speaker needs a face and a voice:** add new speakers to `SPEAKERS` in `ui/Dialogue.ts`
   (portrait or emoji, colour) and to `CAST` in `scripts/voice/generate.mjs`.

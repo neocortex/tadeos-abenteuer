@@ -136,6 +136,7 @@ also goes into `EFFECTS` in `src/audio/Audio.ts`, so that it loads with the game
 |-----------|--------|
 | `?quest=N` | Start at quest N and play on from there (skips the title; earlier rewards are in the inventory) |
 | `?challenge=<name>` | Jump straight into a challenge and play on after it: `volcano`, `cave`, `forest`, `ogre`, `village`, `mountain`, `sea`, `treasure`, `finale`, `festival`, `fishing`, `hens` |
+| `?challenge=sea&section=N` | Sail straight off from section N's buoy (0 start, 1 dolphins, 2 arches, 3 jellyfish, 4 whirlpool and whale, 5 big swells) |
 | `?notitle` | Skip the title screen |
 | `?coins=N` | Pretend N coins are collected (outfits) |
 | `?spawn=x,z` | Start Tadeo at a world position |
@@ -162,6 +163,7 @@ node scripts/e2e/world.mjs    # one test: walks every region path, landmarks, re
 node scripts/e2e/title.mjs    # the game's name fits every window; music with and without the browser's sound block
 node scripts/e2e/island.mjs   # likewise: title, opening, quests 1–4, map card, riddles, coins, fps
 node scripts/e2e/finale.mjs   # quest 12 from the sea to the festival and the end card
+node scripts/e2e/seaVoyage.mjs # the voyage's rules: current, planks, buoys, swells, animals, the shark fight's retry
 node scripts/e2e/questTable.mjs # the quest table agrees with the challenges and the menu; needs no browser or server
 node scripts/e2e/jumpIn.mjs   # a game started with ?quest or ?challenge plays on, up to the end card
 node scripts/e2e/voices.mjs   # every line has a recording, recordings play, browser speech fallback

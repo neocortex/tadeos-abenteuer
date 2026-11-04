@@ -17,6 +17,7 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
     line("Käpt'n Paco", "Hast du alles dabei? Der Hai schwimmt immer noch um die Insel."),
     line("Tadeo", "Ich weiß. Aber ich habe die Zauberbeeren!"),
     line("Käpt'n Paco", "Folge den leuchtenden Seesternen. Da ist das Wasser sicher."),
+    line("Käpt'n Paco", "Und siehst du eine bunte Boje? Dort geht es weiter, wenn was schiefgeht."),
     line("Tadeo", "Woher weißt du das so genau?"),
     line("Käpt'n Paco", "Ach... Ein alter Käpt'n weiß so etwas. Gute Fahrt, Tadeo!"),
   ],
@@ -24,8 +25,18 @@ export const SEA_TREASURE: Record<string, DialogueScript> = {
     line("Erzähler", "Zum zweiten Mal fährt Tadeo aufs Meer hinaus. Diesmal ist er bereit."),
     line("Tadeo", "Die kleine Schatzinsel liegt dort drüben! Ich muss mit dem Boot rüberfahren."),
     line("Chuleta", "Diesmal machen wir das Boot aber nicht kaputt! Gack!"),
-    line("Erzähler", "Vorsicht — hohe Wellen! Weiche ihnen mit den Pfeiltasten aus!"),
+    line("Erzähler", "Vorsicht, hohe Wellen! Fahr gerade drauf zu, dann hüpft das Boot!"),
   ],
+  // A remark while sailing, when the boat leaves the channel
+  sea_offcourse: [line("Chuleta", "Gack! Zu weit raus! Zurück zu den Seesternen!")],
+  // Tadeo fishes the message in a bottle out of the sea
+  sea_bottle: [line("Tadeo", "Eine Flaschenpost! Da steht: Gute Fahrt, kleiner Kapitän!")],
+  // Thrown out of the whirlpool
+  sea_whirlpool: [line("Tadeo", "Huiii! Mir ist ganz schwindelig!")],
+  // Said over black when the last plank is gone, before the boat sails on from the last buoy (one of them)
+  retry_sea_1: [line("Erzähler", "Schade! Das Boot braucht eine kleine Pause. Versuch es gleich noch mal!")],
+  retry_sea_2: [line("Erzähler", "Hoppla! Das Boot ist wieder heil. Auf ein Neues, Tadeo!")],
+  retry_sea_3: [line("Erzähler", "Kein Problem! Auch echte Kapitäne brauchen manchmal zwei Versuche.")],
   // The berries come out on Tadeo's second line
   sea_shark: [
     line("Erzähler", "Plötzlich erscheint eine riesige Flosse im Wasser..."),
